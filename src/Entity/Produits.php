@@ -21,63 +21,89 @@ class Produits
     #[ORM\Column(length: 1000)]
     private ?string $description = null;
 
-    #[ORM\Column]
-    private ?bool $publie = true;
+    #[ORM\Column(options: ['default' => true])]
+    private bool $publie = true;
 
-    #[ORM\Column]
-    private ?int $ordre = 10;
+    #[ORM\Column(options: ['default' => 10])]
+    private int $ordre = 10;
 
-       #[ORM\Column(length: 50, unique: true)]
+    #[ORM\Column(length: 50, unique: true)]
     private ?string $code = null;
 
     #[ORM\Column(nullable: true)]
     private ?float $prixBase = null;
 
-    #[ORM\Column]
-    private ?bool $personnalisable = true;
+    #[ORM\Column(options: ['default' => true])]
+    private bool $personnalisable = true;
 
-    #[ORM\Column]
-    private ?bool $actif = true;
+    #[ORM\Column(options: ['default' => true])]
+    private bool $actif = true;
 
     /**
-     * Catégorie
+     * Catégorie du produit.
      */
     #[ORM\ManyToOne(inversedBy: 'produits')]
     #[ORM\JoinColumn(nullable: false)]
     private ?CategorieProduit $categorieProduit = null;
 
     /**
-     * Types d'impression compatibles
+     * Types d’impression compatibles.
+     *
+     * @var Collection<int, TypesImpression>
      */
     #[ORM\ManyToMany(targetEntity: TypesImpression::class)]
     private Collection $typesImpressions;
 
     /**
-     * Supports compatibles
+     * Supports compatibles.
+     *
+     * @var Collection<int, Supports>
      */
     #[ORM\ManyToMany(targetEntity: Supports::class)]
     private Collection $supports;
 
     /**
-     * Formats compatibles
+     * Formats compatibles.
+     *
+     * @var Collection<int, Format>
      */
     #[ORM\ManyToMany(targetEntity: Format::class)]
     private Collection $formats;
 
     /**
-     * Finitions compatibles
+     * Finitions compatibles.
+     *
+     * Cette relation générale peut être conservée pour les filtres rapides.
+     *
+     * @var Collection<int, Finition>
      */
     #[ORM\ManyToMany(targetEntity: Finition::class)]
     private Collection $finitions;
 
     /**
-     * Détails des commandes
+     * Détails des commandes associés au produit.
+     *
+     * @var Collection<int, CommandesDetails>
      */
     #[ORM\OneToMany(
         targetEntity: CommandesDetails::class,
         mappedBy: 'produit'
     )]
     private Collection $commandesDetails;
+
+    /**
+     * Configurations précises autorisées pour ce produit.
+     *
+     * @var Collection<int, ProduitConfiguration>
+     */
+    #[ORM\OneToMany(
+        targetEntity: ProduitConfiguration::class,
+        mappedBy: 'produit',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
+    #[ORM\OrderBy(['ordre' => 'ASC'])]
+    private Collection $configurations;
 
     public function __construct()
     {
@@ -86,6 +112,7 @@ class Produits
         $this->formats = new ArrayCollection();
         $this->finitions = new ArrayCollection();
         $this->commandesDetails = new ArrayCollection();
+        $this->configurations = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -105,51 +132,7 @@ class Produits
         return $this;
     }
 
-    public function getCode(): ?string
-    {
-        return $this->code;
-    }
-
-    public function setCode(string $code): static
-    {
-        $this->code = $code ;
-
-        return $this;
-    }
-      public function getPrixBase(): ?float
-    {
-        return $this->prixBase;
-    }
-
-    public function setPrixBase(float $prixBase): static
-    {
-        $this->prixBase = $prixBase;
-
-        return $this;
-    }
-      public function isPersonnalisable(): ?bool
-    {
-        return $this->personnalisable;
-    }
-
-    public function setPersonnalisable(bool $personnalisable): static
-    {
-        $this->personnalisable = $personnalisable;
-
-        return $this;
-    }
-      public function isActif(): ?bool
-    {
-        return $this->actif;
-    }
-
-    public function setActif(bool $actif): static
-    {
-        $this->actif = $actif;
-
-        return $this;
-    }
-      public function getDescription(): ?string
+    public function getDescription(): ?string
     {
         return $this->description;
     }
@@ -161,7 +144,7 @@ class Produits
         return $this;
     }
 
-    public function isPublie(): ?bool
+    public function isPublie(): bool
     {
         return $this->publie;
     }
@@ -173,7 +156,7 @@ class Produits
         return $this;
     }
 
-    public function getOrdre(): ?int
+    public function getOrdre(): int
     {
         return $this->ordre;
     }
@@ -185,13 +168,62 @@ class Produits
         return $this;
     }
 
+    public function getCode(): ?string
+    {
+        return $this->code;
+    }
+
+    public function setCode(string $code): static
+    {
+        $this->code = $code;
+
+        return $this;
+    }
+
+    public function getPrixBase(): ?float
+    {
+        return $this->prixBase;
+    }
+
+    public function setPrixBase(?float $prixBase): static
+    {
+        $this->prixBase = $prixBase;
+
+        return $this;
+    }
+
+    public function isPersonnalisable(): bool
+    {
+        return $this->personnalisable;
+    }
+
+    public function setPersonnalisable(bool $personnalisable): static
+    {
+        $this->personnalisable = $personnalisable;
+
+        return $this;
+    }
+
+    public function isActif(): bool
+    {
+        return $this->actif;
+    }
+
+    public function setActif(bool $actif): static
+    {
+        $this->actif = $actif;
+
+        return $this;
+    }
+
     public function getCategorieProduit(): ?CategorieProduit
     {
         return $this->categorieProduit;
     }
 
-    public function setCategorieProduit(?CategorieProduit $categorieProduit): static
-    {
+    public function setCategorieProduit(
+        ?CategorieProduit $categorieProduit
+    ): static {
         $this->categorieProduit = $categorieProduit;
 
         return $this;
@@ -205,8 +237,9 @@ class Produits
         return $this->typesImpressions;
     }
 
-    public function addTypeImpression(TypesImpression $typeImpression): static
-    {
+    public function addTypeImpression(
+        TypesImpression $typeImpression
+    ): static {
         if (!$this->typesImpressions->contains($typeImpression)) {
             $this->typesImpressions->add($typeImpression);
         }
@@ -214,8 +247,9 @@ class Produits
         return $this;
     }
 
-    public function removeTypeImpression(TypesImpression $typeImpression): static
-    {
+    public function removeTypeImpression(
+        TypesImpression $typeImpression
+    ): static {
         $this->typesImpressions->removeElement($typeImpression);
 
         return $this;
@@ -301,22 +335,57 @@ class Produits
         return $this->commandesDetails;
     }
 
-    public function addCommandesDetail(CommandesDetails $commandesDetail): static
-    {
+    public function addCommandesDetail(
+        CommandesDetails $commandesDetail
+    ): static {
         if (!$this->commandesDetails->contains($commandesDetail)) {
             $this->commandesDetails->add($commandesDetail);
-            //$commandesDetail->setProduit($this);
+            $commandesDetail->setProduit($this);
         }
 
         return $this;
     }
 
-    public function removeCommandesDetail(CommandesDetails $commandesDetail): static
+    public function removeCommandesDetail(
+        CommandesDetails $commandesDetail
+    ): static {
+        if (
+            $this->commandesDetails->removeElement($commandesDetail)
+            && $commandesDetail->getProduit() === $this
+        ) {
+            $commandesDetail->setProduit(null);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProduitConfiguration>
+     */
+    public function getConfigurations(): Collection
     {
-        if ($this->commandesDetails->removeElement($commandesDetail)) {
-            if ($commandesDetail->getProduit() === $this) {
-                $commandesDetail->setProduit(null);
-            }
+        return $this->configurations;
+    }
+
+    public function addConfiguration(
+        ProduitConfiguration $configuration
+    ): static {
+        if (!$this->configurations->contains($configuration)) {
+            $this->configurations->add($configuration);
+            $configuration->setProduit($this);
+        }
+
+        return $this;
+    }
+
+    public function removeConfiguration(
+        ProduitConfiguration $configuration
+    ): static {
+        if (
+            $this->configurations->removeElement($configuration)
+            && $configuration->getProduit() === $this
+        ) {
+            $configuration->setProduit(null);
         }
 
         return $this;
