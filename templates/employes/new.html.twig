@@ -1,0 +1,136 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New Employes
+{% endblock %}
+
+{% block body %}
+
+	<!-- PAGE-HEADER -->
+	<div class="page-header">
+		<ol class="breadcrumb">
+			<li class="breadcrumb-item">
+				<a href="#">Gestion des Employés</a>
+			</li>
+			<li class="breadcrumb-item active" aria-current="page">Nouvel Employé</li>
+		</ol>
+
+	</div>
+	<!-- PAGE-HEADER END -->
+
+
+	<!-- ROW-3 OPEN -->
+	<div class="row">
+		<div class="col-md-12">
+			<div class="card">
+				<div class="card-header">
+					<h3 class="mb-0 card-title">Ajout les informations de base</h3>
+				</div>
+
+				{{ form_start(form) }}
+
+				<div class="card-body">
+					<div class="row">
+						<div class="col-md-6">
+
+							<div class="form-group">
+								{{ form_widget(form.prenom) }}
+							</div>
+
+							<div class="form-group">
+								{{ form_widget(form.nom) }}
+							</div>
+
+							<div class="form-group">
+								{{ form_widget(form.dateNaissances) }}
+							</div>
+
+						</div>
+
+						<div class="col-md-6">
+
+							<div class="form-group">
+								{{ form_widget(form.telephone) }}
+							</div>
+
+							<div class="form-group">
+								{{ form_widget(form.email) }}
+							</div>
+
+							<div class="form-group">
+								{{ form_widget(form.matricules) }}
+							</div>
+
+						</div>
+
+						<div class="col-md-6">
+
+							<div class="col-lg-12">
+								<div class="card shadow">
+									<div class="card-header">
+										<h3 class="mb-0 card-title">Photo Profil</h3>
+									</div>
+									<div class="card-body">
+										{{ form_widget(form.photos) }}
+									</div>
+								</div>
+							</div>
+
+						</div>
+
+						<div class="col-md-6">
+
+							<div class="col-lg-12">
+								<div class="card shadow">
+									<div class="card-header">
+										<h3 class="mb-0 card-title">Photo CIN</h3>
+									</div>
+									<div class="card-body">
+										{{ form_widget(form.cin) }}
+									</div>
+								</div>
+							</div>
+
+						</div>
+
+					</div>
+
+					<div class="card-header">
+						<h3 class="mb-0 card-title">Ajouter les informations contractuelles</h3>
+					</div>
+
+					<div class="row">
+
+						<div class="col-md-6">
+
+							<div class="form-group">
+								{{ form_widget(form.fonction) }}
+							</div>
+
+						</div>
+
+						<div class="col-md-6">
+
+							<div class="form-group">
+								{{ form_widget(form.salaires) }}
+							</div>
+
+						</div>
+
+					</div>
+
+				</div>
+
+				<div class="card-footer text-right">
+					<button type="submit" class="btn btn-primary-light">
+						Enregistrer
+					</button>
+				</div>
+
+				{{ form_end(form) }}
+			</div>
+
+		</div>
+		<!-- ROW-3 CLOSED -->
+
+
+	{% endblock %}

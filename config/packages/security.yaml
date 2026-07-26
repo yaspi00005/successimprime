@@ -5,7 +5,11 @@ security:
 
     # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        users_in_memory: { memory: null }
+        # used to reload user from session & other features (e.g. switch_user)
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: username
 
     firewalls:
         dev:
@@ -14,7 +18,13 @@ security:
             security: false
         main:
             lazy: true
-            provider: users_in_memory
+            provider: app_user_provider
+            custom_authenticator: App\Security\UserAuthenticator
+            user_checker: App\Security\UserChecker
+            logout:
+                path: app_logout
+                # where to redirect after logout
+                # target: app_any_route
 
             # Activate different ways to authenticate:
             # https://symfony.com/doc/current/security.html#the-firewall
@@ -26,6 +36,57 @@ security:
     access_control:
         # - { path: ^/admin, roles: ROLE_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }
+            - { path: ^/login, roles: PUBLIC_ACCESS }
+
+            - { path: ^/admin, roles: ROLE_ADMIN }
+
+            - { path: ^/production/dtf, roles: ROLE_MACHINISTE_DTF }
+            - { path: ^/production/tracer, roles: ROLE_MACHINISTE_TRACER }
+            - { path: ^/production/reprographie, roles: ROLE_REPROGRAPHIE }
+            - { path: ^/production/graphisme, roles: ROLE_GRAPHISME }
+            - { path: ^/production/prepresse, roles: ROLE_PREPRESSE }
+            - { path: ^/production/finition, roles: ROLE_FINITION }
+
+            - { path: ^/commercial, roles: ROLE_RESPONSABLE_COMMERCIAL }
+            - { path: ^/gestion, roles: ROLE_RESPONSABLE_GESTION }
+            - { path: ^/rh, roles: ROLE_RESPONSABLE_RH }
+
+            - { path: ^/, roles: ROLE_USER }
+
+
+    role_hierarchy:
+       
+
+        ROLE_ADMIN:
+            - ROLE_USER
+            - ROLE_RESPONSABLE_PRODUCTION
+            - ROLE_RESPONSABLE_COMMERCIAL
+            - ROLE_RESPONSABLE_GESTION
+            - ROLE_RESPONSABLE_RH
+
+        ROLE_RESPONSABLE_PRODUCTION:
+            - ROLE_GRAPHISME
+            - ROLE_PREPRESSE
+            - ROLE_MACHINISTE_DTF
+            - ROLE_MACHINISTE_TRACER
+            - ROLE_REPROGRAPHIE
+            - ROLE_FINITION
+
+        ROLE_RESPONSABLE_COMMERCIAL:
+            - ROLE_DEVIS
+            - ROLE_COMMANDE
+            - ROLE_RELATION_CLIENT
+
+        ROLE_RESPONSABLE_GESTION:
+            - ROLE_CAISSE
+            - ROLE_STOCK
+            - ROLE_ACHAT
+            - ROLE_COMPTABILITE
+            - ROLE_LOGISTIQUE
+
+        ROLE_RESPONSABLE_RH:
+            - ROLE_EMPLOYES
+            - ROLE_PAIE
 
 when@test:
     security:

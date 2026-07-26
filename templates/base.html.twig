@@ -1,24 +1,1141 @@
-<!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{% block title %}Welcome!{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
-        {% block stylesheets %}
-        {% endblock %}
+<!doctype html>
+<html lang="fr" dir="ltr">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="msapplication-TileColor" content="#0061da">
+		<meta name="theme-color" content="#1643a3">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="HandheldFriendly" content="True">
+		<meta name="MobileOptimized" content="320">
+		<link rel="icon" href="favicon.ico" type="image/x-icon"/>
+		<link
+		rel="shortcut icon" type="image/x-icon" href="favicon.ico"/>
 
-        {% block javascripts %}
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
-        {% endblock %}
+		<!-- TITLE -->
+		<title>MDG - ERP</title>
 
-        {% set frankenphpHotReload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
-        {% if frankenphpHotReload %}
-        <meta name="frankenphp-hot-reload:url" content="{{ frankenphpHotReload }}">
-        <script src="https://cdn.jsdelivr.net/npm/idiomorph"></script>
-        <script src="https://cdn.jsdelivr.net/npm/frankenphp-hot-reload/+esm" type="module"></script>
-        {% endif %}
-    </head>
-    <body>
-        {% block body %}{% endblock %}
-    </body>
-</html>
+		<!-- DASHBOARD CSS -->
+		<link
+		href="../assets/css/dashboard.css" rel="stylesheet"/>
+
+		<!-- COLOR-THEMES CSS -->
+		<link
+		href="../assets/css/color-themes.css" rel="stylesheet"/>
+
+		<!-- Sidemenu css -->
+		<link
+		href="../assets/plugins/side-menu/full-sidemenu.css" rel="stylesheet"/>
+
+		<!-- Sidebar Accordions css -->
+		<link
+		href="../assets/plugins/sidemenu-responsive-tabs/css/easy-responsive-tabs.css" rel="stylesheet">
+
+		<!-- Perfect scroll bar css-->
+		<link
+		href="../assets/plugins/pscrollbar/perfect-scrollbar.css" rel="stylesheet"/>
+
+		<!-- SINGLE-PAGE CSS -->
+		<link
+		href="../assets/plugins/single-page/css/main.css" rel="stylesheet" type="text/css">
+
+		<!--C3.JS CHARTS PLUGIN -->
+		<link
+		href="../assets/plugins/charts-c3/c3-chart.css" rel="stylesheet"/>
+
+		<!-- CUSTOM SCROLL BAR CSS-->
+		<link
+		href="../assets/plugins/mcustomscrollbar/jquery.mCustomScrollbar.css" rel="stylesheet"/>
+
+		<!--- FONT-ICONS CSS -->
+		<link
+		href="../assets/css/icons.css" rel="stylesheet"/>
+
+		<!-- RIGHT-MENU CSS -->
+		<link
+		href="../assets/plugins/sidebar/sidebar.css" rel="stylesheet">
+
+		<!-- LEFT-SIDEMENU CSS -->
+		<link href="../assets/plugins/jquery-jside-menu-master/css/jside-menu.css" rel="stylesheet"/>
+		<link
+		href="../assets/plugins/jquery-jside-menu-master/css/jside-skins.css" rel="stylesheet"/>
+
+		<!-- HORIZONTAL-MENU CSS -->
+		<link href="../assets/plugins/horizontal-menu/dropdown-effects/fade-down.css" rel="stylesheet">
+		<link href="../assets/plugins/horizontal-menu/horizontal-menu.css" rel="stylesheet">
+
+	</head>
+	<body
+		class="app sidebar-mini rtl">
+
+		<!-- GLOBAL-LOADER -->
+		<div id="global-loader">
+			<img src="../assets/images/loader.svg" class="loader-img" alt="Loader">
+		</div>
+
+		<div class="page">
+			<div
+				class="page-main">
+
+				<!-- Sidebar menu-->
+				<div class="app-sidebar__overlay" data-toggle="sidebar"></div>
+				<aside class="app-sidebar">
+					<a class="header-brand left-meu-header-brand left-meu-header-brand-desktop" href="index.html">
+						<img src="../assets/images/brand/logo2.png" class="header-brand-img desktop-logo" alt="Arox logo">
+						<img src="../assets/images/brand/favicon.png" class="header-brand-img mobile-view-logo" alt="Arox logo">
+					</a>
+					<div class="input-group p-2  bg-white border-bottom">
+						<input type="text" placeholder="Search..." class="form-control search">
+						<div class="input-group-prepend mr-0">
+							<span class="input-group-text border-right search_btn btn-primary-default">
+								<i class="fa fa-search text-white"></i>
+							</span>
+						</div>
+					</div>
+					<div class="side-tab-body p-0 border-0" id="parentVerticalTab">
+						<div class="first-sidemenu">
+							<ul class="resp-tabs-list hor_1">
+								<li data-toggle="tooltip" data-placement="right" title="Vertical">
+									<i class="side-menu__icon typcn typcn-document-text"></i>
+									<div class="slider-text">Accueil</div>
+								</li>
+								<li data-toggle="tooltip" data-placement="right" title="Home">
+									<i class="side-menu__icon typcn typcn-device-desktop"></i>
+									<div class="slider-text">Commandes</div>
+								</li>
+								<li data-toggle="tooltip" data-placement="right" title="Forms">
+									<i class="side-menu__icon typcn typcn-document"></i>
+									<div class="slider-text">RH</div>
+								</li>
+								<li data-toggle="tooltip" data-placement="right" title="Forms">
+									<i class="side-menu__icon typcn typcn-document"></i>
+									<div class="slider-text">Parametres</div>
+								</li>
+							</ul>
+
+
+							<div class="second-sidemenu">
+								<div class="resp-tabs-container hor_1">
+
+									<div>
+										<div class="row">
+											<div class="col-md-12">
+												<h4 class="font-weight-normal">
+													<i class="typcn typcn-device-desktop"></i>
+													Accueil</h4>
+												<a href="index.html" class="slide-item">Entertainment</a>
+												<a href="index2.html" class="slide-item">Big Data Dashboard</a>
+												<a href="index3.html" class="slide-item">HR Dashboard</a>
+												<a href="index4.html" class="slide-item">Crypto Currencies</a>
+												<a href="index5.html" class="slide-item">Gaming Dashboard</a>
+												<div class="card mt-5">
+													<div class="card-body p-3">
+														<div class="d-flex">
+															<div class="pr-4 pt-1">
+																<i class="ti-user fs-40 mt-0 text-primary"></i>
+															</div>
+															<div class="">
+																<span>New Users</span>
+																<h3 class="mb-0">65,485</h3>
+															</div>
+														</div>
+													</div>
+												</div>
+												<div class="card">
+													<div class="card-body p-3">
+														<div class="d-flex">
+															<div class="pr-4 pt-1">
+																<i class="ti-stats-up fs-40 mt-0 text-info"></i>
+															</div>
+															<div class="">
+																<span>Sales</span>
+																<h3 class="mb-0">$75,845</h3>
+															</div>
+														</div>
+													</div>
+												</div>
+												<h6 class="text-uppercase mt-6 mb-5">Short Cut</h6>
+												<div class="row">
+													<div class="col-6">
+														<div class="border text-center bg-white  mb-5">
+															<i class="ti-comment-alt fs-30 text-secondary"></i>
+															<div>
+																<small class="mb-0">Messages</small>
+															</div>
+														</div>
+													</div>
+													<div class="col-6">
+														<div class="border text-center bg-white  mb-5">
+															<i class="ti-image fs-30 text-yellow"></i>
+															<div>
+																<small class="mb-0">Gallery</small>
+															</div>
+														</div>
+													</div>
+													<div class="col-6">
+														<div class="border text-center bg-white  mb-5">
+															<i class="ti-bell fs-30 text-primary"></i>
+															<div>
+																<small class="mb-0">Alerts</small>
+															</div>
+														</div>
+													</div>
+													<div class="col-6">
+														<div class="border text-center bg-white  mb-5">
+															<i class="ti-settings fs-30 text-danger"></i>
+															<div>
+																<small class="mb-0">Settings</small>
+															</div>
+														</div>
+													</div>
+												</div>
+
+
+											</div>
+										</div>
+									</div>
+									<div>
+										//stat
+										<div class="row">
+											<div class="col-md-12">
+												<h4 class="font-weight-normal">
+													<i class="typcn typcn-arrow-move-outline"></i>
+													Widgets</h4>
+												<a href="widgets.html" class="slide-item">Widgets</a>
+												<a href="maps.html" class="slide-item">Maps</a>
+												<div class="card mt-5">
+													<div class="card-body p-3">
+														<div class="d-flex">
+															<div class="pr-4 pt-1">
+																<i class="ti-user fs-40 mt-0 text-primary"></i>
+															</div>
+															<div class="">
+																<span>New Users</span>
+																<h3 class="mb-0">65,485</h3>
+															</div>
+														</div>
+													</div>
+												</div>
+												<div class="card">
+													<div class="card-body p-3">
+														<div class="d-flex">
+															<div class="pr-4 pt-1">
+																<i class="ti-stats-up fs-40 mt-0 text-info"></i>
+															</div>
+															<div class="">
+																<span>Sales</span>
+																<h3 class="mb-0">$75,845</h3>
+															</div>
+														</div>
+													</div>
+												</div>
+												<h6 class="text-uppercase mt-6 mb-4">Contacts</h6>
+												<div class="card overflow-hidden">
+													<div class="card-body p-0">
+														<div class="list-group list-group-flush ">
+															<div class="list-group-item d-flex  align-items-center">
+																<div class="mr-2">
+																	<span class="avatar  brround cover-image" data-image-src="../assets/images/faces/female/12.jpg">
+																		<span class="avatar-status bg-green"></span>
+																	</span>
+																</div>
+																<div class="">
+																	<div class="font-weight-semibold">Mozelle</div>
+																</div>
+																<div class="ml-auto">
+																	<a href="#" class="btn btn-sm btn-light btn-icon">
+																		<i class="fa fa-phone fs-10"></i>
+																	</a>
+																</div>
+															</div>
+															<div class="list-group-item d-flex  align-items-center">
+																<div class="mr-2">
+																	<span class="avatar brround cover-image" data-image-src="../assets/images/faces/female/21.jpg"></span>
+																</div>
+																<div class="">
+																	<div class="font-weight-semibold">Florinda</div>
+																</div>
+																<div class="ml-auto">
+																	<a href="#" class="btn btn-sm btn-light btn-icon">
+																		<i class="fa fa-phone fs-10"></i>
+																	</a>
+																</div>
+															</div>
+															<div class="list-group-item d-flex  align-items-center">
+																<div class="mr-2">
+																	<span class="avatar brround cover-image" data-image-src="../assets/images/faces/female/29.jpg">
+																		<span class="avatar-status bg-green"></span>
+																	</span>
+																</div>
+																<div class="">
+																	<div class="font-weight-semibold">lina Bernie</div>
+																</div>
+																<div class="ml-auto">
+																	<a href="#" class="btn btn-sm btn-light btn-icon">
+																		<i class="fa fa-phone fs-10"></i>
+																	</a>
+																</div>
+															</div>
+															<div class="list-group-item d-flex  align-items-center">
+																<div class="mr-2">
+																	<span class="avatar brround cover-image" data-image-src="../assets/images/faces/female/2.jpg">
+																		<span class="avatar-status bg-green"></span>
+																	</span>
+																</div>
+																<div class="">
+																	<div class="font-weight-semibold">Mclaughin</div>
+																</div>
+																<div class="ml-auto">
+																	<a href="#" class="btn btn-sm btn-light btn-icon">
+																		<i class="fa fa-phone fs-10"></i>
+																	</a>
+																</div>
+															</div>
+														</div>
+													</div>
+												</div>
+												<h6 class="text-uppercase mt-6 mb-4">Friends</h6>
+												<div class="avatar-list">
+													<span><img class="avatar brround mr-2" src="../assets/images/faces/male/1.jpg" alt="img"></span>
+													<span><img class="avatar brround mr-2" src="../assets/images/faces/male/2.jpg" alt="img"></span>
+													<span><img class="avatar brround mr-2" src="../assets/images/faces/female/1.jpg" alt="img"></span>
+													<span class="avatar brround bg-primary">+8</span>
+												</div>
+												<h6 class="text-uppercase mt-6 mb-4">Social Share</h6>
+												<div class="btn-list">
+													<button type="button" class="btn btn-icon btn-facebook">
+														<i class="fa fa-facebook"></i>
+													</button>
+													<button type="button" class="btn btn-icon btn-twitter">
+														<i class="fa fa-twitter"></i>
+													</button>
+													<button type="button" class="btn btn-icon btn-google">
+														<i class="fa fa-google"></i>
+													</button>
+													<button type="button" class="btn btn-icon btn-youtube">
+														<i class="fa fa-youtube"></i>
+													</button>
+												</div>
+											</div>
+										</div>
+									</div>
+									<div>
+										<div class="row">
+											<div class="col-md-12">
+												<h4 class="">
+													<i class="typcn typcn-document"></i>
+													Utilisateurs</h4>
+												<a href="{{ path('app_user_index') }}" class="slide-item">Liste des utilisateurs</a>
+												<a href="wysiwyag.html" class="slide-item">Ajouter un utilisateur</a>
+												<a href="{{ path('app_employes_index') }}" class="slide-item">Liste des employés</a>
+												<a href="{{ path('app_employes_new') }}" class="slide-item">Ajouter un employé</a>
+											</div>
+										</div>
+									</div>
+									<div>
+										<div class="row">
+											<div class="col-md-12">
+												<h4 class="font-weight-normal">
+													<i class="typcn typcn-briefcase"></i>
+													Parametres</h4>
+												<a href="{{ path('app_categorie_produit_index') }}" class="slide-item">Catégorie produit</a>
+												<a href="{{ path('app_produits_index') }}" class="slide-item">Produits</a>
+
+												<a href="{{ path('app_format_index') }}" class="slide-item">Formats</a>
+												<a href="{{ path('app_finition_index') }}" class="slide-item">Finitions</a>
+												<a href="{{ path('app_support_index') }}" class="slide-item">Supports</a>
+												<a href="{{ path('app_type_impression_index') }}" class="slide-item">Type d'impression</a>
+
+												<h6 class="text-uppercase mt-6 mb-4">Friends</h6>
+												<div class="avatar-list">
+													<span><img class="avatar brround mr-2" src="../assets/images/faces/male/1.jpg" alt="img"></span>
+													<span><img class="avatar brround mr-2" src="../assets/images/faces/male/2.jpg" alt="img"></span>
+													<span><img class="avatar brround mr-2" src="../assets/images/faces/female/1.jpg" alt="img"></span>
+													<span class="avatar brround bg-primary">+8</span>
+												</div>
+											</div>
+										</div>
+									</div>
+									<div></div>
+								</div>
+							</div>
+						</div>
+						<!-- col-4 -->
+					</aside>
+					<!--sidemenu end-->
+
+					<!-- app-content-->
+					<div
+						class="app-content  my-3 my-md-5">
+
+						<!-- HEADER -->
+						<div class="header header-fixed ">
+							<div class="container-fluid">
+								<div class="d-flex">
+									<a id="horizontal-navtoggle" class="animated-arrow hor-toggle">
+										<span></span>
+									</a>
+									<a class="header-brand d-md-none" href="index.html">
+										<img src="../assets/images/brand/logo.png" class="header-brand-img desktop-logo" alt="Arox logo">
+										<img src="../assets/images/brand/favicon2.png" class="header-brand-img mobile-view-logo" alt="Arox logo">
+									</a>
+									<!-- LOGO -->
+									<a aria-label="Hide Sidebar" class="app-sidebar__toggle" data-toggle="sidebar" href="#"></a>
+									<div class="d-flex order-lg-2 ml-auto header-right-icons header-search-icon">
+										<a href="#" data-toggle="search" class="nav-link nav-link-lg d-md-none navsearch">
+											<i class="ion ion-search"></i>
+										</a>
+										<div class="">
+											<form class="form-inline">
+												<div class="search-element">
+													<input type="search" class="form-control header-search" placeholder="Search…" aria-label="Search" tabindex="1">
+													<button class="btn btn-primary-color search" type="submit">
+														<i class="ti-search"></i>
+													</button>
+												</div>
+											</form>
+										</div>
+										<!-- SEARCH -->
+										<div class="dropdown d-sm-flex d-none">
+											<a class="nav-link icon full-screen-link nav-link-bg">
+												<i class="ti-arrows-corner" id="fullscreen-button"></i>
+											</a>
+										</div>
+										<!-- FULL-SCREEN -->
+										<div class="dropdown d-sm-flex d-none notifications">
+											<a class="nav-link icon" data-toggle="dropdown">
+												<i class="ti-bell"></i>
+												<span class="nav-unread bg-warning-1 pulse"></span>
+											</a>
+											<div class="dropdown-menu dropdown-menu-right  dropdown-menu-arrow">
+												<div class="dropdown-item p-4 bg-image-2 text-center">
+													<h4 class="user-semi-title mb-0 font-weight-bold">3 New
+														<span class="font-weight-normal">Notifications</span>
+													</h4>
+
+												</div>
+												<a href="#" class="dropdown-item mt-2 d-flex pb-3">
+													<div class="notifyimg bg-success">
+														<i class="fa fa-thumbs-o-up"></i>
+													</div>
+													<div>
+														<strong>Someone likes our posts.</strong>
+														<div class="small">3 hours ago</div>
+													</div>
+												</a>
+												<a href="#" class="dropdown-item d-flex pb-3">
+													<div class="notifyimg bg-warning">
+														<i class="fa fa-commenting-o"></i>
+													</div>
+													<div>
+														<strong>
+															3 New Comments</strong>
+														<div class="small">5  hour ago</div>
+													</div>
+												</a>
+												<a href="#" class="dropdown-item d-flex pb-3">
+													<div class="notifyimg bg-danger">
+														<i class="fa fa-cogs"></i>
+													</div>
+													<div>
+														<strong>
+															Server Rebooted.</strong>
+														<div class="small">45 mintues ago</div>
+													</div>
+												</a>
+												<div class="dropdown-divider"></div>
+												<a href="#" class="dropdown-item text-center">View all Notification</a>
+											</div>
+										</div>
+										<!-- NOTIFICATIONS -->
+										<div class="dropdown d-sm-flex d-none message">
+											<a class="nav-link icon text-center" data-toggle="dropdown">
+												<i class="ti-email floating"></i>
+												<span class="nav-unread bg-warning-1 pulse"></span>
+											</a>
+											<div class="dropdown-menu dropdown-menu-right dropdown-menu-arrow">
+												<div class="dropdown-item p-4 bg-image-3 text-center">
+													<h4 class="user-semi-title mb-0 font-weight-bold">4 New
+														<span class="font-weight-normal">Messages</span>
+													</h4>
+
+												</div>
+												<a href="#" class="dropdown-item d-flex mt-2 pb-3">
+													<div class="avatar avatar-md brround mr-3 d-block cover-image" data-image-src="../assets/images/faces/male/41.jpg">
+														<span class="avatar-status bg-green"></span>
+													</div>
+													<div>
+														<strong>Madeleine</strong>
+														<p class="mb-0 fs-13">Hey! there I' am available</p>
+														<div class="small">3 hours ago</div>
+													</div>
+												</a>
+												<a href="#" class="dropdown-item d-flex pb-3">
+													<div class="avatar avatar-md brround mr-3 d-block cover-image" data-image-src="../assets/images/faces/female/1.jpg">
+														<span class="avatar-status bg-red"></span>
+													</div>
+													<div>
+														<strong>Anthony</strong>
+														<p class="mb-0 fs-13 ">New product Launching</p>
+														<div class="small">5  hour ago</div>
+													</div>
+												</a>
+												<a href="#" class="dropdown-item d-flex pb-3">
+													<div class="avatar avatar-md brround mr-3 d-block cover-image" data-image-src="../assets/images/faces/female/18.jpg">
+														<span class="avatar-status bg-yellow"></span>
+													</div>
+													<div>
+														<strong>Olivia</strong>
+														<p class="mb-0 fs-13 ">New Schedule Realease</p>
+														<div class="small">45 mintues ago</div>
+													</div>
+												</a>
+												<div class="dropdown-divider"></div>
+												<a href="#" class="dropdown-item text-center">See all Messages</a>
+											</div>
+										</div>
+										<!-- MESSAGE-BOX -->
+										<div class="dropdown text-center selector profile-1 d-sm-flex d-none">
+											<a href="#" data-toggle="dropdown" class="nav-link leading-none d-flex">
+												<span><img src="../assets/images/faces/female/16.jpg" alt="profile-user" class="avatar brround cover-image mb-1 ml-0"></span>
+											</a>
+											<div class="dropdown-menu dropdown-menu-right dropdown-menu-arrow">
+												<div class="text-center bg-image p-4">
+													<a href="#" class="dropdown-item text-center font-weight-sembold user pt-0" data-toggle="dropdown">Joyce Stewart</a>
+													<span class="text-center user-semi-title ">web designer</span>
+												</div>
+												<a class="dropdown-item" href="#">
+													<i class="dropdown-icon mdi mdi-account-outline"></i>
+													Profile
+												</a>
+												<a class="dropdown-item" href="#">
+													<i class="dropdown-icon  mdi mdi-settings"></i>
+													Settings
+												</a>
+												<a class="dropdown-item" href="#">
+													<span class="float-right">
+														<span class="badge badge-danger">6</span>
+													</span>
+													<i class="dropdown-icon mdi  mdi-message-outline"></i>
+													Inbox
+												</a>
+												<a class="dropdown-item" href="#">
+													<i class="dropdown-icon mdi mdi-comment-check-outline"></i>
+													Message
+												</a>
+												<div class="dropdown-divider"></div>
+												<a class="dropdown-item" href="#">
+													<i class="dropdown-icon mdi mdi-compass-outline"></i>
+													Need help?
+												</a>
+												<a class="dropdown-item" href="login.html">
+													<i class="dropdown-icon mdi  mdi-logout-variant"></i>
+													Sign out
+												</a>
+											</div>
+										</div>
+										<!-- PROFILE -->
+										<button class="navbar-toggler navresponsive-toggler d-sm-none" type="button" data-toggle="collapse" data-target="#navbarSupportedContent-4" aria-controls="navbarSupportedContent-4" aria-expanded="false" aria-label="Toggle navigation">
+											<span class="navbar-toggler-icon fe fe-more-vertical text-white"></span>
+										</button>
+										<div class="dropdown d-md-flex header-settings">
+											<a href="#" class="nav-link icon " data-toggle="sidebar-right" data-target=".sidebar-right">
+												<i class="ti-menu"></i>
+											</a>
+										</div>
+										<!-- SIDE-MENU -->
+									</div>
+									<a href="#" class="header-toggler d-lg-none ml-lg-0" data-toggle="collapse" data-target="#headerMenuCollapse">
+										<span class="header-toggler-icon"></span>
+									</a>
+								</div>
+							</div>
+						</div>
+						<!-- HEADER END -->
+
+						<!--Resposnisve Navbar-->
+						<div class="mb-1 navbar navbar-expand-lg  responsive-navbar navbar-dark d-sm-none">
+							<div class="collapse navbar-collapse" id="navbarSupportedContent-4">
+								<div class="d-flex order-lg-2 ml-auto">
+
+									<div class="dropdown d-flex">
+										<a class="nav-link icon full-screen-link nav-link-bg">
+											<i class="ti-arrows-corner" id="fullscreen-button"></i>
+										</a>
+									</div>
+									<!-- FULL-SCREEN -->
+									<div class="dropdown d-flex">
+										<a class="nav-link icon" data-toggle="dropdown">
+											<i class="ti-bell"></i>
+											<span class="nav-unread bg-warning-1 pulse"></span>
+										</a>
+										<div class="dropdown-menu dropdown-menu-right  dropdown-menu-arrow">
+											<div class="dropdown-item p-4 bg-image-2 text-center">
+												<h4 class="user-semi-title mb-0 font-weight-bold">3 New
+													<span class="font-weight-normal">Notifications</span>
+												</h4>
+
+											</div>
+											<a href="#" class="dropdown-item mt-2 d-flex pb-3">
+												<div class="notifyimg bg-success">
+													<i class="fa fa-thumbs-o-up"></i>
+												</div>
+												<div>
+													<strong>Someone likes our posts.</strong>
+													<div class="small">3 hours ago</div>
+												</div>
+											</a>
+											<a href="#" class="dropdown-item d-flex pb-3">
+												<div class="notifyimg bg-warning">
+													<i class="fa fa-commenting-o"></i>
+												</div>
+												<div>
+													<strong>
+														3 New Comments</strong>
+													<div class="small">5  hour ago</div>
+												</div>
+											</a>
+											<a href="#" class="dropdown-item d-flex pb-3">
+												<div class="notifyimg bg-danger">
+													<i class="fa fa-cogs"></i>
+												</div>
+												<div>
+													<strong>
+														Server Rebooted.</strong>
+													<div class="small">45 mintues ago</div>
+												</div>
+											</a>
+											<div class="dropdown-divider"></div>
+											<a href="#" class="dropdown-item text-center">View all Notification</a>
+										</div>
+									</div>
+									<!-- NOTIFICATIONS -->
+									<div class="dropdown d-flex">
+										<a class="nav-link icon text-center" data-toggle="dropdown">
+											<i class="ti-email floating"></i>
+											<span class="nav-unread bg-warning-1 pulse"></span>
+										</a>
+										<div class="dropdown-menu dropdown-menu-right dropdown-menu-arrow">
+											<div class="dropdown-item p-4 bg-image-3 text-center">
+												<h4 class="user-semi-title mb-0 font-weight-bold">4 New
+													<span class="font-weight-normal">Messages</span>
+												</h4>
+
+											</div>
+											<a href="#" class="dropdown-item d-flex mt-2 pb-3">
+												<div class="avatar avatar-md brround mr-3 d-block cover-image" data-image-src="../assets/images/faces/male/41.jpg">
+													<span class="avatar-status bg-green"></span>
+												</div>
+												<div>
+													<strong>Madeleine</strong>
+													<p class="mb-0 fs-13">Hey! there I' am available</p>
+													<div class="small">3 hours ago</div>
+												</div>
+											</a>
+											<a href="#" class="dropdown-item d-flex pb-3">
+												<div class="avatar avatar-md brround mr-3 d-block cover-image" data-image-src="../assets/images/faces/female/1.jpg">
+													<span class="avatar-status bg-red"></span>
+												</div>
+												<div>
+													<strong>Anthony</strong>
+													<p class="mb-0 fs-13 ">New product Launching</p>
+													<div class="small">5  hour ago</div>
+												</div>
+											</a>
+											<a href="#" class="dropdown-item d-flex pb-3">
+												<div class="avatar avatar-md brround mr-3 d-block cover-image" data-image-src="../assets/images/faces/female/18.jpg">
+													<span class="avatar-status bg-yellow"></span>
+												</div>
+												<div>
+													<strong>Olivia</strong>
+													<p class="mb-0 fs-13 ">New Schedule Realease</p>
+													<div class="small">45 mintues ago</div>
+												</div>
+											</a>
+											<div class="dropdown-divider"></div>
+											<a href="#" class="dropdown-item text-center">See all Messages</a>
+										</div>
+									</div>
+									<!-- MESSAGE-BOX -->
+									<div class="dropdown text-center selector profile-1 mt-4">
+										<a href="#" data-toggle="dropdown" class="nav-link leading-none d-flex">
+											<span><img src="../assets/images/faces/female/16.jpg" alt="profile-user" class="avatar brround cover-image mb-1 ml-0"></span>
+										</a>
+										<div class="dropdown-menu dropdown-menu-right dropdown-menu-arrow">
+											<div class="text-center bg-image p-4">
+												<a href="#" class="dropdown-item text-center font-weight-sembold user pt-0" data-toggle="dropdown">Joyce Stewart</a>
+												<span class="text-center user-semi-title ">web designer</span>
+											</div>
+											<a class="dropdown-item" href="#">
+												<i class="dropdown-icon mdi mdi-account-outline"></i>
+												Profile
+											</a>
+											<a class="dropdown-item" href="#">
+												<i class="dropdown-icon  mdi mdi-settings"></i>
+												Settings
+											</a>
+											<a class="dropdown-item" href="#">
+												<span class="float-right">
+													<span class="badge badge-danger">6</span>
+												</span>
+												<i class="dropdown-icon mdi  mdi-message-outline"></i>
+												Inbox
+											</a>
+											<a class="dropdown-item" href="#">
+												<i class="dropdown-icon mdi mdi-comment-check-outline"></i>
+												Message
+											</a>
+											<div class="dropdown-divider"></div>
+											<a class="dropdown-item" href="#">
+												<i class="dropdown-icon mdi mdi-compass-outline"></i>
+												Need help?
+											</a>
+											<a class="dropdown-item" href="login.html">
+												<i class="dropdown-icon mdi  mdi-logout-variant"></i>
+												Sign out
+											</a>
+										</div>
+									</div>
+									<!-- PROFILE -->
+								</div>
+							</div>
+						</div>
+						<!--/Resposnisve Navbar-->
+
+						<!-- HORIZONTAL-MENU -->
+						<div class="horizontal-main hor-menu clearfix">
+							<div class="horizontal-mainwrapper clearfix">
+								<nav class="horizontalMenu clearfix">
+									<ul class="horizontalMenu-list">
+										<li aria-haspopup="true">
+											<a href="#" class="sub-icon active">
+												<i class="fa fa-laptop"></i>
+												Dashboard ok
+												<span class="badge badge-primary  nav-badge">5</span>
+											</a>
+											<ul class="sub-menu">
+												<li aria-haspopup="true">
+													<a href="index.html">Entertainment Dashboard TEST</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="index2.html">Big data Dashboard test</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="index3.html">HR Dashboard</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="index4.html">Crypto currencies</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="index5.html">Gaming Dashboard</a>
+												</li>
+											</ul>
+										</li>
+										<li aria-haspopup="true">
+											<a href="widgets.html" class="">
+												<i class="fa fa-cube"></i>
+												widgets</a>
+										</li>
+										<li aria-haspopup="true">
+											<a href="#" class="sub-icon">
+												<i class="fa fa-edit"></i>
+												Forms
+												<span class="badge badge-danger nav-badge">3</span>
+											</a>
+											<ul class="sub-menu">
+												<li aria-haspopup="true">
+													<a href="form-elements.html">Form Elements</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="wysiwyag.html">Form Editor</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="form-wizard.html">Form Wizard</a>
+												</li>
+											</ul>
+										</li>
+
+										<li aria-haspopup="true">
+											<a href="#" class="sub-icon">
+												<i class="fa fa-folder-open-o"></i>
+												Pages
+												<i class="fa fa-angle-down horizontal-icon"></i>
+											</a>
+											<ul class="sub-menu">
+												<li aria-haspopup="true" class="sub-menu-sub">
+													<a href="#">Profile</a>
+													<ul class="sub-menu">
+														<li aria-haspopup="true">
+															<a href="profile.html">Profile</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="editprofile.html">Edit Profile</a>
+														</li>
+													</ul>
+												</li>
+												<li aria-haspopup="true" class="sub-menu-sub">
+													<a href="#">Mail</a>
+													<ul class="sub-menu">
+														<li aria-haspopup="true">
+															<a href="email.html">Mail-Compose</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="emailservices.html">Mail-inbox</a>
+														</li>
+													</ul>
+												</li>
+												<li aria-haspopup="true" class="sub-menu-sub">
+													<a href="#">E-commerce</a>
+													<ul class="sub-menu">
+														<li aria-haspopup="true">
+															<a href="shop.html">Shop</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="shop-description.html">Product Details</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="cart.html">Shopping Cart</a>
+														</li>
+													</ul>
+												</li>
+												<li aria-haspopup="true" class="sub-menu-sub">
+													<a href="#">Custom Pages</a>
+													<ul class="sub-menu">
+														<li aria-haspopup="true">
+															<a href="login.html">Login</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="register.html">Register</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="forgot-password.html">Forgot Password</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="lockscreen.html">Lock screen</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="empty.html">Empty Page</a>
+														</li>
+													</ul>
+												</li>
+												<li aria-haspopup="true">
+													<a href="construction.html">Under Construction</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="gallery.html">Gallery</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="about.html">About Company
+													</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="services.html">Services
+													</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="faq.html">FAQS</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="terms.html">Terms</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="invoice.html">Invoice</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="pricing.html">Pricing Tables</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="blog.html">Blog</a>
+												</li>
+												<li aria-haspopup="true" class="sub-menu-sub">
+													<a href="#">Error Pages</a>
+													<ul class="sub-menu">
+														<li aria-haspopup="true">
+															<a href="400.html">400</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="401.html">401</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="403.html">403</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="404.html">404</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="500.html">500</a>
+														</li>
+														<li aria-haspopup="true">
+															<a href="503.html">503</a>
+														</li>
+													</ul>
+												</li>
+											</ul>
+										</li>
+										<li aria-haspopup="true">
+											<a href="#" class="sub-icon">
+												<i class="fa fa-smile-o"></i>
+												Icons
+												<i class="fa fa-angle-down horizontal-icon"></i>
+											</a>
+											<ul class="sub-menu">
+												<li aria-haspopup="true">
+													<a href="icons.html">Font Awesome</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons2.html">Material Design Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons3.html">Simple Line Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons4.html">Feather Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons5.html">Ionic Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons6.html">Flag Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons7.html">pe7 Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons8.html">Themify Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons9.html">Typicons Icons</a>
+												</li>
+												<li aria-haspopup="true">
+													<a href="icons10.html">Weather Icons</a>
+												</li>
+											</ul>
+										</li>
+									</ul>
+								</nav>
+								<!-- NAV END -->
+							</div>
+						</div>
+						<!-- HORIZONTAL-MENU END -->
+						<div class="side-app"> {% block body %}{% endblock %}
+							</div>
+							<!-- CONTAINER CLOSED -->
+						</div>
+					</div>
+
+					<!-- RIGHT-SIDEBAR OPEN -->
+					<div class="sidebar sidebar-right sidebar-animate">
+						<div class=" close-button float-right">
+							<a href="#" data-toggle="sidebar-right" data-target=".sidebar-right">
+								<i class="fe fe-x  text-white"></i>
+							</a>
+						</div>
+						<div class="tab-menu-heading siderbar-tabs border-0 ">
+							<div
+								class="tabs-menu ">
+								<!-- Tabs -->
+								<ul class="nav panel-tabs">
+									<li class="">
+										<a href="#tab1" class="active" data-toggle="tab">Friends</a>
+									</li>
+									<li>
+										<a href="#tab2" data-toggle="tab">Online</a>
+									</li>
+									<li>
+										<a href="#tab3" data-toggle="tab">Archive</a>
+									</li>
+								</ul>
+							</div>
+						</div>
+						<div class="panel-body tabs-menu-body side-tab-body p-0 border-0 ">
+							<div class="tab-content border-top">
+								<div class="tab-pane active" id="tab1">
+									<div class="chat">
+										<div class="contacts_card">
+											<div class="input-group mb-0 p-3 border-bottom">
+												<input type="text" placeholder="Search..." class="form-control search">
+												<div class="input-group-prepend mr-0">
+													<span class="input-group-text border-right search_btn btn-primary-light ">
+														<i class="fa fa-search text-white"></i>
+													</span>
+												</div>
+											</div>
+											<div class="contacts mb-0">
+												<div class="list-group list-group-flush ">
+													<div class="list-group-item d-flex  align-items-center">
+														<div class="mr-2">
+															<span class="avatar  brround avatar-md cover-image" data-image-src="../assets/images/faces/female/1.jpg">
+																<span class="avatar-status bg-green"></span>
+															</span>
+														</div>
+														<div class="">
+															<div class="font-weight-semibold">Darlena Torian</div>
+														</div>
+														<div class="ml-auto">
+															<a href="#" class="btn btn-sm btn-default-light btn-icon">
+																<i class="fa fa-phone fs-10"></i>
+															</a>
+															<a href="#" class="btn btn-sm btn-default-light btn-icon">
+																<i class="fa fa-comment fs-10"></i>
+															</a>
+														</div>
+													</div>
+
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+								<!-- TAB-1 END -->
+								<div class="tab-pane" id="tab2">
+									<div class="input-group mb-0 p-3 border-bottom">
+										<input type="text" placeholder="Search..." class="form-control search">
+										<div class="input-group-prepend mr-0">
+											<span class="input-group-text border-right search_btn btn-primary-light ">
+												<i class="fa fa-search text-white"></i>
+											</span>
+										</div>
+									</div>
+									<div class="contacts mb-0">
+										<div class="list-group list-group-flush ">
+											<div class="list-group-item d-flex  align-items-center">
+												<div class="mr-2">
+													<span class="avatar  brround avatar-md cover-image" data-image-src="../assets/images/faces/female/1.jpg">
+														<span class="avatar-status bg-green"></span>
+													</span>
+												</div>
+												<div class="">
+													<div class="font-weight-semibold">Darlena Torian</div>
+												</div>
+												<div class="ml-auto">
+													<a href="#" class="btn btn-sm btn-default-light btn-icon">
+														<i class="fa fa-phone fs-10"></i>
+													</a>
+													<a href="#" class="btn btn-sm btn-default-light btn-icon">
+														<i class="fa fa-comment fs-10"></i>
+													</a>
+												</div>
+											</div>
+
+										</div>
+									</div>
+								</div>
+								<!-- TAB-2 END -->
+								<div class="tab-pane" id="tab3">
+									<div class="input-group mb-0 p-3 border-bottom">
+										<input type="text" placeholder="Search..." class="form-control search">
+										<div class="input-group-prepend mr-0">
+											<span class="input-group-text border-right search_btn btn-primary-light ">
+												<i class="fa fa-search text-white"></i>
+											</span>
+										</div>
+									</div>
+									<div class="contacts mb-0">
+										<div class="list-group list-group-flush ">
+											<div class="list-group-item d-flex  align-items-center">
+												<div class="mr-2">
+													<span class="avatar brround avatar-md cover-image" data-image-src="../assets/images/faces/male/2.jpg"></span>
+												</div>
+												<div class="">
+													<div class="font-weight-semibold">Richie Verrill</div>
+												</div>
+												<div class="ml-auto">
+													<a href="#" class="btn btn-sm btn-default-light btn-icon">
+														<i class="fa fa-phone fs-10"></i>
+													</a>
+													<a href="#" class="btn btn-sm btn-default-light btn-icon">
+														<i class="fa fa-comment fs-10"></i>
+													</a>
+												</div>
+											</div>
+
+										</div>
+									</div>
+								</div>
+								<!-- TAB-3 END -->
+							</div>
+						</div>
+					</div>
+					<!-- RIGHT-SIDEBAR -->
+
+					<!-- FOOTER -->
+					<footer class="footer">
+						<div class="container">
+							<div class="row align-items-center flex-row-reverse">
+								<div class="col-md-12 col-sm-12 text-center">
+									Copyright © 2019
+									<a href="#">Arox</a>. Designed by
+									<a href="#">Spruko</a>
+									All rights reserved.
+								</div>
+							</div>
+						</div>
+					</footer>
+					<!-- FOOTER CLOSED -->
+				</div>
+
+				<!-- BACK-TO-TOP -->
+				<a href="#top" id="back-to-top">
+					<i class="fa fa-angle-up"></i>
+				</a>
+
+				<!-- JQUERY SCRIPTS -->
+				<script src="../assets/js/vendors/jquery-3.2.1.min.js"></script>
+
+				<!-- BOOTSTRAP SCRIPTS -->
+				<script src="../assets/js/vendors/bootstrap.bundle.min.js"></script>
+
+				<!-- SPARKLINE -->
+				<script src="../assets/js/vendors/jquery.sparkline.min.js"></script>
+
+				<!-- CHART-CIRCLE -->
+				<script src="../assets/js/vendors/circle-progress.min.js"></script>
+
+				<!-- RATING STAR -->
+				<script src="../assets/plugins/rating/jquery.rating-stars.js"></script>
+
+				<!-- INPUT MASK PLUGIN-->
+				<script src="../assets/plugins/input-mask/jquery.mask.min.js"></script>
+
+				<!--Side-menu js-->
+				<script src="../assets/plugins/side-menu/sidemenu.js"></script>
+
+				<!-- STICKY JS-->
+				<script src="../assets/js/sticky.js"></script>
+				<script src="../assets/js/horizontal-sticky.js"></script>
+
+				<!-- Sidebar Accordions js -->
+				<script src="../assets/plugins/sidemenu-responsive-tabs/js/easyResponsiveTabs.js"></script>
+
+				<!-- Perfect scroll bar js-->
+				<script src="../assets/plugins/pscrollbar/perfect-scrollbar.js"></script>
+
+				<!-- CUSTOM SCROLL BAR JS-->
+				<script src="../assets/plugins/mcustomscrollbar/jquery.mCustomScrollbar.concat.min.js"></script>
+
+				<!-- LEFT-SIDEMENU PLUGIN -->
+				<script src="../assets/plugins/jquery-jside-menu-master/js/jquery.jside.menu.js"></script>
+
+				<!-- HORIZONTAL-MENU JS -->
+				<script src="../assets/plugins/horizontal-menu/horizontal-menu.js"></script>
+				<script src="../assets/plugins/jquery-jside-menu-master/docs/demo-only.js"></script>
+
+				<!-- RIGHT-MENU JS -->
+				<script src="../assets/plugins/sidebar/sidebar.js"></script>
+
+				<!-- Left CUSTOM JS-->
+				<script src="../assets/js/left-custom.js"></script>
+
+				<!-- CUSTOM JS-->
+				<script src="../assets/js/custom.js"></script>
+				{% block javascripts %}
+					{% block importmap %}
+						{{ importmap('app') }}
+					{% endblock %}
+				{% endblock %}
+			</body>
+		</body>
+	</html>

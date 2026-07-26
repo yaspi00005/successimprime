@@ -1,0 +1,403 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}User index
+{% endblock %}
+
+{% block body %}
+	<!-- PAGE-HEADER -->
+	<div class="page-header">
+		<ol class="breadcrumb">
+			<li class="breadcrumb-item">
+				<a href="#">Utilisateurs</a>
+			</li>
+			<li class="breadcrumb-item active" aria-current="page">Liste des Utilisateurs</li>
+		</ol>
+		<div>
+			<a href="#" class="btn btn-sm btn-primary">
+				<i class="ti-settings"></i>
+				Parametres généraux
+			</a>
+			<a href="#" class="btn btn-sm btn-secondary">
+				<i class="ti-file"></i>
+				Print
+			</a>
+		</div>
+	</div>
+	<!-- PAGE-HEADER END -->
+
+	<!-- ROW OPEN -->
+	<div
+		class="row row-cards">
+
+		<!-- COL-END -->
+		<div class="col-lg-8 col-xl-12">
+			<div class="input-group mb-5">
+				<input type="text" class="form-control" placeholder="">
+				<div class="input-group-append ">
+					<button type="button" class="btn btn-primary-light">
+						<i class="fa fa-search" aria-hidden="true"></i>
+					</button>
+				</div>
+			</div>
+			<div class="card">
+				<div class="card-header border-bottom-0 p-4">
+					<h2 class="card-title">1 - 30 of 546 users</h2>
+					<div class="page-options d-flex float-right">
+						<select class="form-control custom-select w-auto">
+							<option value="asc">Latest</option>
+							<option value="desc">Oldest</option>
+						</select>
+					</div>
+				</div>
+				<div class="e-table">
+					<div class="table-responsive table-lg br-bl-10 br-br-10">
+						<table class="table table-bordered mb-0">
+
+							<thead>
+								<tr>
+									<th class="text-center"></th>
+									<th class="text-center">Photo</th>
+									<th>Username</th>
+									<th>Prenom - Nom</th>
+									<th>Date création</th>
+									<th>Roles</th>
+									<th>Actif</th>
+									<th class="text-center">Actions</th>
+								</tr>
+							</thead>
+
+							<tbody>
+
+								{% for user in users %}
+
+									<tr>
+
+										<td class="align-middle text-center">
+											<div class="custom-control custom-checkbox">
+												<input class="custom-control-input" id="item-{{ user.id }}" type="checkbox">
+
+												<label class="custom-control-label" for="item-{{ user.id }}"></label>
+											</div>
+										</td>
+
+
+										<td class="align-middle text-center">
+
+											{% if user.employe and user.employe.photos %}
+												<img src="{{ asset('uploads/employes/' ~ user.employe.photos) }}" class="avatar avatar-md rounded-circle" alt="{{ user.employe.prenom }}">
+											{% else %}
+												<img src="{{ asset('assets/images/faces/female/26.jpg') }}" class="avatar avatar-md rounded-circle" alt="Photo">
+											{% endif %}
+										</td>
+
+
+										<!-- Username -->
+
+										<td class="text-nowrap align-middle">
+
+											{{ user.username }}
+
+										</td>
+
+
+										<!-- Employé lié -->
+
+										<td class="text-nowrap align-middle">
+
+											{% if user.employe %}
+												{{ user.employe.prenom }}
+												{{ user.employe.nom }}
+											{% else %}
+												Aucun employé associé
+											{% endif %}
+
+										</td>
+
+
+										<!-- Fonction -->
+
+
+										<!-- Date création -->
+
+										<td class="text-nowrap align-middle">
+
+											{{ user.dateAdd|date('d/m/Y H:i') }}
+
+										</td>
+
+
+										<!-- Roles JSON -->
+
+										<td class="align-middle">
+
+											{% for role in user.roles %}
+
+												{% if role == 'ROLE_ADMIN' %}
+
+													<span class="badge badge-danger">
+														Administrateur
+													</span>
+
+												{% elseif role == 'ROLE_MACHINISTE_DTF' %}
+
+													<span class="badge badge-primary">
+														DTF
+													</span>
+
+												{% elseif role == 'ROLE_MACHINISTE_TRACER' %}
+
+													<span class="badge badge-info">
+														Traceur
+													</span>
+
+												{% elseif role == 'ROLE_REPROGRAPHIE' %}
+
+													<span class="badge badge-success">
+														Reprographie
+													</span>
+
+												{% elseif role == 'ROLE_GRAPHISME' %}
+
+													<span class="badge badge-warning">
+														Graphisme
+													</span>
+
+												{% elseif role == 'ROLE_CAISSE' %}
+
+													<span class="badge badge-secondary">
+														Caisse
+													</span>
+
+												{% elseif role == 'ROLE_STOCK' %}
+
+													<span class="badge badge-dark">
+														Stock
+													</span>
+
+												{% elseif role == 'ROLE_COMPTABILITE' %}
+
+													<span class="badge badge-primary">
+														Comptabilité
+													</span>
+
+												{% elseif role == 'ROLE_LOGISTIQUE' %}
+
+													<span class="badge badge-info">
+														Logistique
+													</span>
+
+												{% endif %}
+
+											{% endfor %}
+
+										</td>
+
+
+										<!-- Actif -->
+
+										<td class="text-center">
+
+											{% if user.actif %}
+
+												<span class="badge badge-success">
+													Actif
+												</span>
+
+											{% else %}
+
+												<span class="badge badge-danger">
+													Désactivé
+												</span>
+
+											{% endif %}
+
+										</td>
+
+
+										<td class="text-center align-middle">
+
+											<div class="btn-group align-top">
+
+												<button type="button" class="btn btn-sm btn-primary-light btn-edit-roles" data-toggle="modal" data-target="#userModal" data-id="{{ user.id }}" data-get-url="{{ path('app_user_roles_get', {id: user.id}) }}" data-update-url="{{ path('app_user_roles_update', {id: user.id}) }}">
+													<i class="fa fa-edit"></i>
+												</button>
+												<button type="button" class="btn btn-sm {{ user.actif ? 'btn-warning-light' : 'btn-success-light' }} btn-toggle-user" data-url="{{ path('app_user_toggle_status', {id: user.id}) }}" data-token="{{ csrf_token('toggle_user_' ~ user.id) }}" data-username="{{ user.username }}" data-actif="{{ user.actif ? '1' : '0' }}" title="{{ user.actif ? 'Désactiver le compte' : 'Activer le compte' }}">
+													{% if user.actif %}
+														<i class="fa fa-ban"></i>
+													{% else %}
+														<i class="fa fa-check"></i>
+													{% endif %}
+												</button>
+
+												<button type="button" class="btn btn-sm btn-danger-light btn-delete-user" data-id="{{ user.id }}" data-username="{{ user.username }}" data-delete-url="{{ path('app_user_delete_ajax', {id: user.id}) }}" data-token="{{ csrf_token('delete_user_' ~ user.id) }}">
+													<i class="fa fa-trash"></i>
+												</button>
+
+											</div>
+
+										</td>
+
+
+									</tr>
+
+
+								{% else %}
+
+									<tr>
+
+										<td colspan="9" class="text-center">
+
+											Aucun utilisateur trouvé
+
+										</td>
+
+									</tr>
+
+
+								{% endfor %}
+
+							</tbody>
+
+						</table>
+					</div>
+				</div>
+			</div>
+
+		</div>
+		<!-- COL-END -->
+		<div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-hidden="true">
+			<div class="modal-dialog modal-lg" role="document">
+				<div class="modal-content">
+
+					<div class="modal-header">
+						<h5 class="modal-title">
+							Modifier les rôles utilisateur
+						</h5>
+
+						<button type="button" class="close" data-dismiss="modal">
+							<span>&times;</span>
+						</button>
+					</div>
+
+					<div class="modal-body">
+
+						<input type="hidden" id="editUserId">
+						<input type="hidden" id="editUserUpdateUrl">
+
+						<div class="form-group">
+							<label class="form-label">Nom d’utilisateur</label>
+
+							<input type="text" id="editUsername" class="form-control" readonly>
+						</div>
+
+						<div class="form-group">
+							<label class="form-label">
+								Attribution des rôles
+							</label>
+
+							<div class="selectgroup selectgroup-pills">
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_ADMIN" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Administrateur
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_MACHINISTE_DTF" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Machiniste DTF
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_MACHINISTE_TRACER" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Machiniste Traceur
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_REPROGRAPHIE" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Reprographie
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_GRAPHISME" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Graphisme
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_CAISSE" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Caisse
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_STOCK" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Stock
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_COMPTABILITE" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Comptabilité
+									</span>
+								</label>
+
+								<label class="selectgroup-item">
+									<input type="checkbox" value="ROLE_LOGISTIQUE" class="selectgroup-input edit-role">
+									<span class="selectgroup-button">
+										Logistique
+									</span>
+								</label>
+
+							</div>
+						</div>
+
+						<div class="form-group mt-4">
+							<label class="custom-switch">
+
+								<input type="checkbox" id="editActif" class="custom-switch-input">
+
+								<span class="custom-switch-indicator"></span>
+
+								<span class="custom-switch-description">
+									Compte actif
+								</span>
+							</label>
+						</div>
+
+					</div>
+
+					<div class="modal-footer">
+
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">
+							Annuler
+						</button>
+
+						<button type="button" class="btn btn-primary" id="saveUserRoles">
+							<i class="fa fa-save mr-1"></i>
+							Enregistrer
+						</button>
+
+					</div>
+
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- ROW CLOSED -->
+{% endblock %}
+{% block javascripts %}
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<script src="../assets/js/traitement_user.js"></script>
+{% endblock %}

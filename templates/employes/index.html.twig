@@ -1,0 +1,296 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}User index
+{% endblock %}
+
+{% block body %}
+	<!-- PAGE-HEADER -->
+	{% include "alert.html.twig" %}
+	<div class="page-header">
+		<ol class="breadcrumb">
+			<li class="breadcrumb-item">
+				<a href="#">Utilisateurs</a>
+			</li>
+			<li class="breadcrumb-item active" aria-current="page">Liste des Utilisateurs</li>
+		</ol>
+
+	</div>
+	<!-- PAGE-HEADER END -->
+
+	<!-- ROW OPEN -->
+	<div
+		class="row row-cards">
+
+		<!-- COL-END -->
+		<div class="col-lg-8 col-xl-12">
+			<div class="input-group mb-5">
+				<input type="text" class="form-control" placeholder="">
+				<div class="input-group-append ">
+					<button type="button" class="btn btn-primary-light">
+						<i class="fa fa-search" aria-hidden="true"></i>
+					</button>
+				</div>
+			</div>
+			<div
+				class="card">
+				{# <div class="card-header border-bottom-0 p-4">
+																																																																																																																																	<h2 class="card-title">1 - 30 of 546 users</h2>
+																																																																																																																																	<div class="page-options d-flex float-right">
+																																																																																																																																		<select class="form-control custom-select w-auto">
+																																																																																																																																			<option value="asc">Latest</option>
+																																																																																																																																			<option value="desc">Oldest</option>
+																																																																																																																																		</select>
+																																																																																																																																	</div>
+																																																																																																																																</div> #}
+				<div class="e-table">
+					<div class="table-responsive table-lg br-bl-10 br-br-10">
+						<table class="table table-bordered mb-0">
+							<thead>
+								<tr>
+									<th class="text-center"></th>
+									<th class="text-center">Photo</th>
+									<th>Prénom - Nom</th>
+									<th>Matricule</th>
+									<th>Fonction</th>
+									<th>Date d'embauche</th>
+									<th>Date de naissance</th>
+									<th>Ancienneté</th>
+									<th>Adresse</th>
+									<th>Téléphone</th>
+									<th>Salaire</th>
+									<th class="text-center">Actions</th>
+								</tr>
+							</thead>
+
+							<tbody>
+								{% for employe in employes %}
+									<tr>
+										<td class="align-middle text-center">
+											<div class="custom-control custom-control-inline custom-checkbox custom-control-nameless m-0">
+												<input class="custom-control-input" id="item-{{ employe.id }}" type="checkbox">
+												<label class="custom-control-label" for="item-{{ employe.id }}"></label>
+											</div>
+										</td>
+
+										<td class="align-middle text-center">
+											{% if employe.photos %}
+												<img src="{{ asset('uploads/employes/' ~ employe.photos) }}" class="avatar avatar-md rounded-circle" alt="{{ employe.prenom }}">
+											{% else %}
+												<img src="{{ asset('assets/images/faces/female/26.jpg') }}" class="avatar avatar-md rounded-circle" alt="Photo">
+											{% endif %}
+										</td>
+
+										<td class="align-middle">
+											{{ employe.prenom }}
+											{{ employe.nom }}
+										</td>
+
+										<td class="align-middle">
+											{{ employe.matricules }}
+										</td>
+
+										<td class="align-middle">
+											{{ employe.fonction }}
+										</td>
+
+										<td class="align-middle">
+											{{ employe.dateEmbauches ? employe.dateEmbauches|date('d/m/Y') : '-' }}
+										</td>
+
+										<td class="align-middle">
+											{{ employe.dateNaissances ? employe.dateNaissances|date('d/m/Y') : '-' }}
+										</td>
+
+										<td class="align-middle">
+											{% if employe.dateEmbauches %}
+												{{ "now"|date("Y") - employe.dateEmbauches|date("Y") }}
+												an(s)
+											{% else %}
+												-
+											{% endif %}
+										</td>
+
+										<td class="align-middle">
+											{{ employe.adresses }}
+										</td>
+
+										<td class="align-middle">
+											{{ employe.telephone }}
+										</td>
+
+										<td class="align-middle text-end">
+											{{ employe.salaires|number_format(0, ',', ' ') }}
+											FCFA
+										</td>
+
+										<td class="text-center align-middle">
+											<div class="btn-group">
+												<button class="btn btn-sm btn-primary-light ouvrirUser btn-create-user" data-toggle="modal" data-target="#userModal" data-id="{{ employe.id }}" data-prenom="{{ employe.prenom }}" data-nom="{{ employe.nom }}">
+													<i class="fa fa-edit"></i>
+												</button>
+
+												<button class="btn btn-sm btn-danger-light">
+													<i class="fa fa-trash"></i>
+												</button>
+											</div>
+										</td>
+									</tr>
+
+								{% else %}
+									<tr>
+										<td colspan="12" class="text-center">
+											Aucun employé enregistré.
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+
+		</div>
+		<!-- COL-END -->
+	</div>
+	<!-- ROW CLOSED -->
+	<div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog modal-lg" role="document">
+			<form id="userCreateForm" method="post" action="">
+				<div class="modal-content">
+
+					<div class="modal-header">
+						<h5 class="modal-title">
+							Création du compte utilisateur
+						</h5>
+
+						<button type="button" class="close" data-dismiss="modal">
+							<span>&times;</span>
+						</button>
+					</div>
+
+					<div class="modal-body">
+
+						<div class="row">
+
+							<div class="col-md-6">
+
+								<div class="form-group">
+									<label class="form-label">
+										Employé
+									</label>
+
+									<input type="text" class="form-control" id="nomEmploye" readonly>
+								</div>
+
+							</div>
+
+							<div class="col-md-6">
+
+								<div class="form-group">
+									<label class="form-label">
+										Username
+									</label>
+
+									<input type="text" class="form-control" id="username" name="username" placeholder="Username">
+								</div>
+
+							</div>
+
+							<div class="col-md-12">
+
+								<label class="form-label">
+									Attribution des rôles
+								</label>
+
+								<div class="selectgroup selectgroup-pills">
+
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_ADMIN" class="selectgroup-input">
+										<span class="selectgroup-button">Administrateur</span>
+									</label>
+
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_MACHINISTE_DTF" class="selectgroup-input">
+										<span class="selectgroup-button">Machiniste DTF</span>
+									</label>
+
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_MACHINISTE_TRACER" class="selectgroup-input">
+										<span class="selectgroup-button">Machiniste Tracer</span>
+									</label>
+
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_REPROGRAPHIE" class="selectgroup-input">
+										<span class="selectgroup-button">Reprographie</span>
+									</label>
+
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_GRAPHISME" class="selectgroup-input">
+										<span class="selectgroup-button">Graphisme</span>
+									</label>
+
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_CAISSE" class="selectgroup-input">
+										<span class="selectgroup-button">Caisse</span>
+									</label>
+
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_STOCK" class="selectgroup-input">
+										<span class="selectgroup-button">Stock</span>
+									</label>
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_COMPTABILITE" class="selectgroup-input">
+										<span class="selectgroup-button">Comptabilité</span>
+									</label>
+									<label class="selectgroup-item">
+										<input type="checkbox" name="roles[]" value="ROLE_LOGISTIQUE" class="selectgroup-input">
+										<span class="selectgroup-button">Logistique</span>
+									</label>
+
+								</div>
+
+							</div>
+
+							<div class="col-md-12 mt-4">
+
+								<label class="custom-switch">
+
+									<input type="checkbox" name="actif" class="custom-switch-input" checked>
+
+									<span class="custom-switch-indicator"></span>
+
+									<span class="custom-switch-description">
+										Compte actif
+									</span>
+
+								</label>
+
+							</div>
+
+						</div>
+
+					</div>
+
+					<div class="modal-footer">
+
+						<button class="btn btn-secondary" data-dismiss="modal">
+							Annuler
+						</button>
+
+						<button type="submit" class="btn btn-primary">
+							<i class="fe fe-save mr-2"></i>
+							Enregistrer
+						</button>
+
+					</div>
+					<input type="hidden" id="employeId" name="employeId">
+					<input type="hidden" name="_token" value="{{ csrf_token('create_user') }}">
+				</div>
+			</form>
+		</div>
+	</div>
+{% endblock %}
+{% block javascripts %}
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<script src="../assets/js/traitement.js"></script>
+{% endblock %}
