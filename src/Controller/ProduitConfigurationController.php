@@ -32,31 +32,90 @@ final class ProduitConfigurationController extends AbstractController
         FormatRepository $formatRepository,
         FinitionRepository $finitionRepository
     ): Response {
+        $produits = $produitsRepository->findBy(
+            ['publie' => true, 'actif' => true],
+            ['ordre' => 'ASC', 'nom' => 'ASC']
+        );
+
+        $typesImpressions = $typeRepository->findBy(
+            ['publie' => true],
+            ['ordre' => 'ASC', 'nom' => 'ASC']
+        );
+
+        $supports = $supportRepository->findBy(
+            ['publie' => true],
+            ['ordre' => 'ASC', 'nom' => 'ASC']
+        );
+
+        $formats = $formatRepository->findBy(
+            ['publie' => true],
+            ['ordre' => 'ASC', 'nom' => 'ASC']
+        );
+
+        $finitions = $finitionRepository->findBy(
+            ['publie' => true],
+            ['ordre' => 'ASC', 'nom' => 'ASC']
+        );
+
+        /*
+         * Catalogue utilisé par le JavaScript pour les listes dépendantes.
+         *
+         * Produit sélectionné
+         *     -> types d'impression compatibles
+         *     -> supports compatibles
+         *     -> formats compatibles
+         *     -> finitions compatibles
+         *
+         * Le support sélectionné affine ensuite le type, le format
+         * et les finitions.
+         */
+        $catalogueCompatibilites = [
+            'produits' => [],
+            'supports' => [],
+        ];
+
+        foreach ($produits as $produit) {
+            $catalogueCompatibilites['produits'][(string) $produit->getId()] = [
+                'types' => $this->extraireIds(
+                    $produit->getTypesImpressions()
+                ),
+                'supports' => $this->extraireIds(
+                    $produit->getSupports()
+                ),
+                'formats' => $this->extraireIds(
+                    $produit->getFormats()
+                ),
+                'finitions' => $this->extraireIds(
+                    $produit->getFinitions()
+                ),
+            ];
+        }
+
+        foreach ($supports as $support) {
+            $catalogueCompatibilites['supports'][(string) $support->getId()] = [
+                'types' => $this->extraireIds(
+                    $support->getTypesImpressions()
+                ),
+                'formats' => $this->extraireIds(
+                    $support->getFormats()
+                ),
+                'finitions' => $this->extraireIds(
+                    $support->getFinitions()
+                ),
+            ];
+        }
+
         return $this->render('produit_configuration/index.html.twig', [
             'configurations' => $configurationRepository->findBy(
                 [],
                 ['ordre' => 'ASC', 'id' => 'ASC']
             ),
-            'produits' => $produitsRepository->findBy(
-                ['publie' => true, 'actif' => true],
-                ['ordre' => 'ASC', 'nom' => 'ASC']
-            ),
-            'typesImpressions' => $typeRepository->findBy(
-                ['publie' => true],
-                ['ordre' => 'ASC', 'nom' => 'ASC']
-            ),
-            'supports' => $supportRepository->findBy(
-                ['publie' => true],
-                ['ordre' => 'ASC', 'nom' => 'ASC']
-            ),
-            'formats' => $formatRepository->findBy(
-                ['publie' => true],
-                ['ordre' => 'ASC', 'nom' => 'ASC']
-            ),
-            'finitions' => $finitionRepository->findBy(
-                ['publie' => true],
-                ['ordre' => 'ASC', 'nom' => 'ASC']
-            ),
+            'produits' => $produits,
+            'typesImpressions' => $typesImpressions,
+            'supports' => $supports,
+            'formats' => $formats,
+            'finitions' => $finitions,
+            'catalogueCompatibilites' => $catalogueCompatibilites,
         ]);
     }
 
@@ -123,6 +182,196 @@ final class ProduitConfigurationController extends AbstractController
             'message' => 'La configuration a été ajoutée avec succès.',
             'configuration' => $this->normaliser($configuration),
         ], Response::HTTP_CREATED);
+    }
+
+    /*
+     * =========================================================
+     * ACTIONS DE MASSE
+     * =========================================================
+     */
+
+   #[Route(
+    '/mass-action',
+    name: 'app_produit_configuration_mass_action',
+    methods: ['POST']
+)]
+public function massAction(
+    Request $request,
+    EntityManagerInterface $entityManager,
+    ProduitConfigurationRepository $configurationRepository
+): JsonResponse {
+    $data = $this->lireJson($request);
+
+    if ($data === null) {
+        return $this->erreur(
+            'Données JSON invalides.',
+            Response::HTTP_BAD_REQUEST
+        );
+    }
+
+    if (!$this->isCsrfTokenValid(
+        'produit_configurations_mass_action',
+        $data['_token'] ?? null
+    )) {
+        return $this->erreur(
+            'Jeton de sécurité invalide.',
+            Response::HTTP_FORBIDDEN
+        );
+    }
+
+    $action = trim(
+        (string) ($data['action'] ?? '')
+    );
+
+    $actionsAutorisees = [
+        'publish',
+        'unpublish',
+        'delete',
+    ];
+
+    if (!in_array(
+        $action,
+        $actionsAutorisees,
+        true
+    )) {
+        return $this->erreur(
+            'Action de masse non autorisée.',
+            Response::HTTP_BAD_REQUEST
+        );
+    }
+
+    $ids = $this->nettoyerIds(
+        $data['ids'] ?? []
+    );
+
+    if ($ids === []) {
+        return $this->erreur(
+            'Sélectionnez au moins une configuration.',
+            Response::HTTP_BAD_REQUEST
+        );
+    }
+
+    $configurations =
+        $configurationRepository->findBy([
+            'id' => $ids,
+        ]);
+
+    if (count($configurations) !== count($ids)) {
+        return $this->erreur(
+            'Une ou plusieurs configurations sont introuvables.',
+            Response::HTTP_NOT_FOUND
+        );
+    }
+
+    foreach ($configurations as $configuration) {
+        if ($action === 'publish') {
+            $configuration->setActive(true);
+        } elseif ($action === 'unpublish') {
+            $configuration->setActive(false);
+        } else {
+            $entityManager->remove(
+                $configuration
+            );
+        }
+    }
+
+    $entityManager->flush();
+
+    $nombre = count($configurations);
+
+    $message = match ($action) {
+        'publish' =>
+            $nombre
+            . ' configuration(s) publiée(s).',
+
+        'unpublish' =>
+            $nombre
+            . ' configuration(s) dépubliée(s).',
+
+        'delete' =>
+            $nombre
+            . ' configuration(s) supprimée(s).',
+    };
+
+    return $this->json([
+        'success' => true,
+        'message' => $message,
+    ]);
+}
+
+    /*
+     * =========================================================
+     * CLASSEMENT PAR GLISSER-DÉPOSER
+     * =========================================================
+     */
+
+    #[Route(
+        '/reorder',
+        name: 'app_produit_configuration_reorder',
+        methods: ['POST']
+    )]
+    public function reorder(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ProduitConfigurationRepository $configurationRepository
+    ): JsonResponse {
+        $data = $this->lireJson($request);
+
+        if ($data === null) {
+            return $this->erreur(
+                'Données JSON invalides.',
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        if (!$this->isCsrfTokenValid(
+            'produit_configurations_reorder',
+            $data['_token'] ?? null
+        )) {
+            return $this->erreur(
+                'Jeton de sécurité invalide.',
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        $ids = $this->nettoyerIds($data['ids'] ?? []);
+
+        if ($ids === []) {
+            return $this->erreur(
+                'Aucune configuration reçue.',
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $configurations = $configurationRepository->findBy([
+            'id' => $ids,
+        ]);
+
+        if (count($configurations) !== count($ids)) {
+            return $this->erreur(
+                'Une ou plusieurs configurations sont introuvables.',
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        $configurationsParId = [];
+
+        foreach ($configurations as $configuration) {
+            $configurationsParId[$configuration->getId()] = $configuration;
+        }
+
+        foreach ($ids as $position => $id) {
+            $configurationsParId[$id]->setOrdre(
+                ($position + 1) * 10
+            );
+        }
+
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'message' => 'Le classement des configurations a été enregistré.',
+        ]);
     }
 
     #[Route('/{id}/ajax', name: 'app_produit_configuration_get_ajax', requirements: ['id' => '\d+'], methods: ['GET'])]
@@ -193,32 +442,48 @@ final class ProduitConfigurationController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/toggle-status', name: 'app_produit_configuration_toggle_status', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function toggleStatus(
-        ProduitConfiguration $configuration,
-        Request $request,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
-        $data = $this->lireJson($request) ?? [];
+   #[Route(
+    '/{id}/toggle-status',
+    name: 'app_produit_configuration_toggle_status',
+    requirements: ['id' => '\d+'],
+    methods: ['POST']
+)]
+public function toggleStatus(
+    ProduitConfiguration $configuration,
+    Request $request,
+    EntityManagerInterface $entityManager
+): JsonResponse {
+    $data = $this->lireJson($request) ?? [];
 
-        if (!$this->isCsrfTokenValid(
-            'toggle_produit_configuration_'.$configuration->getId(),
-            $data['_token'] ?? null
-        )) {
-            return $this->erreur('Jeton de sécurité invalide.', Response::HTTP_FORBIDDEN);
-        }
-
-        $configuration->setActive(!$configuration->isActive());
-        $entityManager->flush();
-
-        return $this->json([
-            'success' => true,
-            'message' => $configuration->isActive()
-                ? 'La configuration a été activée.'
-                : 'La configuration a été désactivée.',
-            'active' => $configuration->isActive(),
-        ]);
+    if (!$this->isCsrfTokenValid(
+        'toggle_produit_configuration_'
+        .$configuration->getId(),
+        $data['_token'] ?? null
+    )) {
+        return $this->erreur(
+            'Jeton de sécurité invalide.',
+            Response::HTTP_FORBIDDEN
+        );
     }
+
+    $configuration->setActive(
+        !$configuration->isActive()
+    );
+
+    $entityManager->flush();
+
+    return $this->json([
+        'success' => true,
+
+        'message' =>
+            $configuration->isActive()
+                ? 'La configuration a été publiée.'
+                : 'La configuration a été dépubliée.',
+
+        'active' =>
+            $configuration->isActive(),
+    ]);
+}
 
     #[Route('/{id}/delete/ajax', name: 'app_produit_configuration_delete_ajax', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function deleteAjax(
@@ -432,6 +697,26 @@ final class ProduitConfigurationController extends AbstractController
         return is_array($data) ? $data : null;
     }
 
+    /**
+     * Extrait les identifiants d'une collection Doctrine.
+     *
+     * @return list<int>
+     */
+    private function extraireIds(iterable $elements): array
+    {
+        $ids = [];
+
+        foreach ($elements as $element) {
+            $id = $element->getId();
+
+            if ($id !== null) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
+    }
+
     private function entierNullable(mixed $valeur): ?int
     {
         if ($valeur === null || $valeur === '') {
@@ -439,6 +724,30 @@ final class ProduitConfigurationController extends AbstractController
         }
 
         return max(0, (int) $valeur);
+    }
+
+    /**
+     * Nettoie une liste d'identifiants reçue depuis le JavaScript.
+     *
+     * @return list<int>
+     */
+    private function nettoyerIds(mixed $valeurs): array
+    {
+        if (!is_array($valeurs)) {
+            return [];
+        }
+
+        $ids = [];
+
+        foreach ($valeurs as $valeur) {
+            $id = filter_var($valeur, FILTER_VALIDATE_INT);
+
+            if ($id !== false && $id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     private function booleen(mixed $valeur): bool
