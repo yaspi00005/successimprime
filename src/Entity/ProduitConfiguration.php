@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ProduitConfigurationRepository::class)]
 #[ORM\Table(name: 'produit_configuration')]
@@ -53,14 +54,14 @@ class ProduitConfiguration
     )]
     private ?Supports $support = null;
 
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(
-        name: 'format_id',
-        referencedColumnName: 'id',
-        nullable: false,
-        onDelete: 'CASCADE'
-    )]
-    private ?Format $format = null;
+   #[ORM\ManyToOne]
+#[ORM\JoinColumn(
+    name: 'format_id',
+    referencedColumnName: 'id',
+    nullable: true,
+    onDelete: 'SET NULL'
+)]
+private ?Format $format = null;
 
     #[ORM\Column]
     private bool $active = true;
@@ -89,11 +90,68 @@ class ProduitConfiguration
     #[ORM\Column(length: 30)]
     private string $modeCalcul = 'forfait';
 
+    /**
+     * Type de dimensions utilisé par cette configuration :
+     *
+     * format  : A4, A3, A2, carte de visite, etc.
+     * mesure  : largeur × longueur en mètres.
+     * aucune  : aucun format et aucune dimension.
+     */
+    #[ORM\Column(
+        length: 20,
+        options: ['default' => 'format']
+    )]
+    #[Assert\Choice(
+        choices: ['format', 'mesure', 'aucune'],
+        message: 'Le mode de dimensions est invalide.'
+    )]
+    private string $modeDimension = 'format';
+
+    /**
+     * Largeur imposée en mode automatique.
+     * La valeur est exprimée en mètres.
+     *
+     * Exemple : 2 mètres.
+     */
+    #[ORM\Column(
+        type: Types::DECIMAL,
+        precision: 10,
+        scale: 3,
+        nullable: true
+    )]
+    #[Assert\PositiveOrZero]
+    private ?string $largeurDefaut = null;
+
+    /**
+     * Longueur imposée en mode automatique.
+     * La valeur est exprimée en mètres.
+     *
+     * Exemple : 100 mètres.
+     */
+    #[ORM\Column(
+        type: Types::DECIMAL,
+        precision: 10,
+        scale: 3,
+        nullable: true
+    )]
+    #[Assert\PositiveOrZero]
+    private ?string $longueurDefaut = null;
+
     #[ORM\Column]
     private int $quantiteMinimale = 1;
 
     #[ORM\Column(nullable: true)]
     private ?int $quantiteMaximale = null;
+
+    /**
+     * Prix net réservé aux clients B2B.
+     */
+    /**
+     * Prix net réservé aux clients B2B.
+     */
+    #[ORM\Column(nullable: true)]
+    #[Assert\PositiveOrZero]
+    private ?int $prixB2B = null;
 
     /**
      * @var Collection<int, ProduitConfigurationFinition>
@@ -294,7 +352,203 @@ class ProduitConfiguration
 
         return $this;
     }
+    public function getModeDimension(): string
+    {
+        return $this->modeDimension;
+    }
 
+    public function setModeDimension(string $modeDimension): static
+    {
+        $modesAutorises = [
+            'format',
+            'mesure',
+            'aucune',
+        ];
+
+        $modeDimension = strtolower(trim($modeDimension));
+
+        $this->modeDimension = in_array(
+            $modeDimension,
+            $modesAutorises,
+            true
+        )
+            ? $modeDimension
+            : 'format';
+
+        /*
+     * Une configuration sans dimensions n’utilise pas
+     * de largeur ou de longueur par défaut.
+     */
+        if ($this->modeDimension !== 'mesure') {
+            $this->largeurDefaut = null;
+            $this->longueurDefaut = null;
+        }
+
+        return $this;
+    }
+
+    public function getLargeurDefaut(): ?string
+    {
+        return $this->largeurDefaut;
+    }
+
+    public function setLargeurDefaut(
+        string|float|int|null $largeurDefaut
+    ): static {
+        $this->largeurDefaut = $this->normaliserDecimal(
+            $largeurDefaut,
+            3
+        );
+
+        return $this;
+    }
+
+    public function getLongueurDefaut(): ?string
+    {
+        return $this->longueurDefaut;
+    }
+
+    public function setLongueurDefaut(
+        string|float|int|null $longueurDefaut
+    ): static {
+        $this->longueurDefaut = $this->normaliserDecimal(
+            $longueurDefaut,
+            3
+        );
+
+        return $this;
+    }
+
+    /**
+     * Surface imposée par la configuration, en m².
+     */
+    public function getSurfaceDefaut(): ?string
+    {
+        if (
+            $this->modeDimension !== 'mesure'
+            || $this->largeurDefaut === null
+            || $this->longueurDefaut === null
+        ) {
+            return null;
+        }
+
+        return number_format(
+            (float) $this->largeurDefaut
+                * (float) $this->longueurDefaut,
+            4,
+            '.',
+            ''
+        );
+    }
+
+    /**
+     * Indique que la configuration utilise un format fixe :
+     * A4, A3, A2, carte de visite, etc.
+     */
+    public function utiliseFormatFixe(): bool
+    {
+        return $this->modeDimension === 'format';
+    }
+
+    /**
+     * Indique que largeur, longueur et surface doivent apparaître.
+     */
+    public function utiliseDimensions(): bool
+    {
+        return $this->modeDimension === 'mesure';
+    }
+
+    /**
+     * Indique que seuls la quantité et le prix sont nécessaires.
+     */
+    public function estSansDimensions(): bool
+    {
+        return $this->modeDimension === 'aucune';
+    }
+
+    /**
+     * Vérifie si les dimensions automatiques sont renseignées.
+     */
+    public function possedeDimensionsParDefaut(): bool
+    {
+        return $this->utiliseDimensions()
+            && $this->largeurDefaut !== null
+            && $this->longueurDefaut !== null
+            && (float) $this->largeurDefaut > 0
+            && (float) $this->longueurDefaut > 0;
+    }
+
+    /**
+     * Retourne le prix correspondant au profil du client.
+     */
+    public function getPrixApplicable(bool $clientB2B = false): int
+    {
+        if ($clientB2B && $this->prixB2B !== null) {
+            return $this->prixB2B;
+        }
+
+        return $this->prixBase ?? 0;
+    }
+
+    /**
+     * Calcule le prix de base, sans les finitions.
+     */
+    public function calculerMontant(
+        int $quantite,
+        ?float $largeur = null,
+        ?float $longueur = null,
+        bool $clientB2B = false
+    ): int {
+        $quantite = max(1, $quantite);
+        $prix = $this->getPrixApplicable($clientB2B);
+
+        return match ($this->modeCalcul) {
+            'unite' => (int) round($prix * $quantite),
+
+            'metre' => (int) round(
+                $prix
+                    * max(0, $longueur ?? 0)
+                    * $quantite
+            ),
+
+            'metre_carre' => (int) round(
+                $prix
+                    * max(0, $largeur ?? 0)
+                    * max(0, $longueur ?? 0)
+                    * $quantite
+            ),
+
+            'heure' => (int) round($prix * $quantite),
+
+            default => $prix,
+        };
+    }
+
+    private function normaliserDecimal(
+        string|float|int|null $valeur,
+        int $precision
+    ): ?string {
+        if ($valeur === null || $valeur === '') {
+            return null;
+        }
+
+        $valeurNormalisee = str_replace(
+            ',',
+            '.',
+            trim((string) $valeur)
+        );
+
+        if (!is_numeric($valeurNormalisee)) {
+            return null;
+        }
+
+        return number_format(
+            max(0, (float) $valeurNormalisee),
+            $precision,
+            '.',
+            ''
+        );
+    }
     /**
      * @return Collection<int, ProduitConfigurationFinition>
      */
@@ -326,9 +580,9 @@ class ProduitConfiguration
     ): static {
         if (
             $this->configurationFinitions
-                ->removeElement($configurationFinition)
+            ->removeElement($configurationFinition)
             && $configurationFinition
-                ->getProduitConfiguration() === $this
+            ->getProduitConfiguration() === $this
         ) {
             $configurationFinition
                 ->setProduitConfiguration(null);
@@ -346,5 +600,18 @@ class ProduitConfiguration
             $this->support?->getNom() ?? 'Support',
             $this->format?->getNom() ?? 'Format'
         );
+    }
+    public function getPrixB2B(): ?int
+    {
+        return $this->prixB2B;
+    }
+
+    public function setPrixB2B(?int $prixB2B): static
+    {
+        $this->prixB2B = $prixB2B !== null
+            ? max(0, $prixB2B)
+            : null;
+
+        return $this;
     }
 }

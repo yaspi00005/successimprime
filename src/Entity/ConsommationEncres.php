@@ -3,11 +3,11 @@
 namespace App\Entity;
 
 use App\Repository\ConsommationEncresRepository;
-use BcMath\Number;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ConsommationEncresRepository::class)]
+#[ORM\Table(name: 'consommation_encres')]
 class ConsommationEncres
 {
     #[ORM\Id]
@@ -15,17 +15,33 @@ class ConsommationEncres
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'consommationEncres')]
+    #[ORM\ManyToOne(
+        targetEntity: Production::class,
+        inversedBy: 'consommationEncres'
+    )]
+    #[ORM\JoinColumn(
+        nullable: false,
+        onDelete: 'CASCADE'
+    )]
     private ?Production $production = null;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $encre = null;
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero(
+        message: 'La quantité d’encre doit être positive.'
+    )]
+    private int $encre = 0;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $quantite = null;
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero(
+        message: 'La quantité doit être positive.'
+    )]
+    private int $quantite = 0;
 
-    #[ORM\Column(length: 40)]
-    private ?string $cout = null;
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero(
+        message: 'Le coût doit être positif.'
+    )]
+    private int $cout = 0;
 
     public function getId(): ?int
     {
@@ -44,39 +60,44 @@ class ConsommationEncres
         return $this;
     }
 
-    public function getEncre(): ?Number
+    public function getEncre(): int
     {
         return $this->encre;
     }
 
-    public function setEncre(Number $encre): static
+    public function setEncre(?int $encre): static
     {
-        $this->encre = $encre;
+        $this->encre = max(0, $encre ?? 0);
 
         return $this;
     }
 
-    public function getQuantite(): ?Number
+    public function getQuantite(): int
     {
         return $this->quantite;
     }
 
-    public function setQuantite(Number $quantite): static
+    public function setQuantite(?int $quantite): static
     {
-        $this->quantite = $quantite;
+        $this->quantite = max(0, $quantite ?? 0);
 
         return $this;
     }
 
-    public function getCout(): ?string
+    public function getCout(): int
     {
         return $this->cout;
     }
 
-    public function setCout(string $cout): static
+    public function setCout(?int $cout): static
     {
-        $this->cout = $cout;
+        $this->cout = max(0, $cout ?? 0);
 
         return $this;
+    }
+
+    public function getMontantTotal(): int
+    {
+        return $this->quantite * $this->cout;
     }
 }

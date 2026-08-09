@@ -21,9 +21,11 @@ class TypesImpression
     /**
      * @var Collection<int, CommandesDetails>
      */
-    #[ORM\OneToMany(targetEntity: CommandesDetails::class, mappedBy: 'typesImpression')]
-    private Collection $commandesDetails;
-
+   #[ORM\OneToMany(
+    targetEntity: CommandesDetails::class,
+    mappedBy: 'typeImpression'
+)]
+private Collection $commandesDetails;
     /**
      * @var Collection<int, Finition>
      */

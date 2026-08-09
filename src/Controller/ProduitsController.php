@@ -12,6 +12,7 @@ use App\Repository\FinitionRepository;
 use App\Repository\FormatRepository;
 use App\Repository\ProduitsRepository;
 use App\Repository\SupportsRepository;
+use App\Repository\ArticlesRepository;
 use App\Repository\TypesImpressionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,71 +26,78 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 final class ProduitsController extends AbstractController
 {
- #[Route(
-    '',
-    name: 'app_produits_index',
-    methods: ['GET']
-)]
-public function index(
-    ProduitsRepository $produitsRepository,
-    CategorieProduitRepository $categorieProduitRepository,
-    TypesImpressionRepository $typesImpressionRepository,
-    SupportsRepository $supportsRepository,
-    FormatRepository $formatRepository,
-    FinitionRepository $finitionRepository
-): Response {
-    $categoriesProduits = $categorieProduitRepository->findBy(
-        [],
-        [
-            'ordre' => 'ASC',
-            'nom' => 'ASC',
-        ]
-    );
-
-    return $this->render('produits/index.html.twig', [
-        'produits' => $produitsRepository->findBy(
+    #[Route(
+        '',
+        name: 'app_produits_index',
+        methods: ['GET']
+    )]
+    public function index(
+        ProduitsRepository $produitsRepository,
+        CategorieProduitRepository $categorieProduitRepository,
+        TypesImpressionRepository $typesImpressionRepository,
+        SupportsRepository $supportsRepository,
+        FormatRepository $formatRepository,
+        FinitionRepository $finitionRepository,
+        ArticlesRepository $articlesRepository
+    ): Response {
+        $categoriesProduits = $categorieProduitRepository->findBy(
             [],
             [
                 'ordre' => 'ASC',
                 'nom' => 'ASC',
             ]
-        ),
+        );
 
-        'categoriesProduits' => $categoriesProduits,
+        return $this->render('produits/index.html.twig', [
+            'articles' => $articlesRepository->findBy(
+                [],
+                [
+                    'designation' => 'ASC',
+                ]
+            ),
+            'produits' => $produitsRepository->findBy(
+                [],
+                [
+                    'ordre' => 'ASC',
+                    'nom' => 'ASC',
+                ]
+            ),
 
-        'typesImpressions' => $typesImpressionRepository->findBy(
-            ['publie' => true],
-            [
-                'ordre' => 'ASC',
-                'nom' => 'ASC',
-            ]
-        ),
+            'categoriesProduits' => $categoriesProduits,
 
-        'supports' => $supportsRepository->findBy(
-            ['publie' => true],
-            [
-                'ordre' => 'ASC',
-                'nom' => 'ASC',
-            ]
-        ),
+            'typesImpressions' => $typesImpressionRepository->findBy(
+                ['publie' => true],
+                [
+                    'ordre' => 'ASC',
+                    'nom' => 'ASC',
+                ]
+            ),
 
-        'formats' => $formatRepository->findBy(
-            ['publie' => true],
-            [
-                'ordre' => 'ASC',
-                'nom' => 'ASC',
-            ]
-        ),
+            'supports' => $supportsRepository->findBy(
+                ['publie' => true],
+                [
+                    'ordre' => 'ASC',
+                    'nom' => 'ASC',
+                ]
+            ),
 
-        'finitions' => $finitionRepository->findBy(
-            ['publie' => true],
-            [
-                'ordre' => 'ASC',
-                'nom' => 'ASC',
-            ]
-        ),
-    ]);
-}
+            'formats' => $formatRepository->findBy(
+                ['publie' => true],
+                [
+                    'ordre' => 'ASC',
+                    'nom' => 'ASC',
+                ]
+            ),
+
+            'finitions' => $finitionRepository->findBy(
+                ['publie' => true],
+                [
+                    'ordre' => 'ASC',
+                    'nom' => 'ASC',
+                ]
+            ),
+        ]);
+    }
 
     /*
      * =========================================================
@@ -391,11 +399,11 @@ public function index(
         $nombre = count($produits);
 
         $message = match ($action) {
-            'publish' => $nombre.' produit(s) publié(s).',
-            'unpublish' => $nombre.' produit(s) dépublié(s).',
-            'activate' => $nombre.' produit(s) activé(s).',
-            'deactivate' => $nombre.' produit(s) désactivé(s).',
-            'delete' => $nombre.' produit(s) supprimé(s).',
+            'publish' => $nombre . ' produit(s) publié(s).',
+            'unpublish' => $nombre . ' produit(s) dépublié(s).',
+            'activate' => $nombre . ' produit(s) activé(s).',
+            'deactivate' => $nombre . ' produit(s) désactivé(s).',
+            'delete' => $nombre . ' produit(s) supprimé(s).',
         };
 
         return $this->json([
@@ -528,7 +536,7 @@ public function index(
         }
 
         if (!$this->isCsrfTokenValid(
-            'update_produit_'.$produit->getId(),
+            'update_produit_' . $produit->getId(),
             $data['_token'] ?? null
         )) {
             return $this->erreurJson(
@@ -721,7 +729,7 @@ public function index(
         if (
             $data === null
             || !$this->isCsrfTokenValid(
-                'toggle_produit_'.$produit->getId(),
+                'toggle_produit_' . $produit->getId(),
                 $data['_token'] ?? null
             )
         ) {
@@ -765,7 +773,7 @@ public function index(
         if (
             $data === null
             || !$this->isCsrfTokenValid(
-                'toggle_status_produit_'.$produit->getId(),
+                'toggle_status_produit_' . $produit->getId(),
                 $data['_token'] ?? null
             )
         ) {
@@ -809,7 +817,7 @@ public function index(
         if (
             $data === null
             || !$this->isCsrfTokenValid(
-                'delete_produit_'.$produit->getId(),
+                'delete_produit_' . $produit->getId(),
                 $data['_token'] ?? null
             )
         ) {
@@ -857,10 +865,10 @@ public function index(
             array_unique(
                 array_filter(
                     array_map(
-                        static fn (mixed $id): int => (int) $id,
+                        static fn(mixed $id): int => (int) $id,
                         $ids
                     ),
-                    static fn (int $id): bool => $id > 0
+                    static fn(int $id): bool => $id > 0
                 )
             )
         );
@@ -975,26 +983,26 @@ public function index(
                 ?->getId(),
 
             'typesImpressions' => array_map(
-                static fn (TypesImpression $type): int =>
-                    (int) $type->getId(),
+                static fn(TypesImpression $type): int =>
+                (int) $type->getId(),
                 $produit->getTypesImpressions()->toArray()
             ),
 
             'supports' => array_map(
-                static fn (Supports $support): int =>
-                    (int) $support->getId(),
+                static fn(Supports $support): int =>
+                (int) $support->getId(),
                 $produit->getSupports()->toArray()
             ),
 
             'formats' => array_map(
-                static fn (Format $format): int =>
-                    (int) $format->getId(),
+                static fn(Format $format): int =>
+                (int) $format->getId(),
                 $produit->getFormats()->toArray()
             ),
 
             'finitions' => array_map(
-                static fn (Finition $finition): int =>
-                    (int) $finition->getId(),
+                static fn(Finition $finition): int =>
+                (int) $finition->getId(),
                 $produit->getFinitions()->toArray()
             ),
         ];

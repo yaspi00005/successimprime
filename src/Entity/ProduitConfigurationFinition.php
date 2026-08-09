@@ -4,6 +4,9 @@ namespace App\Entity;
 
 use App\Repository\ProduitConfigurationFinitionRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(
     repositoryClass: ProduitConfigurationFinitionRepository::class
@@ -16,6 +19,10 @@ use Doctrine\ORM\Mapping as ORM;
         'finition_id',
     ]
 )]
+#[UniqueEntity(
+    fields: ['produitConfiguration', 'finition'],
+    message: 'Cette finition existe déjà pour cette configuration.'
+)]
 class ProduitConfigurationFinition
 {
     #[ORM\Id]
@@ -23,23 +30,7 @@ class ProduitConfigurationFinition
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(
-        inversedBy: 'configurationFinitions'
-    )]
-    #[ORM\JoinColumn(
-        name: 'produit_configuration_id',
-        nullable: false,
-        onDelete: 'CASCADE'
-    )]
-    private ?ProduitConfiguration $produitConfiguration = null;
 
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(
-        name: 'finition_id',
-        nullable: false,
-        onDelete: 'CASCADE'
-    )]
-    private ?Finition $finition = null;
 
     /*
      * La finition doit obligatoirement être appliquée.
@@ -61,41 +52,77 @@ class ProduitConfigurationFinition
     #[ORM\Column]
     private bool $payante = false;
 
-    /*
-     * Prix de la finition en FCFA.
-     * La signification dépend du mode de calcul.
-     */
-    #[ORM\Column]
-    private int $prix = 0;
 
-    /*
-     * Modes possibles :
-     *
-     * forfait
-     * unite
-     * feuille
-     * exemplaire
-     * metre
-     * metre_carre
-     * point
-     * face
-     */
-    #[ORM\Column(length: 30)]
-    private string $modeCalcul = 'forfait';
-
-    #[ORM\Column]
-    private int $quantiteMinimale = 1;
-
-    #[ORM\Column(nullable: true)]
-    private ?int $quantiteMaximale = null;
 
     #[ORM\Column]
     private bool $active = true;
 
+
+
+    #[ORM\ManyToOne(inversedBy: 'configurationFinitions')]
+    #[ORM\JoinColumn(
+        name: 'produit_configuration_id',
+        nullable: false,
+        onDelete: 'CASCADE'
+    )]
+    #[Assert\NotNull(message: 'La configuration du produit est obligatoire.')]
+    private ?ProduitConfiguration $produitConfiguration = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(
+        name: 'finition_id',
+        nullable: false,
+        onDelete: 'CASCADE'
+    )]
+    #[Assert\NotNull(message: 'La finition est obligatoire.')]
+    private ?Finition $finition = null;
+
     #[ORM\Column]
+    #[Assert\PositiveOrZero(
+        message: 'Le prix ne peut pas être négatif.'
+    )]
+    private int $prix = 0;
+
+    #[ORM\Column(length: 30)]
+    #[Assert\NotBlank(message: 'Le mode de calcul est obligatoire.')]
+    #[Assert\Choice(
+        choices: [
+            'forfait',
+            'unite',
+            'feuille',
+            'exemplaire',
+            'metre',
+            'metre_carre',
+            'point',
+            'face',
+        ],
+        message: 'Le mode de calcul sélectionné est invalide.'
+    )]
+    private string $modeCalcul = 'forfait';
+
+    #[ORM\Column]
+    #[Assert\Positive(
+        message: 'La quantité minimale doit être supérieure à zéro.'
+    )]
+    private int $quantiteMinimale = 1;
+
+    #[ORM\Column(nullable: true)]
+    #[Assert\Positive(
+        message: 'La quantité maximale doit être supérieure à zéro.'
+    )]
+    private ?int $quantiteMaximale = null;
+
+    #[ORM\Column]
+    #[Assert\PositiveOrZero(
+        message: 'L’ordre ne peut pas être négatif.'
+    )]
     private int $ordre = 10;
 
     #[ORM\Column(length: 500, nullable: true)]
+    #[Assert\Length(
+        max: 500,
+        maxMessage: 'La description ne peut pas dépasser {{ limit }} caractères.'
+    )]
     private ?string $description = null;
 
     public function getId(): ?int
@@ -149,13 +176,15 @@ class ProduitConfigurationFinition
         return $this->selectionneeParDefaut;
     }
 
-    public function setSelectionneeParDefaut(
-        bool $selectionneeParDefaut
-    ): static {
-        $this->selectionneeParDefaut = $selectionneeParDefaut;
+   public function setSelectionneeParDefaut(
+    bool $selectionneeParDefaut
+): static {
+    $this->selectionneeParDefaut = $this->obligatoire
+        ? true
+        : $selectionneeParDefaut;
 
-        return $this;
-    }
+    return $this;
+}
 
     public function isPayante(): bool
     {
@@ -283,37 +312,6 @@ class ProduitConfigurationFinition
         return $this;
     }
 
-    public function calculerMontant(
-        int $quantite = 1,
-        ?float $surface = null,
-        ?float $longueur = null,
-        int $nombreFaces = 1,
-        int $nombrePoints = 1
-    ): int {
-        if (!$this->payante || $this->prix <= 0) {
-            return 0;
-        }
-
-        return match ($this->modeCalcul) {
-            'unite',
-            'feuille',
-            'exemplaire' => $this->prix * max(1, $quantite),
-
-            'metre' => (int) round(
-                $this->prix * max(0, $longueur ?? 0)
-            ),
-
-            'metre_carre' => (int) round(
-                $this->prix * max(0, $surface ?? 0)
-            ),
-
-            'face' => $this->prix * max(1, $nombreFaces),
-
-            'point' => $this->prix * max(1, $nombrePoints),
-
-            default => $this->prix,
-        };
-    }
 
     public function __toString(): string
     {
@@ -325,4 +323,99 @@ class ProduitConfigurationFinition
                 ?? 'Finition'
         );
     }
+
+ 
+
+#[Assert\Callback]
+public function validerCoherence(
+    ExecutionContextInterface $context
+): void {
+    if (
+        $this->quantiteMaximale !== null
+        && $this->quantiteMaximale < $this->quantiteMinimale
+    ) {
+        $context
+            ->buildViolation(
+                'La quantité maximale doit être supérieure ou égale à la quantité minimale.'
+            )
+            ->atPath('quantiteMaximale')
+            ->addViolation();
+    }
+
+    if ($this->obligatoire && !$this->selectionneeParDefaut) {
+        $context
+            ->buildViolation(
+                'Une finition obligatoire doit être sélectionnée par défaut.'
+            )
+            ->atPath('selectionneeParDefaut')
+            ->addViolation();
+    }
+
+    if ($this->payante && $this->prix <= 0) {
+        $context
+            ->buildViolation(
+                'Une finition payante doit avoir un prix supérieur à zéro.'
+            )
+            ->atPath('prix')
+            ->addViolation();
+    }
+
+    if (!$this->payante && $this->prix !== 0) {
+        $context
+            ->buildViolation(
+                'Une finition gratuite doit avoir un prix égal à zéro.'
+            )
+            ->atPath('prix')
+            ->addViolation();
+    }
+}
+public function accepteQuantite(int $quantite): bool
+{
+    if ($quantite < $this->quantiteMinimale) {
+        return false;
+    }
+
+    return $this->quantiteMaximale === null
+        || $quantite <= $this->quantiteMaximale;
+}
+public function calculerMontant(
+    int $quantite = 1,
+    ?float $surface = null,
+    ?float $longueur = null,
+    int $nombreFaces = 1,
+    int $nombrePoints = 1
+): int {
+    $quantite = max(1, $quantite);
+
+    if (!$this->active || !$this->payante || $this->prix <= 0) {
+        return 0;
+    }
+
+    if (!$this->accepteQuantite($quantite)) {
+        throw new \DomainException(sprintf(
+            'La quantité %d n’est pas autorisée pour cette finition.',
+            $quantite
+        ));
+    }
+
+    return match ($this->modeCalcul) {
+        'unite',
+        'feuille',
+        'exemplaire' => $this->prix * $quantite,
+
+        'metre' => (int) round(
+            $this->prix * max(0.0, $longueur ?? 0.0)
+        ),
+
+        'metre_carre' => (int) round(
+            $this->prix * max(0.0, $surface ?? 0.0)
+        ),
+
+        'face' => $this->prix * max(1, $nombreFaces),
+
+        'point' => $this->prix * max(1, $nombrePoints),
+
+        default => $this->prix,
+    };
+}
 }

@@ -1,0 +1,2806 @@
+{% macro finition_manuelle(finition) %}
+	<div class="js-finition-manuelle border rounded p-3 mb-3">
+		<div class="row align-items-end">
+			<div class="col-lg-4 col-md-6">
+				{{ form_row(finition.finition, {
+                    label: 'Finition',
+                    attr: {
+                        class: 'form-control js-select-search'
+                    }
+                }) }}
+			</div>
+
+			<div class="col-lg-2 col-md-6">
+				{{ form_row(finition.prixApplique, {
+                    label: 'Prix appliqué',
+                    attr: {
+                        class: 'form-control js-finition-prix',
+                        min: 0
+                    }
+                }) }}
+			</div>
+
+			<div class="col-lg-2 col-md-6">
+				{{ form_row(finition.modeCalcul, {
+                    label: 'Mode de calcul',
+                    attr: {
+                        class: 'form-control js-finition-mode'
+                    }
+                }) }}
+			</div>
+
+			<div class="col-lg-2 col-md-6">
+				{{ form_row(finition.quantite, {
+                    label: 'Quantité',
+                    attr: {
+                        class: 'form-control js-finition-quantite',
+                        min: 1
+                    }
+                }) }}
+			</div>
+
+			<div class="col-lg-2 col-md-6">
+				<button type="button" class="btn btn-danger-light btn-block js-supprimer-finition">
+					<i class="fa fa-trash mr-1"></i>
+					Supprimer
+				</button>
+			</div>
+		</div>
+	</div>
+{% endmacro %}
+{% macro champs_detail(detail) %}
+	<div class="travail-form js-commande-detail">
+		<div class="travail-section">
+			<div class="travail-section-title">
+				<i class="fa fa-cube"></i>
+				Produit et configuration
+			</div>
+			<div class="travail-section">
+
+				<div class="travail-section-title">
+					<i class="fa fa-random"></i>
+					Circuit de traitement
+				</div>
+
+				<div class="row">
+
+					<div class="col-lg-6 col-md-6">
+
+						<div class="form-group">
+
+							{{ form_row(detail.prePresseNecessaire, {
+                    label: 'Passage en prépresse',
+                    attr: {
+                        class: 'js-prepresse-necessaire'
+                    }
+                }) }}
+
+							<small class="form-text text-muted">
+								Activez cette option si le fichier doit être contrôlé,
+																																																																																								                    préparé ou validé avant fabrication.
+							</small>
+
+						</div>
+
+					</div>
+
+
+					<div class="col-lg-6 col-md-6">
+
+						<div class="form-group">
+
+							{{ form_row(detail.productionNecessaire, {
+                    label: 'Passage en production',
+                    attr: {
+                        class: 'js-production-necessaire'
+                    }
+                }) }}
+
+							<small class="form-text text-muted">
+								Désactivez cette option pour une vente directe :
+																																																																																								                    papier, encre, consommable, support, etc.
+							</small>
+
+						</div>
+
+					</div>
+
+				</div>
+
+
+				<div class="alert alert-info js-message-circuit mb-0">
+
+					<i class="fa fa-info-circle mr-1"></i>
+
+					<span class="js-message-circuit-texte">
+						Circuit de traitement de cette ligne.
+					</span>
+
+				</div>
+
+			</div>
+			<div class="row">
+				<div class="col-12 mb-3">
+					<div class="form-group">
+						{{ form_label(
+                    detail.modeConfiguration,
+                    'Mode de configuration'
+                ) }}
+
+						<div class="js-mode-configuration">
+							{{ form_widget(detail.modeConfiguration) }}
+						</div>
+
+						{{ form_errors(detail.modeConfiguration) }}
+
+						<small class="form-text text-muted js-aide-mode">
+							Automatique : les informations et le prix viennent du catalogue.
+																																																																																																																																																																																																																																																																																																						    Manuel : choisissez le produit et saisissez ses caractéristiques.
+																																																																																																																																																																																																																																																																																																						    Libre : saisissez directement la désignation, la quantité et le prix.
+						</small>
+					</div>
+				</div>
+
+
+				<div class="col-lg-8 col-md-6">
+					{{ form_row(detail.designation, {
+                label: 'Désignation du travail',
+                attr: {
+                    class: 'form-control',
+                    placeholder: 'Ex. Bâche publicitaire 3 × 2 m'
+                }
+            }) }}
+				</div>
+
+				<div class="col-lg-8 col-md-6 js-zone-configuration-automatique">
+					{{ form_row(detail.produitConfiguration, {
+                label: 'Configuration du produit',
+                attr: {
+                    class: 'form-control js-select-search',
+                    'data-detail-field': 'configuration',
+                    'data-placeholder': 'Rechercher une configuration...'
+                }
+            }) }}
+
+					<small class="form-text text-muted">
+						Le type d’impression, le support, le format et le prix
+																																																																																																																																																																																																																																																																																																																																																																																																																																																					                seront récupérés automatiquement.
+					</small>
+				</div>
+
+
+				<div class="col-12 js-zone-champs-configuration">
+					<div class="row">
+						<div class="col-lg-4 col-md-6">
+							{{ form_row(detail.typeImpression, {
+                        label: "Type d’impression",
+                        attr: {
+                            class: 'form-control js-select-search',
+                            'data-detail-field': 'typeImpression',
+                            'data-placeholder': "Rechercher un type d’impression..."
+                        }
+                    }) }}
+						</div>
+
+						<div class="col-lg-4 col-md-6">
+							{{ form_row(detail.support, {
+                        label: "Support d’impression",
+                        attr: {
+                            class: 'form-control js-select-search',
+                            'data-detail-field': 'support',
+                            'data-placeholder': "Rechercher un support..."
+                        }
+                    }) }}
+						</div>
+
+						<div class="col-lg-4 col-md-6">
+							{{ form_row(detail.format, {
+                        label: 'Format',
+                        attr: {
+                            class: 'form-control js-select-search',
+                            'data-detail-field': 'format',
+                            'data-placeholder': 'Rechercher un format...'
+                        }
+                    }) }}
+						</div>
+					</div>
+
+					<small class="form-text text-muted js-message-champs-auto">
+						Ces champs proviennent de la configuration sélectionnée.
+					</small>
+				</div>
+			</div>
+		</div>
+
+		<div class="travail-section">
+			<div class="travail-section-title">
+				<i class="fa fa-arrows-alt"></i>
+				Dimensions, quantité et prix
+			</div>
+			<div class="row">
+				<div class="col-lg-3 col-md-6 js-zone-largeur">
+					{{ form_row(detail.largeur, {
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'largeur',
+            min: 0,
+            step: '0.01'
+        }
+    }) }}
+				</div>
+
+				<div class="col-lg-3 col-md-6 js-zone-longueur">
+					{{ form_row(detail.longueur, {
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'longueur',
+            min: 0,
+            step: '0.01'
+        }
+    }) }}
+				</div>
+
+				<div class="col-lg-3 col-md-6 js-zone-surface">
+					{{ form_row(detail.surface, {
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'surface',
+            readonly: true
+        }
+    }) }}
+				</div>
+
+				<div class="col-lg-3 col-md-6">
+					{{ form_row(detail.quantite, {
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'quantite',
+            min: 1
+        }
+    }) }}
+					<small class="form-text text-muted js-message-quantite"></small>
+				</div>
+				<div class="col-lg-3 col-md-6">
+					{{ form_row(detail.nombreFaces, {
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'nombreFaces',
+            min: 1
+        }
+    }) }}
+				</div>
+				<div class="col-lg-3 col-md-6">
+					{{ form_row(detail.modeCalcul, {
+        label: 'Mode de calcul',
+        attr: {
+            class: 'form-control js-mode-calcul js-calcul-detail',
+            'data-detail-field': 'modeCalcul'
+        }
+    }) }}
+				</div>
+				<div class="col-lg-3 col-md-6">
+					{{ form_row(detail.prixUnitaire, {
+        label: 'Prix unitaire',
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'prixUnitaire',
+            min: 0
+        }
+    }) }}
+				</div>
+
+				<div class="col-lg-3 col-md-6">
+					{{ form_row(detail.remise, {
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'remise',
+            min: 0,
+            max: 100
+        }
+    }) }}
+				</div>
+
+				<div class="col-lg-3 col-md-6">
+					{{ form_row(detail.tva, {
+        attr: {
+            class: 'form-control js-calcul-detail',
+            'data-detail-field': 'tva',
+            min: 0
+        }
+    }) }}
+				</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.totalHt) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.totalTtc) }}</div>
+			</div>
+		</div>
+		<div class="travail-section">
+			<div class="travail-section-title">
+				<i class="fa fa-magic"></i>
+				Finitions
+			</div>
+
+			{# Finitions provenant de ProduitConfiguration #}
+			<div class="js-zone-finitions-automatiques">
+				<div class="finitions-box js-finitions-box" data-input-name="{{ detail.finitionsSelectionnees.vars.full_name }}">
+					{{ form_widget(detail.finitionsSelectionnees) }}
+					{{ form_errors(detail.finitionsSelectionnees) }}
+				</div>
+
+				<small class="form-text text-muted">
+					Les finitions disponibles proviennent de la configuration.
+																																																																																																																																																																																									            Les finitions obligatoires sont automatiquement sélectionnées.
+				</small>
+			</div>
+
+			{# Finitions saisies en modes manuel et libre #}
+			<div class="js-zone-finitions-manuelles" data-index="{{ detail.finitions|length }}" data-prototype="{{ _self.finition_manuelle( detail.finitions.vars.prototype )|e('html_attr') }}" style="display: none;">
+				<div class="js-liste-finitions-manuelles">
+					{% for finition in detail.finitions %}
+						{{ _self.finition_manuelle(finition) }}
+					{% endfor %}
+				</div>
+
+				{{ form_errors(detail.finitions) }}
+
+				<button type="button" class="btn btn-primary-light btn-sm js-ajouter-finition">
+					<i class="fa fa-plus mr-1"></i>
+					Ajouter une finition
+				</button>
+
+				<small class="form-text text-muted d-block mt-2">
+					Choisissez la finition, son prix, son mode de calcul
+																																																																																																																																																																																									            et sa quantité.
+				</small>
+			</div>
+		</div>
+
+		<div class="travail-section">
+			<div class="travail-section-title">
+				<i class="fa fa-sliders"></i>
+				Caractéristiques techniques
+			</div>
+			<div class="row">
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.profilCouleurs) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.resolution) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.grammage) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.epaisseur) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.laminage) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.pliage) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.priorite) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.tempsEstime) }}</div>
+				<div class="col-lg-3 col-md-6">{{ form_row(detail.tempsReel) }}</div>
+			</div>
+			<div class="row">
+				<div class="col-md-3">{{ form_row(detail.rectoVerso) }}</div>
+				<div class="col-md-3">{{ form_row(detail.oeillets) }}</div>
+				<div class="col-md-3">{{ form_row(detail.decoupe) }}</div>
+				<div class="col-md-3">{{ form_row(detail.emballage) }}</div>
+				<div class="col-md-3">{{ form_row(detail.batValide) }}</div>
+				<div class="col-md-3">{{ form_row(detail.etat) }}</div>
+			</div>
+			{{ form_row(detail.observation) }}
+		</div>
+
+		<div class="travail-section">
+			<div class="travail-section-title">
+				<i class="fa fa-cloud-upload"></i>
+				Fichiers du client
+			</div>
+			{{ form_widget(detail.jetonsFichiers, {
+				attr: {
+					class: 'js-jetons-fichiers'
+				}
+			}) }}
+			<input type="file" class="form-control js-fichiers-client" multiple accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.svg,.ai,.eps,.psd,.cdr">
+			<small class="form-text text-muted">
+				Les fichiers volumineux sont envoyés automatiquement par morceaux.
+			</small>
+			<div class="js-liste-uploads mt-3"></div>
+		</div>
+	</div>
+{% endmacro %}
+{% set jetonTemporaire =
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+%}
+
+{% set indexTemporaire = 999999999 %}
+
+{% set modeleUrlMorceau = path(
+    'app_fichier_upload_morceau',
+    {
+        jeton: jetonTemporaire,
+        index: indexTemporaire
+    }
+) %}
+
+{% set modeleUrlMorceau = modeleUrlMorceau|replace({
+    (jetonTemporaire): '__JETON__',
+    (indexTemporaire ~ ''): '__INDEX__'
+}) %}
+
+{% set modeleUrlStatut = path(
+    'app_fichier_upload_statut',
+    {
+        jeton: jetonTemporaire
+    }
+) %}
+
+{% set modeleUrlStatut = modeleUrlStatut|replace({
+    (jetonTemporaire): '__JETON__'
+}) %}
+
+{{ form_start(form, {
+    attr: {
+        id: 'commande-form',
+        enctype: 'multipart/form-data',
+
+        'data-upload-csrf': csrf_token(
+            'upload-commande'
+        ),
+
+        'data-upload-initialiser-url': path(
+            'app_fichier_upload_initialiser'
+        ),
+
+        'data-upload-morceau-url': modeleUrlMorceau,
+
+        'data-upload-statut-url': modeleUrlStatut
+    }
+}) }}
+
+<div class="side-app">
+	<div class="page-header">
+		<ol class="breadcrumb">
+			<li class="breadcrumb-item">
+				<a href="{{ path('app_commandes_index') }}">Commandes</a>
+			</li>
+			<li class="breadcrumb-item active" aria-current="page">
+				{{ form.vars.data.id ? 'Modifier la commande' : 'Nouvelle commande' }}
+			</li>
+		</ol>
+		<a href="{{ path('app_commandes_index') }}" class="btn btn-sm btn-primary-light">
+			<i class="fa fa-list mr-1"></i>
+			Liste des commandes
+		</a>
+	</div>
+
+	{% if not form.vars.valid %}
+		<div class="alert alert-danger">
+			{{ form_errors(form) }}
+		</div>
+	{% endif %}
+
+	<div class="row">
+		<div class="col-xl-12">
+			<div class="card">
+				<div class="card-header">
+					<div class="card-title">
+						<i class="fa fa-user-circle mr-2 text-primary"></i>
+						Client et responsable
+					</div>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-lg-6">
+							{{ form_row(form.clients, {
+                                label: 'Client',
+                                attr: {
+                                    class: 'form-control js-select-search',
+                                    'data-placeholder': 'Rechercher un client...'
+                                }
+                            }) }}
+						</div>
+
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-xl-12">
+			<div class="card">
+				<div class="card-header">
+					<div class="card-title">
+						<i class="fa fa-file-text-o mr-2 text-primary"></i>
+						Informations de la commande
+					</div>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-md-6 col-xl-3">
+							<input type="text" class="form-control" value="{{ form.vars.data.numero|default('Généré automatiquement') }}" disabled>
+						</div>
+
+
+						<div class="col-md-6 col-xl-3">
+							{{ form_row(form.statut, {
+                                label: 'Statut',
+                                attr: { class: 'form-control' }
+                            }) }}
+						</div>
+						<div class="col-md-6 col-xl-3">
+							{{ form_row(form.etat, {
+                                label: 'État',
+                                attr: { class: 'form-control' }
+                            }) }}
+						</div>
+						<div class="col-md-6 col-xl-3">
+							{{ form_row(form.tva, {
+                                label: 'TVA (%)',
+                                attr: { class: 'form-control', min: 0 }
+                            }) }}
+						</div>
+						<div class="col-md-12 col-xl-6">
+							{{ form_row(form.observation, {
+                                label: 'Observation',
+                                attr: {
+                                    class: 'form-control',
+                                    rows: 3,
+                                    placeholder: 'Informations complémentaires...'
+                                }
+                            }) }}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-xl-12">
+			<div class="card cart">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<div>
+						<div class="card-title mb-0">
+							<i class="fa fa-shopping-cart mr-2 text-primary"></i>
+							Produits et prestations
+						</div>
+
+						<small class="text-muted">
+							Ajoutez des travaux d’impression, des prestations
+																																																	    ou des produits vendus directement.
+						</small>
+					</div>
+					<button type="button" id="add-detail" class="btn btn-success-light">
+						<i class="fa fa-plus mr-1"></i>
+						Ajouter un détail
+					</button>
+				</div>
+
+				<div class="card-body">
+					{{ form_errors(form.commandesDetails) }}
+
+					<div id="collection-details" data-index="{{ form.commandesDetails|length }}" data-prototype="{{ _self.champs_detail(form.commandesDetails.vars.prototype)|e('html_attr') }}">
+						{% for detail in form.commandesDetails %}
+							<div class="detail-commande card border mb-4">
+								<div class="card-header bg-light d-flex justify-content-between align-items-center">
+									<div class="card-title detail-title mb-0">
+										Travail
+										{{ loop.index }}
+									</div>
+									<button type="button" class="btn btn-danger-light btn-sm supprimer-detail">
+										<i class="icon icon-trash mr-1"></i>
+										Supprimer
+									</button>
+								</div>
+								<div class="card-body p-0">
+									{{ _self.champs_detail(detail) }}
+								</div>
+							</div>
+						{% else %}
+							<div id="aucun-detail" class="alert alert-info mb-0">
+								Aucun travail ajouté. Cliquez sur « Ajouter un détail ».
+							</div>
+						{% endfor %}
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-xl-5 ml-auto">
+			<div class="card">
+				<div class="card-header">
+					<div class="card-title">
+						<i class="fa fa-calculator mr-2 text-primary"></i>
+						Récapitulatif
+					</div>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-md-6">
+							{{ form_row(form.totalHt, {
+                                label: 'Total HT',
+                                attr: { class: 'form-control montant-calcul', readonly: true }
+                            }) }}
+						</div>
+						<div class="col-md-6">
+							{{ form_row(form.remise, {
+                                label: 'Remise',
+                                attr: { class: 'form-control', min: 0 }
+                            }) }}
+						</div>
+						<div class="col-md-6">
+							{{ form_row(form.totalTtc, {
+                                label: 'Total TTC',
+                                attr: { class: 'form-control montant-calcul', readonly: true }
+                            }) }}
+						</div>
+						<div class="col-md-6">
+							{{ form_row(form.montantApayer, {
+                                label: 'Montant à payer',
+                                attr: { class: 'form-control montant-calcul', readonly: true }
+                            }) }}
+						</div>
+					</div>
+				</div>
+				<div class="card-footer d-flex justify-content-between">
+					<a href="{{ path('app_commandes_index') }}" class="btn btn-primary-light">
+						<i class="fa fa-arrow-left mr-1"></i>
+						Annuler
+					</a>
+					<button type="submit" class="btn btn-success-light">
+						<i class="fa fa-save mr-1"></i>
+						{{ button_label|default('Enregistrer la commande') }}
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+{#
+  Ces anciens champs restent dans CommandesType mais ne doivent pas apparaître
+  en double dans la nouvelle interface.
+#}
+
+{# {% if form.totalTtc is defined %}
+	{{ form_widget(form.totalTtc, { attr: { class: 'd-none' } }) }}
+{% endif %} #}
+
+{# {% if form.dateLivraison is defined %}
+	{{ form_widget(form.dateLivraison, { attr: { class: 'd-none' } }) }}
+{% endif %} #}
+
+
+	{% if form._token is defined %}
+{{ form_widget(form._token) }}
+{% endif %}
+
+{{ form_end(form, { render_rest: false }) }}
+
+<link href="{{ asset('assets/plugins/select2/select2.min.css') }}" rel="stylesheet"> <style>
+	/*
+ * Le thème Arox applique parfois une couleur blanche aux champs.
+ * On force ici une couleur lisible dans tout le formulaire commande.
+ */
+	#commande-form input.form-control,
+	#commande-form select.form-control,
+	#commande-form textarea.form-control {
+		color: #1f2937 !important;
+		-webkit-text-fill-color: #1f2937;
+		background-color: #fff !important;
+	}
+
+	#commande-form select.form-control option {
+		color: #1f2937;
+		background-color: #fff;
+	}
+
+	#commande-form .select2-container {
+		width: 100% !important;
+	}
+
+	#commande-form .select2-container .select2-selection--single {
+		height: 40px;
+		color: #1f2937;
+		border: 1px solid #d8deea;
+		border-radius: 5px;
+		background: #fff;
+	}
+
+	#commande-form .select2-container .select2-selection--single .select2-selection__rendered {
+		line-height: 38px;
+		color: #1f2937 !important;
+		padding-left: 12px;
+	}
+
+	#commande-form .select2-container .select2-selection--single .select2-selection__arrow {
+		height: 38px;
+	}
+
+	.select2-dropdown,
+	.select2-results__option,
+	.select2-search__field {
+		color: #1f2937 !important;
+		background-color: #fff;
+	}
+
+	.select2-search--dropdown .select2-search__field {
+		border: 1px solid #d8deea;
+		border-radius: 4px;
+	}
+
+	.select2-results__option--highlighted[aria-selected] {
+		color: #fff !important;
+		background-color: #6259ca !important;
+	}
+
+	#commande-form .form-control::placeholder {
+		color: #8a94a6 !important;
+		opacity: 1;
+	}
+
+	#commande-form .form-control:disabled,
+	#commande-form .form-control[readonly] {
+		color: #52606d !important;
+		-webkit-text-fill-color: #52606d;
+		background-color: #f0f3f8 !important;
+		opacity: 1;
+	}
+
+	#commande-form input.form-control:-webkit-autofill,
+	#commande-form input.form-control:-webkit-autofill:hover,
+	#commande-form input.form-control:-webkit-autofill:focus {
+		-webkit-text-fill-color: #1f2937 !important;
+		box-shadow: 0 0 0 1000px #fff inset;
+	}
+
+	.detail-commande {
+		border: 1px solid #dce4f0 !important;
+		border-radius: 8px;
+		overflow: hidden;
+		box-shadow: 0 3px 12px rgba(18, 38, 73, 0.06);
+	}
+
+	.detail-commande > .card-header {
+		min-height: 58px;
+		padding: 14px 20px;
+		background: #f4f7fc !important;
+		border-bottom: 1px solid #dce4f0;
+	}
+
+	.travail-form {
+		padding: 20px;
+		background: #fff;
+	}
+
+	.travail-section {
+		padding: 18px 18px 4px;
+		margin-bottom: 18px;
+		border: 1px solid #e5eaf2;
+		border-radius: 7px;
+		background: #fbfcfe;
+	}
+
+	.travail-section-title {
+		margin: -18px -18px 18px;
+		padding: 11px 16px;
+		color: #17366f;
+		font-size: 14px;
+		font-weight: 600;
+		background: #f1f5fb;
+		border-bottom: 1px solid #e1e7f0;
+	}
+
+	.travail-section-title i {
+		width: 20px;
+		color: #6259ca;
+	}
+
+	.travail-form .form-group {
+		margin-bottom: 16px;
+	}
+
+	.travail-form label {
+		display: block;
+		margin-bottom: 6px;
+		color: #334151;
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.travail-form .form-control {
+		width: 100%;
+		min-height: 40px;
+		border: 1px solid #d8deea;
+		border-radius: 5px;
+		background-color: #fff;
+	}
+
+	.travail-form textarea.form-control {
+		min-height: 88px;
+	}
+
+	.travail-form .form-control:focus {
+		border-color: #6259ca;
+		box-shadow: 0 0 0 2px rgba(98, 89, 202, 0.12);
+	}
+
+	.travail-form .form-control[readonly] {
+		background: #f0f3f8;
+		color: #52606d;
+	}
+
+	.finitions-box {
+		padding: 14px 16px 4px;
+		margin-bottom: 16px;
+		border: 1px dashed #cbd4e1;
+		border-radius: 6px;
+		background: #fff;
+	}
+
+	.finitions-box .form-check,
+	.finitions-box .checkbox {
+		display: inline-flex;
+		align-items: center;
+		margin: 0 24px 10px 0;
+	}
+
+	.finitions-box input[type="checkbox"] {
+		margin-right: 7px;
+	}
+
+	.js-champs-auto-verrouilles {
+		pointer-events: none;
+		opacity: .8;
+	}
+
+	@media(max-width: 767.98px) {
+		.travail-form {
+			padding: 12px;
+		}
+
+		.travail-section {
+			padding: 14px 14px 1px;
+		}
+
+		.travail-section-title {
+			margin: -14px -14px 14px;
+		}
+	}
+	/*
+ * Select2 ajoute cette classe au select original.
+ * Il faut empêcher les styles du formulaire de le réafficher.
+ */
+	#devis-form select.select2-hidden-accessible {
+		position: absolute !important;
+		width: 1px !important;
+		height: 1px !important;
+		padding: 0 !important;
+		margin: -1px !important;
+		overflow: hidden !important;
+		clip: rect(0, 0, 0, 0) !important;
+		white-space: nowrap !important;
+		border: 0 !important;
+		opacity: 0 !important;
+		pointer-events: none !important;
+	}
+
+	#devis-form .select2-container {
+		display: block;
+		width: 100% !important;
+	}
+
+	#devis-form .select2-selection--single {
+		height: 42px;
+		border: 1px solid #d8dee9;
+		border-radius: 5px;
+		background-color: #fff;
+	}
+
+	#devis-form .select2-selection--single .select2-selection__rendered {
+		line-height: 40px;
+		padding-left: 12px;
+		color: #495057;
+	}
+
+	#devis-form .select2-selection--single .select2-selection__arrow {
+		height: 40px;
+	}
+</style>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+console.log('✅ JavaScript commande chargé');
+const form = document.getElementById('commande-form');
+const collection = document.getElementById('collection-details');
+const addButton = document.getElementById('add-detail');
+
+if (! form || ! collection || ! addButton) {
+return;
+}
+
+const csrfToken = form.dataset.uploadCsrf;
+const initialiserUrl = form.dataset.uploadInitialiserUrl;
+const modeleUrlMorceau = form.dataset.uploadMorceauUrl;
+const modeleUrlStatut = form.dataset.uploadStatutUrl;
+const tailleMorceau = 5 * 1024 * 1024;
+
+if (! csrfToken || ! initialiserUrl || ! modeleUrlMorceau) {
+console.error('Configuration de l\'upload incomplète : vérifiez les attributs data-upload-* du formulaire.');
+}
+
+const configurationsProduitUrl = "{{ path(
+        'app_produit_configuration_by_produit_ajax',
+        {id: 0}
+    ) }}";
+
+const configurationUrl = "{{ path(
+        'app_produit_configuration_get_ajax',
+        {id: 0}
+    ) }}";
+let uploadsActifs = 0;
+/*
+ * Conserve les configurations chargées pour chaque travail.
+ * Elles servent à construire les listes du mode manuel.
+ */
+const configurationsParDetail = new WeakMap();
+function construireUrl(url, id) {
+return url.replace(/\/0(?=\/ajax(?:\?|$))/, '/' + encodeURIComponent(id));
+}
+
+function actualiserSelect2(select) {
+if (! select) {
+return;
+}
+
+if (typeof window.jQuery !== 'undefined' && typeof window.jQuery.fn.select2 !== 'undefined') {
+window.jQuery(select).trigger('change.select2');
+}
+}
+
+function viderSelect(select, placeholder) {
+if (! select) {
+return;
+}
+
+select.innerHTML = '';
+
+const option = document.createElement('option');
+
+option.value = '';
+option.textContent = placeholder;
+
+select.appendChild(option);
+select.value = '';
+
+actualiserSelect2(select);
+}
+
+function libelleFinition(finition) {
+let libelle = finition.nom || 'Finition';
+
+if (finition.payante && Number(finition.prix) > 0) {
+libelle += ' — ' + Number(finition.prix).toLocaleString('fr-FR') + ' FCFA';
+}
+
+if (finition.obligatoire) {
+libelle += ' — obligatoire';
+}
+
+return libelle;
+}
+
+function nombreDepuisChamp(champ, valeurParDefaut = 0) {
+if (! champ || champ.value === '') {
+return valeurParDefaut;
+}
+
+const valeur = Number(String(champ.value).replace(',', '.'));
+
+return Number.isFinite(valeur) ? valeur : valeurParDefaut;
+}
+
+function champDetail(detail, nomChamp) {
+return detail.querySelector('[data-detail-field="' + nomChamp + '"],' + '[name$="[' + nomChamp + ']"]');
+}
+
+function ecrireMontant(champ, valeur) {
+if (! champ) {
+return;
+}
+
+const montant = Number.isFinite(valeur) ? Math.round((valeur + Number.EPSILON) * 100) / 100 : 0;
+
+champ.value = String(montant);
+}
+
+
+function prixFinitionsSelectionnees(detail) {
+const largeur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'largeur')));
+
+const longueur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'longueur')));
+
+const surface = largeur > 0 && longueur > 0 ? largeur * longueur : 0;
+
+const quantite = Math.max(1, nombreDepuisChamp(champDetail(detail, 'quantite'), 1));
+
+return Array.from(detail.querySelectorAll('.js-finition-selectionnee:checked')).reduce(function (total, checkbox) {
+const prix = Math.max(0, Number(checkbox.dataset.prix || 0));
+
+const mode = String(checkbox.dataset.modeCalcul || 'forfait').toLowerCase();
+
+if (mode === 'metre_carre' || mode === 'm2' || mode === 'surface') {
+return total + prix * surface * quantite;
+}
+
+if (mode === 'metre') {
+return total + prix * longueur * quantite;
+}
+
+if (mode === 'unite' || mode === 'quantite' || mode === 'par_unite' || mode === 'heure') {
+return total + prix * quantite;
+}
+
+return total + prix;
+}, 0);
+}
+
+function calculerRecapitulatif() {
+let totalHtCommande = 0;
+let totalTtcCommande = 0;
+
+collection.querySelectorAll('.detail-commande').forEach(function (detail) {
+totalHtCommande += nombreDepuisChamp(champDetail(detail, 'totalHt'));
+
+totalTtcCommande += nombreDepuisChamp(champDetail(detail, 'totalTtc'));
+});
+
+const totalHt = document.getElementById('{{ form.totalHt.vars.id }}');
+const totalTtc = document.getElementById('{{ form.totalTtc.vars.id }}');
+const remiseCommande = document.getElementById('{{ form.remise.vars.id }}');
+const montantApayer = document.getElementById('{{ form.montantApayer.vars.id }}');
+
+const remise = Math.max(0, nombreDepuisChamp(remiseCommande));
+
+ecrireMontant(totalHt, totalHtCommande);
+ecrireMontant(totalTtc, totalTtcCommande);
+ecrireMontant(montantApayer, Math.max(0, totalTtcCommande - remise));
+}
+
+function calculerDetail(detail) {
+const largeur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'largeur')));
+
+const longueur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'longueur')));
+
+const quantite = Math.max(1, nombreDepuisChamp(champDetail(detail, 'quantite'), 1));
+
+const prixUnitaire = Math.max(0, nombreDepuisChamp(champDetail(detail, 'prixUnitaire')));
+
+const remisePourcentage = Math.min(100, Math.max(0, nombreDepuisChamp(champDetail(detail, 'remise'))));
+
+const tva = Math.max(0, nombreDepuisChamp(champDetail(detail, 'tva')));
+
+const surface = largeur > 0 && longueur > 0 ? largeur * longueur : 0;
+
+const champModeCalcul = champDetail(detail, 'modeCalcul');
+
+const modeCalcul = String(champModeCalcul ? champModeCalcul.value : (detail.dataset.modeCalcul || 'unite')).toLowerCase();
+
+let montantImpression = 0;
+
+switch (modeCalcul) {
+case 'forfait': montantImpression = prixUnitaire;
+break;
+
+case 'metre': montantImpression = prixUnitaire * longueur * quantite;
+break;
+
+case 'metre_carre': montantImpression = prixUnitaire * surface * quantite;
+break;
+
+case 'face': montantImpression = prixUnitaire * Math.max(1, nombreDepuisChamp(champDetail(detail, 'nombreFaces'), 1)) * quantite;
+break;
+
+case 'heure':
+case 'feuille':
+case 'exemplaire':
+case 'point':
+case 'unite':
+default: montantImpression = prixUnitaire * quantite;
+break;
+}
+
+const modeConfiguration = valeurModeConfiguration(detail);
+
+const montantFinitions = modeConfiguration === 'automatique' ? prixFinitionsSelectionnees(detail) : montantFinitionsManuelles(detail);
+
+const totalBrut = montantImpression + montantFinitions;
+
+const totalHt = Math.max(0, totalBrut * (1 - remisePourcentage / 100));
+
+const totalTtc = totalHt * (1 + tva / 100);
+
+ecrireMontant(champDetail(detail, 'surface'), surface);
+
+ecrireMontant(champDetail(detail, 'totalHt'), totalHt);
+
+ecrireMontant(champDetail(detail, 'totalTtc'), totalTtc);
+
+calculerRecapitulatif();
+}
+
+function bindCalcul(detail) {
+if (detail.dataset.calculBound === '1') {
+calculerDetail(detail);
+return;
+}
+
+detail.dataset.calculBound = '1';
+
+detail.addEventListener('input', function (event) {
+if (event.target.closest('.js-calcul-detail')) {
+calculerDetail(detail);
+}
+});
+
+detail.addEventListener('change', function (event) {
+if (event.target.closest('.js-calcul-detail') || event.target.matches('input[name$="[finitionsSelectionnees][]"]')) {
+calculerDetail(detail);
+}
+});
+
+calculerDetail(detail);
+}
+
+function definirValeurChamp(detail, nomChamp, valeur) {
+const champ = detail.querySelector('[data-detail-field="' + nomChamp + '"],' + '[name$="[' + nomChamp + ']"]');
+
+if (! champ) {
+console.warn('Champ introuvable dans le travail :', nomChamp);
+return;
+}
+
+// Accepte aussi bien un identifiant qu'un objet { id: ... }
+const valeurFinale = valeur !== null && typeof valeur === 'object' && valeur.id !== undefined ? valeur.id : valeur;
+
+champ.value = valeurFinale === null || valeurFinale === undefined ? '' : String(valeurFinale);
+
+if (champ.tagName === 'SELECT' && typeof window.jQuery !== 'undefined' && typeof window.jQuery.fn.select2 !== 'undefined') {
+window.jQuery(champ).val(champ.value).trigger('change.select2');
+}
+
+champ.dispatchEvent(new Event('input', {bubbles: true}));
+}
+async function chargerConfiguration(detail, configurationId, finitionsAConserver = null) {
+const finitionsBox = detail.querySelector('.js-finitions-box');
+const finitionsInitiales = finitionsAConserver || Array.from(detail.querySelectorAll('input[name$="[finitionsSelectionnees][]"]:checked')).map(function (checkbox) {
+return String(checkbox.value);
+});
+
+if (! configurationId) {
+detail.dataset.modeDimension = '';
+detail.dataset.modeCalcul = 'unite';
+detail.dataset.quantiteMin = '1';
+detail.dataset.quantiteMax = '';
+
+definirValeurChamp(detail, 'typeImpression', '');
+definirValeurChamp(detail, 'support', '');
+definirValeurChamp(detail, 'format', '');
+definirValeurChamp(detail, 'prixUnitaire', '');
+definirValeurChamp(detail, 'largeur', '');
+definirValeurChamp(detail, 'longueur', '');
+definirValeurChamp(detail, 'surface', '');
+
+const messageQuantite = detail.querySelector('.js-message-quantite');
+
+if (messageQuantite) {
+messageQuantite.textContent = '';
+}
+
+if (finitionsBox) {
+finitionsBox.innerHTML = '<span class="text-muted">' + 'Sélectionnez une configuration.' + '</span>';
+}
+
+appliquerModeConfiguration(detail);
+calculerDetail(detail);
+
+return;
+}
+
+try {
+const reponse = await fetch(construireUrl(configurationUrl, configurationId), {
+headers: {
+Accept: 'application/json'
+}
+});
+
+if (! reponse.ok) {
+throw new Error('Impossible de charger la configuration.');
+}
+
+const resultat = await reponse.json();
+const configuration = resultat.configuration || resultat.data || resultat;
+detail.dataset.modeDimension = String(configuration.modeDimension || '');
+
+detail.dataset.modeCalcul = String(configuration.modeCalcul || 'unite');
+
+detail.dataset.quantiteMin = String(configuration.quantiteMinimale ?? configuration.quantiteMin ?? 1);
+
+detail.dataset.quantiteMax = String(configuration.quantiteMaximale ?? configuration.quantiteMax ?? '');
+
+definirValeurChamp(detail, 'typeImpression', configuration.typeImpression);
+
+definirValeurChamp(detail, 'support', configuration.support);
+
+definirValeurChamp(detail, 'format', configuration.format);
+
+if (configuration.prixBase !== null && configuration.prixBase !== undefined) {
+definirValeurChamp(detail, 'prixUnitaire', configuration.prixBase);
+}
+
+
+/*
+ * AJOUTER LA PARTIE ICI :
+ * limites de quantité.
+ */
+const quantite = champDetail(detail, 'quantite');
+
+const quantiteMin = Math.max(1, Number(detail.dataset.quantiteMin || 1));
+
+const quantiteMax = detail.dataset.quantiteMax !== '' ? Number(detail.dataset.quantiteMax) : null;
+
+if (quantite) {
+quantite.min = String(quantiteMin);
+
+if (quantiteMax !== null && Number.isFinite(quantiteMax)) {
+quantite.max = String(quantiteMax);
+} else {
+quantite.removeAttribute('max');
+}
+
+if (quantite.value === '' || Number(quantite.value) < quantiteMin) {
+quantite.value = String(quantiteMin);
+}
+}
+
+const messageQuantite = detail.querySelector('.js-message-quantite');
+
+if (messageQuantite) {
+messageQuantite.textContent = quantiteMax !== null && Number.isFinite(quantiteMax) ? 'Quantité autorisée : ' + quantiteMin + ' à ' + quantiteMax + '.' : 'Quantité minimale : ' + quantiteMin + '.';
+}
+
+/*
+ * Dimensions enregistrées dans la configuration.
+ */
+if (detail.dataset.modeDimension === 'mesure') {
+definirValeurChamp(detail, 'largeur', configuration.largeurDefaut ?? configuration.largeur ?? '');
+
+definirValeurChamp(detail, 'longueur', configuration.longueurDefaut ?? configuration.longueur ?? '');
+} else {
+definirValeurChamp(detail, 'largeur', '');
+definirValeurChamp(detail, 'longueur', '');
+definirValeurChamp(detail, 'surface', '');
+}
+
+/*
+ * Le bloc déjà présent continue ici.
+ */
+if (finitionsBox) {
+const nomChamp = finitionsBox.dataset.inputName;
+finitionsBox.innerHTML = '';
+
+const listeFinitions = configuration.finitions || configuration.configurationFinitions || [];
+
+if (! listeFinitions.length) {
+finitionsBox.innerHTML = '<span class="text-muted">Aucune finition disponible.</span>';
+}
+
+listeFinitions.forEach(function (finition, index) {
+const donneesFinition = finition.finition || finition;
+const identifiant = finition.id ?? donneesFinition.id;
+const wrapper = document.createElement('div');
+const checkbox = document.createElement('input');
+const label = document.createElement('label');
+const inputId = (nomChamp + '_' + index).replace(/[^a-zA-Z0-9_-]/g, '_');
+
+wrapper.className = 'form-check form-check-inline';
+checkbox.type = 'checkbox';
+checkbox.className = 'form-check-input js-finition-selectionnee';
+checkbox.name = nomChamp + '[]';
+checkbox.id = inputId;
+checkbox.value = String(identifiant);
+checkbox.checked = finitionsInitiales.includes(String(identifiant)) || Boolean(finition.obligatoire || finition.selectionneeParDefaut);
+checkbox.disabled = Boolean(finition.obligatoire);
+checkbox.dataset.obligatoire = finition.obligatoire ? '1' : '0';
+checkbox.dataset.prix = String(finition.prix ?? donneesFinition.prix ?? 0);
+checkbox.dataset.modeCalcul = String(finition.modeCalcul ?? 'forfait');
+
+/*
+ * Une case disabled n'est pas envoyée par le navigateur.
+ * On empêche donc seulement le décochage des finitions obligatoires.
+ */
+checkbox.disabled = false;
+if (finition.obligatoire) {
+checkbox.addEventListener('click', function (event) {
+event.preventDefault();
+checkbox.checked = true;
+});
+}
+
+label.className = 'form-check-label';
+label.htmlFor = inputId;
+label.textContent = libelleFinition({
+... donneesFinition,
+... finition
+});
+wrapper.appendChild(checkbox);
+wrapper.appendChild(label);
+finitionsBox.appendChild(wrapper);
+});
+}
+
+
+/*
+ * Applique le verrouillage ou la saisie manuelle
+ * après le chargement de la configuration.
+ */
+appliquerModeConfiguration(detail);
+calculerDetail(detail);
+
+} catch (erreur) {
+
+if (finitionsBox) {
+finitionsBox.innerHTML = '<span class="text-danger">Erreur de chargement.</span>';
+}
+}
+}
+function valeurObjet(objet, propriete) {
+if (! objet || ! objet[propriete]) {
+return null;
+}
+
+const valeur = objet[propriete];
+
+if (typeof valeur !== 'object' || valeur.id === null || valeur.id === undefined) {
+return null;
+}
+
+return {
+id: String(valeur.id),
+nom: valeur.nom || valeur.libelle || String(valeur.id)
+};
+}
+
+function optionsUniques(configurations, propriete) {
+const options = new Map();
+
+configurations.forEach(function (configuration) {
+const valeur = valeurObjet(configuration, propriete);
+
+if (valeur) {
+options.set(valeur.id, valeur);
+}
+});
+
+return Array.from(options.values());
+}
+
+function remplirSelectManuel(select, options, placeholder, valeurAConserver = '') {
+if (! select) {
+return;
+}
+
+viderSelect(select, placeholder);
+
+options.forEach(function (element) {
+const option = document.createElement('option');
+
+option.value = element.id;
+option.textContent = element.nom;
+
+select.appendChild(option);
+});
+
+if (valeurAConserver && options.some(function (element) {
+return element.id === String(valeurAConserver);
+})) {
+select.value = String(valeurAConserver);
+}
+
+/*
+     * Lorsqu’il n’existe qu’un seul choix,
+     * il est sélectionné automatiquement.
+     */
+if (! select.value && options.length === 1) {
+select.value = options[0].id;
+}
+
+actualiserSelect2(select);
+}
+
+function configurationsFiltrees(detail, inclureSupport = true, inclureFormat = true) {
+const configurations = configurationsParDetail.get(detail) || [];
+
+const typeSelect = champDetail(detail, 'typeImpression');
+
+const supportSelect = champDetail(detail, 'support');
+
+const formatSelect = champDetail(detail, 'format');
+
+return configurations.filter(function (configuration) {
+const typeImpression = valeurObjet(configuration, 'typeImpression');
+
+const support = valeurObjet(configuration, 'support');
+
+const format = valeurObjet(configuration, 'format');
+
+if (typeSelect && typeSelect.value && (! typeImpression || typeImpression.id !== typeSelect.value)) {
+return false;
+}
+
+if (inclureSupport && supportSelect && supportSelect.value && (! support || support.id !== supportSelect.value)) {
+return false;
+}
+
+if (inclureFormat && formatSelect && formatSelect.value && (! format || format.id !== formatSelect.value)) {
+return false;
+}
+
+return true;
+});
+}
+
+function reinitialiserDonneesConfiguration(detail) {
+detail.dataset.modeDimension = '';
+detail.dataset.modeCalcul = 'unite';
+detail.dataset.quantiteMin = '1';
+detail.dataset.quantiteMax = '';
+
+definirValeurChamp(detail, 'prixUnitaire', '');
+definirValeurChamp(detail, 'largeur', '');
+definirValeurChamp(detail, 'longueur', '');
+definirValeurChamp(detail, 'surface', '');
+
+const finitionsBox = detail.querySelector('.js-finitions-box');
+
+if (finitionsBox) {
+finitionsBox.innerHTML = '<span class="text-muted">' + 'Terminez la sélection pour afficher les finitions.' + '</span>';
+}
+
+calculerDetail(detail);
+}
+
+function initialiserChoixManuels(detail) {
+const configurations = configurationsParDetail.get(detail) || [];
+
+const typeSelect = champDetail(detail, 'typeImpression');
+
+const supportSelect = champDetail(detail, 'support');
+
+const formatSelect = champDetail(detail, 'format');
+
+remplirSelectManuel(typeSelect, optionsUniques(configurations, 'typeImpression'), 'Sélectionnez un type d’impression');
+
+viderSelect(supportSelect, 'Sélectionnez d’abord un type d’impression');
+
+viderSelect(formatSelect, 'Sélectionnez d’abord un support');
+
+reinitialiserDonneesConfiguration(detail);
+
+/*
+     * Continue automatiquement si le produit
+     * ne possède qu’un seul type d’impression.
+     */
+if (typeSelect && typeSelect.value) {
+actualiserSupportsManuels(detail);
+}
+}
+
+function actualiserSupportsManuels(detail) {
+const supportSelect = champDetail(detail, 'support');
+
+const formatSelect = champDetail(detail, 'format');
+
+const configurations = configurationsFiltrees(detail, false, false);
+
+remplirSelectManuel(supportSelect, optionsUniques(configurations, 'support'), 'Sélectionnez un support');
+
+viderSelect(formatSelect, 'Sélectionnez d’abord un support');
+
+reinitialiserDonneesConfiguration(detail);
+
+if (supportSelect && supportSelect.value) {
+actualiserFormatsManuels(detail);
+}
+}
+
+function actualiserFormatsManuels(detail) {
+const formatSelect = champDetail(detail, 'format');
+
+const configurations = configurationsFiltrees(detail, true, false);
+
+const formats = optionsUniques(configurations, 'format');
+
+remplirSelectManuel(formatSelect, formats, formats.length ? 'Sélectionnez un format' : 'Aucun format nécessaire');
+
+reinitialiserDonneesConfiguration(detail);
+
+/*
+     * Pour une bâche au m², le format est généralement vide.
+     * La configuration peut donc être trouvée dès le support.
+     */
+if (! formats.length || formatSelect.value) {
+rechercherConfigurationManuelle(detail);
+}
+}
+
+async function rechercherConfigurationManuelle(detail) {
+const configurations = configurationsFiltrees(detail, true, true);
+
+const formatSelect = champDetail(detail, 'format');
+
+const configurationsAvecFormat = configurations.filter(function (configuration) {
+return valeurObjet(configuration, 'format') !== null;
+});
+
+/*
+     * Pour un produit par format, il faut choisir A3, A4, A5...
+     */
+if (configurationsAvecFormat.length && (! formatSelect || ! formatSelect.value)) {
+return;
+}
+
+if (configurations.length !== 1) {
+reinitialiserDonneesConfiguration(detail);
+return;
+}
+
+const configuration = configurations[0];
+
+const configurationSelect = champDetail(detail, 'configuration');
+
+if (configurationSelect) {
+configurationSelect.value = String(configuration.id);
+
+actualiserSelect2(configurationSelect);
+}
+
+await chargerConfiguration(detail, configuration.id);
+}
+
+function bindSelectionsManuelles(detail) {
+if (detail.dataset.manuelBound === '1') {
+return;
+}
+
+detail.dataset.manuelBound = '1';
+
+const typeSelect = champDetail(detail, 'typeImpression');
+
+const supportSelect = champDetail(detail, 'support');
+
+const formatSelect = champDetail(detail, 'format');
+
+if (typeSelect) {
+typeSelect.addEventListener('change', function () {
+if (valeurModeConfiguration(detail) === 'manuel') {
+actualiserSupportsManuels(detail);
+}
+});
+}
+
+if (supportSelect) {
+supportSelect.addEventListener('change', function () {
+if (valeurModeConfiguration(detail) === 'manuel') {
+actualiserFormatsManuels(detail);
+}
+});
+}
+
+if (formatSelect) {
+formatSelect.addEventListener('change', function () {
+if (valeurModeConfiguration(detail) === 'manuel') {
+rechercherConfigurationManuelle(detail);
+}
+});
+}
+}
+async function chargerConfigurationsProduit(detail, produitId, configurationInitiale = null) {
+const configurationSelect = champDetail(detail, 'configuration');
+
+const finitionsBox = detail.querySelector('.js-finitions-box');
+
+const finitionsInitiales = configurationInitiale ? Array.from(detail.querySelectorAll('input[name$="[finitionsSelectionnees][]"]:checked')).map(function (checkbox) {
+return String(checkbox.value);
+}) : [];
+
+configurationsParDetail.set(detail, []);
+
+viderSelect(configurationSelect, produitId ? 'Chargement...' : 'Sélectionnez un produit');
+
+if (finitionsBox) {
+finitionsBox.innerHTML = '<span class="text-muted">' + 'Sélectionnez d’abord un produit.' + '</span>';
+}
+
+if (! produitId || ! configurationSelect) {
+initialiserChoixManuels(detail);
+return;
+}
+
+configurationSelect.disabled = true;
+
+try {
+const reponse = await fetch(construireUrl(configurationsProduitUrl, produitId), {
+headers: {
+Accept: 'application/json'
+}
+});
+
+if (! reponse.ok) {
+throw new Error('Impossible de charger les configurations.');
+}
+
+const resultat = await reponse.json();
+
+const configurations = Array.isArray(resultat) ? resultat : (resultat.configurations || resultat.data || []);
+
+configurationsParDetail.set(detail, configurations);
+
+viderSelect(configurationSelect, 'Sélectionnez une configuration');
+
+configurations.forEach(function (configuration) {
+const option = document.createElement('option');
+
+option.value = configuration.id;
+option.textContent = configuration.libelle || configuration.nom || ('Configuration ' + configuration.id);
+
+configurationSelect.appendChild(option);
+});
+
+configurationSelect.disabled = false;
+
+/*
+         * Mode manuel :
+         * construit les listes type → support → format.
+         */
+if (valeurModeConfiguration(detail) === 'manuel') {
+initialiserChoixManuels(detail);
+appliquerModeConfiguration(detail);
+return;
+}
+
+/*
+         * Mode automatique.
+         */
+let configurationACharger = configurationInitiale;
+
+if (! configurationACharger && configurations.length === 1) {
+configurationACharger = configurations[0].id;
+}
+
+if (configurationACharger) {
+configurationSelect.value = String(configurationACharger);
+
+actualiserSelect2(configurationSelect);
+
+await chargerConfiguration(detail, configurationACharger, finitionsInitiales);
+} else {
+actualiserSelect2(configurationSelect);
+appliquerModeConfiguration(detail);
+}
+} catch (erreur) {
+console.error(erreur);
+
+viderSelect(configurationSelect, 'Erreur de chargement');
+} finally {
+configurationSelect.disabled = false;
+}
+}
+
+function valeurModeConfiguration(detail) {
+const coche = detail.querySelector('[name$="[modeConfiguration]"]:checked');
+
+if (coche) {
+return coche.value;
+}
+
+const champ = champDetail(detail, 'modeConfiguration');
+
+return champ ? champ.value : 'automatique';
+}
+function actualiserAffichageDimensions(detail) {
+const modeDimension = detail.dataset.modeDimension || '';
+
+const zoneLargeur = detail.querySelector('.js-zone-largeur');
+
+const zoneLongueur = detail.querySelector('.js-zone-longueur');
+
+const zoneSurface = detail.querySelector('.js-zone-surface');
+
+const utiliseDimensions = modeDimension === 'mesure';
+
+[zoneLargeur, zoneLongueur, zoneSurface].forEach(function (zone) {
+if (zone) {
+zone.style.display = utiliseDimensions ? '' : 'none';
+}
+});
+
+/*
+     * Pour "format" ou "aucune", les dimensions
+     * ne doivent pas être envoyées.
+     */
+if (! utiliseDimensions) {
+definirValeurChamp(detail, 'largeur', '');
+definirValeurChamp(detail, 'longueur', '');
+definirValeurChamp(detail, 'surface', '');
+}
+}
+function montantFinitionsManuelles(detail) {
+return Array.from(detail.querySelectorAll('.js-finition-manuelle')).reduce(function (total, ligne) {
+const prix = Math.max(0, nombreDepuisChamp(ligne.querySelector('.js-finition-prix')));
+
+const quantite = Math.max(1, nombreDepuisChamp(ligne.querySelector('.js-finition-quantite'), 1));
+
+const champMode = ligne.querySelector('.js-finition-mode');
+
+const mode = champMode ? String(champMode.value).toLowerCase() : 'forfait';
+
+const largeur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'largeur')));
+
+const longueur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'longueur')));
+
+const surface = largeur * longueur;
+
+const nombreFaces = Math.max(1, nombreDepuisChamp(champDetail(detail, 'nombreFaces'), 1));
+
+let montant = prix;
+
+switch (mode) {
+case 'metre': montant = prix * longueur * quantite;
+break;
+
+case 'metre_carre': montant = prix * surface * quantite;
+break;
+
+case 'face': montant = prix * nombreFaces * quantite;
+break;
+
+case 'unite':
+case 'feuille':
+case 'exemplaire':
+case 'heure':
+case 'point': montant = prix * quantite;
+break;
+
+case 'forfait':
+default: montant = prix;
+break;
+}
+
+return total + montant;
+}, 0);
+}
+
+function ajouterFinitionManuelle(detail) {
+const zone = detail.querySelector('.js-zone-finitions-manuelles');
+
+if (! zone) {
+console.error('Zone des finitions manuelles introuvable.');
+return;
+}
+
+const liste = zone.querySelector('.js-liste-finitions-manuelles');
+
+if (! liste) {
+console.error('Liste des finitions manuelles introuvable.');
+return;
+}
+
+const prototype = zone.getAttribute('data-prototype');
+
+if (! prototype) {
+console.error('Le prototype Symfony des finitions est absent.');
+return;
+}
+
+let index = Number.parseInt(zone.getAttribute('data-index') || '0', 10);
+
+if (Number.isNaN(index)) {
+index = 0;
+}
+
+const html = prototype.replace(/__finition_index__/g, String(index));
+
+zone.setAttribute('data-index', String(index + 1));
+
+const conteneur = document.createElement('div');
+conteneur.innerHTML = html.trim();
+
+const ligne = conteneur.firstElementChild;
+
+if (! ligne) {
+console.error('Le prototype de finition ne contient aucun élément.');
+return;
+}
+liste.appendChild(ligne);
+
+if (typeof initializeSearchableSelects === 'function') {
+initializeSearchableSelects(ligne);
+}
+
+if (typeof calculerDetail === 'function') {
+calculerDetail(detail);
+}
+}
+
+function bindFinitionsManuelles(detail) {
+const modeCalcul = champDetail(detail, 'modeCalcul');
+if (detail.dataset.finitionsManuellesBound === '1') {
+return;
+}
+
+detail.dataset.finitionsManuellesBound = '1';
+
+
+detail.addEventListener('click', function (event) {
+const boutonSupprimer = event.target.closest('.js-supprimer-finition');
+
+if (! boutonSupprimer) {
+return;
+}
+
+const ligne = boutonSupprimer.closest('.js-finition-manuelle');
+
+if (ligne) {
+ligne.remove();
+calculerDetail(detail);
+}
+});
+
+detail.addEventListener('input', function (event) {
+if (event.target.closest('.js-finition-manuelle')) {
+calculerDetail(detail);
+}
+});
+
+detail.addEventListener('change', function (event) {
+if (event.target.closest('.js-finition-manuelle')) {
+calculerDetail(detail);
+}
+});
+}
+function appliquerModeConfiguration(detail) {
+const mode = valeurModeConfiguration(detail);
+
+const automatique = mode === 'automatique';
+const manuel = mode === 'manuel';
+const libre = mode === 'libre';
+
+const zoneConfiguration = detail.querySelector('.js-zone-configuration-automatique');
+
+const zoneChamps = detail.querySelector('.js-zone-champs-configuration');
+
+const zoneFinitionsAutomatiques = detail.querySelector('.js-zone-finitions-automatiques');
+
+const zoneFinitionsManuelles = detail.querySelector('.js-zone-finitions-manuelles');
+
+const message = detail.querySelector('.js-message-champs-auto');
+
+const produit = champDetail(detail, 'produit');
+const configuration = champDetail(detail, 'configuration');
+
+const prixUnitaire = champDetail(detail, 'prixUnitaire');
+
+const modeCalcul = champDetail(detail, 'modeCalcul');
+
+/*
+     * Configuration catalogue visible uniquement
+     * en mode automatique.
+     */
+if (zoneConfiguration) {
+zoneConfiguration.style.display = automatique ? '' : 'none';
+}
+
+/*
+     * Type d’impression, support et format
+     * visibles uniquement en automatique ou manuel.
+     */
+if (zoneChamps) {
+zoneChamps.style.display = libre ? 'none' : '';
+
+zoneChamps.classList.toggle('js-champs-auto-verrouilles', automatique);
+}
+
+/*
+     * Le produit est inutile en saisie libre.
+     */
+if (produit) {
+const colonneProduit = produit.closest('.col-lg-4, .col-md-6');
+
+if (colonneProduit) {
+colonneProduit.style.display = libre ? 'none' : '';
+}
+
+produit.required = automatique || manuel;
+}
+
+/*
+     * Une configuration est exigée seulement
+     * en mode automatique.
+     */
+if (configuration) {
+configuration.required = automatique;
+}
+
+/*
+     * En automatique, le prix et le mode de calcul
+     * viennent du catalogue.
+     */
+if (prixUnitaire) {
+prixUnitaire.readOnly = automatique;
+}
+
+if (modeCalcul) {
+modeCalcul.disabled = false;
+modeCalcul.style.pointerEvents = automatique ? 'none' : '';
+
+modeCalcul.setAttribute('aria-readonly', automatique ? 'true' : 'false');
+}['typeImpression', 'support', 'format'].forEach(function (nomChamp) {
+const champ = champDetail(detail, nomChamp);
+
+if (! champ) {
+return;
+}
+
+champ.disabled = false;
+
+champ.setAttribute('aria-readonly', automatique ? 'true' : 'false');
+});
+
+/*
+     * Les dimensions sont visibles selon le mode
+     * de calcul pour les saisies manuelles et libres.
+     */
+if (manuel || libre) {
+const modeChoisi = modeCalcul ? modeCalcul.value : 'unite';
+
+detail.dataset.modeDimension = ['metre', 'metre_carre'].includes(modeChoisi) ? 'mesure' : '';
+}
+
+if (message) {
+if (automatique) {
+message.textContent = 'Ces champs proviennent de la configuration sélectionnée.';
+} else if (manuel) {
+message.textContent = 'Choisissez librement les caractéristiques du produit.';
+} else {
+message.textContent = 'La désignation, la quantité et le prix sont saisis librement.';
+}
+}
+
+/*
+     * Les finitions catalogue sont provisoirement
+     * affichées uniquement en automatique.
+     * Le futur bloc manuel sera ajouté séparément.
+     */
+if (zoneFinitionsAutomatiques) {
+zoneFinitionsAutomatiques.style.display = automatique ? '' : 'none';
+}
+
+if (zoneFinitionsManuelles) {
+zoneFinitionsManuelles.style.display = automatique ? 'none' : '';
+}
+
+actualiserAffichageDimensions(detail);
+calculerDetail(detail);
+}
+
+function bindModeConfiguration(detail) {
+const champs = detail.querySelectorAll('[name$="[modeConfiguration]"]');
+
+if (! champs.length || detail.dataset.modeBound === '1') {
+return;
+}
+
+detail.dataset.modeBound = '1';
+
+champs.forEach(function (champ) {
+champ.addEventListener('change', function () {
+const mode = valeurModeConfiguration(detail);
+
+const produitSelect = champDetail(detail, 'produit');
+
+const configurationSelect = champDetail(detail, 'configuration');
+
+if (configurationSelect) {
+configurationSelect.value = '';
+actualiserSelect2(configurationSelect);
+}
+
+if (mode === 'automatique') {
+definirValeurChamp(detail, 'typeImpression', '');
+
+definirValeurChamp(detail, 'support', '');
+definirValeurChamp(detail, 'format', '');
+
+reinitialiserDonneesConfiguration(detail);
+
+if (produitSelect && produitSelect.value) {
+chargerConfigurationsProduit(detail, produitSelect.value);
+}
+}
+
+if (mode === 'manuel') {
+reinitialiserDonneesConfiguration(detail);
+
+if (produitSelect && produitSelect.value) {
+chargerConfigurationsProduit(detail, produitSelect.value);
+} else {
+initialiserChoixManuels(detail);
+}
+}
+
+if (mode === 'libre') {
+definirValeurChamp(detail, 'produit', '');
+definirValeurChamp(detail, 'configuration', '');
+
+definirValeurChamp(detail, 'typeImpression', '');
+
+definirValeurChamp(detail, 'support', '');
+definirValeurChamp(detail, 'format', '');
+
+configurationsParDetail.set(detail, []);
+
+const finitionsBox = detail.querySelector('.js-finitions-box');
+
+if (finitionsBox) {
+finitionsBox.innerHTML = '';
+}
+}
+
+appliquerModeConfiguration(detail);
+});
+});
+
+appliquerModeConfiguration(detail);
+}
+
+
+function bindConfiguration(detail) {
+const produitSelect = detail.querySelector('[name$="[produit]"]');
+
+const configurationSelect = detail.querySelector('[name$="[produitConfiguration]"]');
+
+if (! produitSelect || ! configurationSelect || produitSelect.dataset.configurationBound === '1') {
+return;
+}
+
+produitSelect.dataset.configurationBound = '1';
+configurationSelect.dataset.configurationBound = '1';
+bindSelectionsManuelles(detail);
+
+const chargerProduitSelectionne = function () {
+chargerConfigurationsProduit(detail, produitSelect.value);
+};
+
+const chargerConfigurationSelectionnee = function () {
+if (valeurModeConfiguration(detail) === 'automatique') {
+chargerConfiguration(detail, configurationSelect.value);
+}
+};
+
+produitSelect.addEventListener('change', chargerProduitSelectionne);
+
+configurationSelect.addEventListener('change', chargerConfigurationSelectionnee);
+
+/*
+     * Certaines versions de Select2 ne propagent pas toujours le changement
+     * vers addEventListener(). Ces écouteurs jQuery garantissent l'action.
+     */
+if (typeof window.jQuery !== 'undefined' && typeof window.jQuery.fn.select2 !== 'undefined') {
+window.jQuery(produitSelect).off('.configurationCommande').on('select2:select.configurationCommande ' + 'select2:clear.configurationCommande', chargerProduitSelectionne);
+
+window.jQuery(configurationSelect).off('.configurationCommande').on('select2:select.configurationCommande ' + 'select2:clear.configurationCommande', chargerConfigurationSelectionnee);
+}
+
+/*
+     * En modification, recharge les configurations du produit enregistré
+     * tout en conservant la configuration déjà choisie.
+     */
+const configurationInitiale = configurationSelect.value;
+
+if (produitSelect.value) {
+chargerConfigurationsProduit(detail, produitSelect.value, configurationInitiale || null);
+}
+}
+
+function initializeSearchableSelects(scope) {
+if (typeof window.jQuery === 'undefined' || typeof window.jQuery.fn.select2 === 'undefined') {
+return;
+}
+
+window.jQuery(scope).find('select.js-select-search').each(function () {
+const select = window.jQuery(this);
+
+if (select.hasClass('select2-hidden-accessible')) {
+return;
+}
+
+select.select2({
+width: '100%',
+allowClear: true,
+placeholder: select.data('placeholder') || 'Rechercher et sélectionner...',
+language: {
+noResults: function () {
+return 'Aucun résultat trouvé';
+},
+searching: function () {
+return 'Recherche...';
+}
+}
+});
+});
+}
+
+function loadSelect2() {
+if (typeof window.jQuery === 'undefined') {
+return;
+}
+
+if (typeof window.jQuery.fn.select2 !== 'undefined') {
+initializeSearchableSelects(form);
+return;
+}
+
+const script = document.createElement('script');
+
+script.src = "{{ asset('assets/plugins/select2/select2.full.min.js') }}";
+
+script.onload = function () {
+initializeSearchableSelects(form);
+};
+
+document.body.appendChild(script);
+}
+document.addEventListener('click', function (event) {
+const boutonAjouter = event.target.closest('.js-ajouter-finition');
+
+if (boutonAjouter) {
+event.preventDefault();
+
+const detail = boutonAjouter.closest('.js-commande-detail');
+
+if (! detail) {
+console.error('Conteneur .js-commande-detail introuvable.');
+return;
+}
+
+ajouterFinitionManuelle(detail);
+return;
+}
+
+const boutonSupprimer = event.target.closest('.js-supprimer-finition');
+
+if (! boutonSupprimer) {
+return;
+}
+
+event.preventDefault();
+
+const ligne = boutonSupprimer.closest('.js-finition-manuelle');
+
+const detail = boutonSupprimer.closest('.js-commande-detail');
+
+if (ligne) {
+ligne.remove();
+}
+
+if (detail) {
+calculerDetail(detail);
+}
+});
+function refreshDetails() {
+const details = collection.querySelectorAll('.detail-commande');
+
+details.forEach(function (detail, index) {
+const title = detail.querySelector('.detail-title');
+
+if (title) {
+title.textContent = 'Travail ' + (
+index + 1
+);
+}
+});
+
+const emptyMessage = document.getElementById('aucun-detail');
+
+if (emptyMessage) {
+emptyMessage.style.display = details.length ? 'none' : 'block';
+}
+
+calculerRecapitulatif();
+}
+
+function ajouterJeton(champJetons, jeton) {
+const jetons = champJetons.value.split(',').map(function (valeur) {
+return valeur.trim();
+}).filter(Boolean);
+
+if (! jetons.includes(jeton)) {
+jetons.push(jeton);
+}
+
+champJetons.value = jetons.join(',');
+}
+
+function creerLigneUpload(fichier, liste) {
+const ligne = document.createElement('div');
+
+ligne.className = 'border rounded p-2 mb-2';
+ligne.innerHTML = `
+            <div class="d-flex justify-content-between mb-1">
+                <strong class="js-nom-fichier"></strong>
+                <span class="js-pourcentage">0 %</span>
+            </div>
+
+            <div class="progress" style="height: 8px;">
+                <div
+                    class="progress-bar js-barre-upload"
+                    role="progressbar"
+                    style="width: 0%;"
+                    aria-valuenow="0"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                ></div>
+            </div>
+
+            <small class="js-statut-upload text-muted">
+                Préparation de l’envoi…
+            </small>
+        `;
+
+ligne.querySelector('.js-nom-fichier').textContent = fichier.name;
+
+liste.appendChild(ligne);
+
+return ligne;
+}
+
+function mettreAJourProgression(ligne, progression, message) {
+const valeur = Math.max(0, Math.min(100, Math.round(progression)));
+
+const barre = ligne.querySelector('.js-barre-upload');
+const pourcentage = ligne.querySelector('.js-pourcentage');
+const statut = ligne.querySelector('.js-statut-upload');
+
+barre.style.width = valeur + '%';
+barre.setAttribute('aria-valuenow', String(valeur));
+pourcentage.textContent = valeur + ' %';
+statut.textContent = message;
+}
+
+function signalerErreur(ligne, message) {
+const barre = ligne.querySelector('.js-barre-upload');
+const statut = ligne.querySelector('.js-statut-upload');
+
+barre.classList.remove('bg-success');
+barre.classList.add('bg-danger');
+
+statut.classList.remove('text-muted', 'text-success');
+statut.classList.add('text-danger');
+statut.textContent = message;
+}
+
+async function lireReponseJson(reponse) {
+let donnees = {};
+
+try {
+donnees = await reponse.json();
+} catch (erreur) {
+donnees = {};
+}
+
+if (! reponse.ok) {
+throw new Error(donnees.message || 'Une erreur est survenue pendant l’envoi.');
+}
+
+return donnees;
+}
+
+async function initialiserUpload(fichier, nombreMorceaux) {
+if (! initialiserUrl) {
+throw new Error('La route d\'initialisation de l\'upload est absente.');
+}
+
+const reponse = await fetch(initialiserUrl, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRF-TOKEN': csrfToken
+},
+body: JSON.stringify(
+{
+nom: fichier.name,
+typeMime: fichier.type || 'application/octet-stream',
+taille: fichier.size,
+nombreMorceaux: nombreMorceaux
+}
+)
+});
+
+return lireReponseJson(reponse);
+}
+
+async function envoyerMorceau(jeton, index, morceau) {
+if (! modeleUrlMorceau) {
+throw new Error('La route d\'envoi des morceaux est absente.');
+}
+
+const donnees = new FormData();
+
+donnees.append('morceau', morceau, 'morceau-' + index + '.part');
+
+const url = modeleUrlMorceau.replace('__JETON__', encodeURIComponent(jeton)).replace('__INDEX__', String(index));
+
+const reponse = await fetch(url, {
+method: 'POST',
+headers: {
+'X-CSRF-TOKEN': csrfToken
+},
+body: donnees
+});
+
+return lireReponseJson(reponse);
+}
+
+async function verifierStatutUpload(jeton) {
+if (! modeleUrlStatut) {
+return null;
+}
+
+const url = modeleUrlStatut.replace('__JETON__', encodeURIComponent(jeton));
+
+const reponse = await fetch(url, {
+method: 'GET',
+headers: {
+'X-CSRF-TOKEN': csrfToken
+}
+});
+
+return lireReponseJson(reponse);
+}
+
+async function envoyerFichier(fichier, champJetons, liste) {
+const ligne = creerLigneUpload(fichier, liste);
+
+if (fichier.size <= 0) {
+signalerErreur(ligne, 'Le fichier est vide.');
+throw new Error('Le fichier est vide.');
+}
+
+uploadsActifs++;
+
+try {
+const nombreMorceaux = Math.ceil(fichier.size / tailleMorceau);
+
+const session = await initialiserUpload(fichier, nombreMorceaux);
+
+const jeton = session.jeton;
+
+if (! jeton || !/^[a-f0-9]{64}$/.test(jeton)) {
+throw new Error('Le serveur n\'a pas retourné un jeton d\'upload valide.');
+}
+
+for (let index = session.morceauxRecus || 0; index < nombreMorceaux; index++) {
+const debut = index * tailleMorceau;
+const fin = Math.min(debut + tailleMorceau, fichier.size);
+
+const morceau = fichier.slice(debut, fin);
+
+const resultat = await envoyerMorceau(jeton, index, morceau);
+
+mettreAJourProgression(ligne, resultat.progression, 'Envoi du morceau ' + (
+index + 1
+) + ' sur ' + nombreMorceaux);
+}
+
+const statutFinal = await verifierStatutUpload(jeton);
+
+if (! statutFinal || String(statutFinal.statut || '').toUpperCase() !== 'TERMINE') {
+throw new Error(statutFinal.message || 'Le serveur n\'a pas confirmé la fin de l\'upload.');
+}
+
+ajouterJeton(champJetons, jeton);
+
+const barre = ligne.querySelector('.js-barre-upload');
+const statut = ligne.querySelector('.js-statut-upload');
+
+barre.classList.add('bg-success');
+
+statut.classList.remove('text-muted', 'text-danger');
+statut.classList.add('text-success');
+
+mettreAJourProgression(ligne, 100, 'Fichier envoyé avec succès.');
+} catch (erreur) {
+signalerErreur(ligne, erreur.message || 'Échec de l’envoi.');
+throw erreur;
+} finally {
+uploadsActifs--;
+}
+}
+
+function bindUpload(detail) {
+const champFichiers = detail.querySelector('.js-fichiers-client');
+
+const champJetons = detail.querySelector('.js-jetons-fichiers');
+
+const liste = detail.querySelector('.js-liste-uploads');
+
+if (! champFichiers || ! champJetons || ! liste || champFichiers.dataset.bound === '1') {
+return;
+}
+
+champFichiers.dataset.bound = '1';
+
+champFichiers.addEventListener('change', function () {
+const fichiers = Array.from(champFichiers.files || []);
+
+liste.innerHTML = '';
+
+for (const fichier of fichiers) {
+const ligne = document.createElement('div');
+ligne.className = 'alert alert-secondary py-2 mb-2';
+ligne.textContent = fichier.name + ' — en attente d’enregistrement';
+liste.appendChild(ligne);
+}
+});
+}
+
+function bindRemove(detail) {
+const removeButton = detail.querySelector('.supprimer-detail');
+
+if (! removeButton || removeButton.dataset.bound === '1') {
+return;
+}
+
+removeButton.dataset.bound = '1';
+
+removeButton.addEventListener('click', function () {
+if (detail.querySelector('.js-fichiers-client:disabled')) {
+alert('Attendez la fin de l’envoi avant de supprimer ce travail.');
+
+return;
+}
+
+detail.remove();
+refreshDetails();
+});
+}
+
+function initialiserDetail(detail) {
+bindRemove(detail);
+bindUpload(detail);
+bindModeConfiguration(detail);
+bindConfiguration(detail);
+bindCircuitTraitement(detail);
+const modeCalcul = champDetail(detail, 'modeCalcul');
+
+if (modeCalcul && modeCalcul.dataset.modeCalculBound !== '1') {
+modeCalcul.dataset.modeCalculBound = '1';
+
+modeCalcul.addEventListener('change', function () {
+if (valeurModeConfiguration(detail) !== 'automatique') {
+detail.dataset.modeDimension = ['metre', 'metre_carre'].includes(modeCalcul.value) ? 'mesure' : '';
+
+actualiserAffichageDimensions(detail);
+}
+
+calculerDetail(detail);
+});
+}
+bindCalcul(detail);
+initializeSearchableSelects(detail);
+
+}
+
+function addDetail() {
+if (! collection.dataset.prototype) {
+console.error('Le prototype des détails est absent.');
+return;
+}
+
+const index = Number.parseInt(collection.dataset.index || '0', 10);
+
+/*
+         * __name__ est le placeholder Symfony par défaut.
+         * __detail__ reste accepté si prototype_name a été personnalisé.
+         */
+const html = collection.dataset.prototype.replace(/__name__/g, String(index)).replace(/__detail__/g, String(index));
+
+collection.dataset.index = String(index + 1);
+
+const detail = document.createElement('div');
+
+detail.className = 'detail-commande js-commande-detail card border mb-4';
+
+detail.innerHTML = `
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <div class="card-title detail-title mb-0">
+                    Nouveau travail
+                </div>
+
+                <button
+                    type="button"
+                    class="btn btn-danger-light btn-sm supprimer-detail"
+                >
+                    <i class="icon icon-trash mr-1"></i>
+                    Supprimer
+                </button>
+            </div>
+
+            <div class="card-body p-0">${html}</div>
+        `;
+
+collection.appendChild(detail);
+
+const produitSelect = detail.querySelector('[name$="[produit]"]');
+
+const configurationSelect = detail.querySelector('[name$="[produitConfiguration]"]');
+
+if (produitSelect) {
+produitSelect.value = '';
+}
+
+if (configurationSelect) {
+configurationSelect.innerHTML = '<option value="">Sélectionnez d’abord un produit</option>';
+
+configurationSelect.value = '';
+configurationSelect.disabled = true;
+}
+
+const quantite = champDetail(detail, 'quantite');
+
+if (quantite && ! quantite.value) {
+quantite.value = '1';
+}
+
+initialiserDetail(detail);
+/*
+ * Circuit par défaut :
+ * prépresse + production.
+ */
+const prePresse = detail.querySelector('.js-prepresse-necessaire');
+
+const production = detail.querySelector('.js-production-necessaire');
+
+if (prePresse) {
+prePresse.checked = true;
+}
+
+if (production) {
+production.checked = true;
+}
+refreshDetails();
+}
+
+let soumissionApresUpload = false;
+let preparationEnCours = false;
+
+form.addEventListener('submit', async function (event) {
+if (soumissionApresUpload) {
+return;
+}
+
+event.preventDefault();
+
+if (preparationEnCours) {
+return;
+}
+
+const details = collection.querySelectorAll('.detail-commande');
+
+if (details.length === 0) {
+if (typeof Swal !== 'undefined') {
+await Swal.fire({icon: 'warning', title: 'Détail obligatoire', text: 'Ajoutez au moins un détail avant d’enregistrer la commande.', confirmButtonText: 'D’accord'});
+} else {
+alert('Ajoutez au moins un détail avant d’enregistrer la commande.');
+}
+
+return;
+}
+
+if (! form.checkValidity()) {
+form.reportValidity();
+return;
+}
+
+const boutonSubmit = form.querySelector('button[type="submit"], input[type="submit"]');
+
+preparationEnCours = true;
+
+if (boutonSubmit) {
+boutonSubmit.disabled = true;
+}
+
+try {
+const champsFichiers = Array.from(form.querySelectorAll('.js-fichiers-client'));
+
+for (const champFichiers of champsFichiers) {
+const detail = champFichiers.closest('.js-commande-detail');
+
+if (! detail) {
+throw new Error('La ligne de travail associée au fichier est introuvable.');
+}
+
+const champJetons = detail.querySelector('.js-jetons-fichiers');
+const liste = detail.querySelector('.js-liste-uploads');
+
+if (! champJetons || ! liste) {
+throw new Error('Les champs nécessaires à l’upload sont introuvables.');
+}
+
+const fichiers = Array.from(champFichiers.files || []);
+
+if (fichiers.length === 0) {
+continue;
+}
+
+liste.innerHTML = '';
+
+for (const fichier of fichiers) {
+await envoyerFichier(fichier, champJetons, liste);
+}
+
+/*
+ * Les fichiers ont été envoyés séparément. Symfony recevra
+ * uniquement les jetons confirmés par le serveur.
+ */
+champFichiers.value = '';
+}
+
+soumissionApresUpload = true;
+
+if (boutonSubmit) {
+boutonSubmit.disabled = false;
+}
+
+/*
+ * Ne pas utiliser requestSubmit() ici : il déclenche une seconde fois
+ * tous les gestionnaires "submit" de la page et l'un d'eux peut bloquer
+ * l'envoi après un upload pourtant terminé.
+ *
+ * La validité HTML a déjà été contrôlée plus haut et tous les
+ * fichiers ont reçu le statut TERMINE. On effectue donc maintenant une
+ * seule soumission native vers Symfony avec les jetons cachés.
+ */
+preparationEnCours = false;
+HTMLFormElement.prototype.submit.call(form);
+} catch (erreur) {
+console.error('Enregistrement interrompu :', erreur);
+
+if (typeof Swal !== 'undefined') {
+await Swal.fire({
+icon: 'error',
+title: 'Envoi impossible',
+text: erreur.message || 'Le téléversement du fichier a échoué.'
+});
+} else {
+alert(erreur.message || 'Le téléversement du fichier a échoué.');
+} preparationEnCours = false;
+
+if (boutonSubmit) {
+boutonSubmit.disabled = false;
+}
+}
+});
+
+addButton.addEventListener('click', function (event) {
+event.preventDefault();
+addDetail();
+});
+
+const remiseCommande = document.getElementById('{{ form.remise.vars.id }}');
+
+if (remiseCommande) {
+remiseCommande.addEventListener('input', calculerRecapitulatif);
+}
+
+collection.querySelectorAll('.detail-commande').forEach(initialiserDetail);
+
+loadSelect2();
+
+/*
+     * Le formulaire reste vide tant que l'utilisateur
+     * n'a pas cliqué sur « Ajouter un détail ».
+     */
+refreshDetails();
+});
+function activerZone(zone, active) {
+if (! zone) {
+return;
+}
+
+zone.querySelectorAll('input, select, textarea').forEach(function (champ) {
+champ.disabled = ! active;
+});
+}
+
+function appliquerModeFinitions(detail) {
+const mode = detail.querySelector('[name$="[modeConfiguration]"]') ?. value || 'automatique';
+
+const zoneAutomatique = detail.querySelector('.js-zone-finitions-automatiques');
+
+const zoneManuelle = detail.querySelector('.js-zone-finitions-manuelles');
+
+activerZone(zoneAutomatique, mode === 'automatique');
+
+activerZone(zoneManuelle, mode !== 'automatique');
+}
+
+function appliquerCircuitTraitement(detail) {
+const prePresse = detail.querySelector('.js-prepresse-necessaire');
+
+const production = detail.querySelector('.js-production-necessaire');
+
+const message = detail.querySelector('.js-message-circuit-texte');
+
+if (! prePresse || ! production) {
+return;
+}
+
+const prePresseActif = prePresse.checked;
+
+const productionActive = production.checked;
+
+if (! prePresseActif && ! productionActive) {
+if (message) {
+message.textContent = 'Livraison directe : aucun passage en prépresse ni en production.';
+}
+
+return;
+}
+
+if (! prePresseActif && productionActive) {
+if (message) {
+message.textContent = 'Production directe : aucun passage en prépresse.';
+}
+
+return;
+}
+
+if (prePresseActif && productionActive) {
+if (message) {
+message.textContent = 'Circuit complet : prépresse, production puis livraison.';
+}
+
+return;
+}
+
+if (prePresseActif && ! productionActive) {
+if (message) {
+message.textContent = 'Prépresse puis livraison, sans passage en production.';
+}
+}
+}
+
+
+function bindCircuitTraitement(detail) {
+if (detail.dataset.circuitBound === '1') {
+appliquerCircuitTraitement(detail);
+return;
+}
+
+detail.dataset.circuitBound = '1';
+
+const prePresse = detail.querySelector('.js-prepresse-necessaire');
+
+const production = detail.querySelector('.js-production-necessaire');
+
+if (prePresse) {
+prePresse.addEventListener('change', function () {
+appliquerCircuitTraitement(detail);
+});
+}
+
+if (production) {
+production.addEventListener('change', function () {
+appliquerCircuitTraitement(detail);
+});
+}
+
+appliquerCircuitTraitement(detail);
+}
+</script>

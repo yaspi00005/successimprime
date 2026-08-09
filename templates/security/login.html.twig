@@ -75,46 +75,58 @@
 				</div>
 				<div class="container-1">
 					<div class="access-container p-6">
-						<form method="post" class="login-form validate-form">
+						<form method="post" action="{{ path('app_login') }}" class="login-form validate-form">
 							{% if error %}
-								<div class="alert alert-danger">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+								<div class="alert alert-danger">
+									{{ error.messageKey|trans(error.messageData, 'security') }}
+								</div>
 							{% endif %}
 
 							{% if app.user %}
-								<div class="mb-3">
-									You are logged in as
-									{{ app.user.userIdentifier }},
-									<a href="{{ logout_path() }}">Logout</a>
+								<div class="alert alert-info">
+									Connecté en tant que
+									{{ app.user.userIdentifier }}.
+									<a href="{{ path('app_logout') }}">Se déconnecter</a>
 								</div>
 							{% endif %}
+
 							<span class="login-form-title">
 								Connexion
 							</span>
-							<div class="access-input validate-input" data-validate="Valid email is required: ex@abc.xyz">
-								<input class="login-input" value="{{ last_username }}" name="username" id="inputUsername" class="form-control" autocomplete="username" required autofocus>
+
+							<div class="access-input validate-input" data-validate="Le nom d’utilisateur est obligatoire">
+								<input type="text" class="login-input form-control" name="username" id="inputUsername" value="{{ last_username }}" autocomplete="username" required autofocus>
+
 								<span class="input-focus"></span>
+
 								<span class="input-symbol">
 									<i class="zmdi zmdi-user" aria-hidden="true"></i>
 								</span>
 							</div>
-							<div class="access-input validate-input" data-validate="Password is required">
-								<input class="login-input" type="password" name="password" id="inputPassword" class="form-control" autocomplete="current-password" required>
-								<input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
+
+							<div class="access-input validate-input" data-validate="Le mot de passe est obligatoire">
+								<input type="password" class="login-input form-control" name="password" id="inputPassword" autocomplete="current-password" required>
+
 								<span class="input-focus"></span>
+
 								<span class="input-symbol">
 									<i class="zmdi zmdi-lock" aria-hidden="true"></i>
 								</span>
 							</div>
+
+							<input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
+
 							<div class="text-right pt-3 pb-3">
 								<p class="mb-0">
-									<a href="forgot-password.html" class="text-primary ml-1">Forgot Password?</a>
+									<a href="#" class="text-primary ml-1">
+										Mot de passe oublié ?
+									</a>
 								</p>
 							</div>
-							<div class="">
-								<button type="submit" class="btn btn-primary-light btn-block">Login</button>
-							</div>
 
-
+							<button type="submit" class="btn btn-primary-light btn-block">
+								Se connecter
+							</button>
 						</form>
 					</div>
 				</div>

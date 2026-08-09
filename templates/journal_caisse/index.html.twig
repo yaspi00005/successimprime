@@ -1,0 +1,497 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}
+	Journal de caisse
+{% endblock %}
+
+{% block stylesheets %}
+	{{ parent() }}
+
+	<style>
+		.journal-summary-card {
+			border: 0;
+			border-radius: 8px;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+		}
+
+		.journal-summary-label {
+			color: #6c757d;
+			font-size: 12px;
+			font-weight: 600;
+			text-transform: uppercase;
+		}
+
+		.journal-summary-value {
+			margin-top: 5px;
+			font-size: 21px;
+			font-weight: 700;
+		}
+
+		.journal-entree {
+			color: #198754;
+			font-weight: 600;
+		}
+
+		.journal-sortie {
+			color: #dc3545;
+			font-weight: 600;
+		}
+
+		.journal-solde {
+			font-weight: 700;
+		}
+
+		.journal-table th {
+			white-space: nowrap;
+		}
+
+		.journal-table td {
+			vertical-align: middle;
+		}
+
+		@media print {
+			.no-print,
+			.app-sidebar,
+			.header,
+			.page-header {
+				display: none !important;
+			}
+
+			.side-app {
+				margin: 0 !important;
+				padding: 0 !important;
+			}
+
+			.card {
+				border: 0 !important;
+				box-shadow: none !important;
+			}
+
+			.card-body {
+				padding: 0 !important;
+			}
+
+			.journal-summary-card {
+				border: 1px solid #ddd !important;
+				box-shadow: none !important;
+			}
+
+			body {
+				background: #fff !important;
+				color: #000 !important;
+			}
+		}
+	</style>
+{% endblock %}
+
+{% block body %}
+
+	<div class="side-app">
+
+		{% for type, messages in app.flashes %}
+			{% for message in messages %}
+				<div class="js-flash-message" data-type="{{ type|e('html_attr') }}" data-message="{{ message|e('html_attr') }}"></div>
+			{% endfor %}
+		{% endfor %}
+
+		<div class="page-header">
+			<ol class="breadcrumb">
+
+				<li class="breadcrumb-item">
+					<a href="#">Gestion</a>
+				</li>
+
+				<li class="breadcrumb-item">
+					<a href="{{ path('app_compte_tresorerie_index') }}">
+						Trésorerie
+					</a>
+				</li>
+
+				<li class="breadcrumb-item active">
+					Journal de caisse
+				</li>
+
+			</ol>
+		</div>
+
+		<div class="card no-print">
+
+			<div class="card-header">
+				<h3 class="card-title">
+					<i class="fa fa-filter mr-2"></i>
+					Paramètres du journal
+				</h3>
+			</div>
+
+			<div class="card-body">
+
+				<form method="get" action="{{ path('app_journal_caisse_index') }}">
+					<div class="row">
+
+						<div class="col-md-4">
+							<div class="form-group">
+								<label for="journalCompte">
+									Caisse
+									<span class="text-danger">*</span>
+								</label>
+
+								<select name="compte" id="journalCompte" class="form-control" required>
+									<option value="">
+										Sélectionner une caisse
+									</option>
+
+									{% for caisse in caisses %}
+										<option value="{{ caisse.id }}" {{ filtres.compte == caisse.id ? 'selected' : '' }}>
+											{{ caisse.nom }}
+										</option>
+									{% endfor %}
+								</select>
+							</div>
+						</div>
+
+						<div class="col-md-3">
+							<div class="form-group">
+								<label for="journalDateDebut">
+									Date de début
+								</label>
+
+								<input type="date" name="dateDebut" id="journalDateDebut" class="form-control" value="{{ filtres.dateDebut }}" required>
+							</div>
+						</div>
+
+						<div class="col-md-3">
+							<div class="form-group">
+								<label for="journalDateFin">
+									Date de fin
+								</label>
+
+								<input type="date" name="dateFin" id="journalDateFin" class="form-control" value="{{ filtres.dateFin }}" required>
+							</div>
+						</div>
+
+						<div class="col-md-2">
+							<div class="form-group">
+								<label>&nbsp;</label>
+
+								<button type="submit" class="btn btn-primary btn-block">
+									<i class="fa fa-search mr-1"></i>
+									Afficher
+								</button>
+							</div>
+						</div>
+
+					</div>
+				</form>
+
+			</div>
+		</div>
+
+		{% if compteSelectionne %}
+
+			<div class="card">
+
+				<div class="card-header">
+
+					<div>
+						<h3 class="card-title mb-1">
+							Journal de caisse :
+							{{ compteSelectionne.nom }}
+						</h3>
+
+						<small class="text-muted">
+							Période du
+							{{ filtres.dateDebut|date('d/m/Y') }}
+							au
+							{{ filtres.dateFin|date('d/m/Y') }}
+						</small>
+					</div>
+
+					<div class="card-options no-print">
+						<button type="button" class="btn btn-outline-primary btn-sm" onclick="window.print()">
+							<i class="fa fa-print mr-1"></i>
+							Imprimer
+						</button>
+					</div>
+
+				</div>
+
+				<div class="card-body">
+
+					<div class="row mb-4">
+
+						<div class="col-md-3">
+							<div class="card journal-summary-card">
+								<div class="card-body">
+									<div class="text-primary journal-summary-label">
+										Solde d’ouverture
+									</div>
+
+									<div class="journal-summary-value">
+										{{ journal.soldeOuverture
+                                            |number_format(0, ',', ' ')
+                                        }}
+										FCFA
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="col-md-3">
+							<div class="card journal-summary-card">
+								<div class="card-body">
+									<div class="journal-summary-label">
+										Total des entrées
+									</div>
+
+									<div class="journal-summary-value journal-entree">
+										{{ journal.totalEntrees
+                                            |number_format(0, ',', ' ')
+                                        }}
+										FCFA
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="col-md-3">
+							<div class="card journal-summary-card">
+								<div class="card-body">
+									<div class="journal-summary-label">
+										Total des sorties
+									</div>
+
+									<div class="journal-summary-value journal-sortie">
+										{{ journal.totalSorties
+                                            |number_format(0, ',', ' ')
+                                        }}
+										FCFA
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="col-md-3">
+							<div class="card journal-summary-card">
+								<div class="card-body">
+									<div class="journal-summary-label">
+										Solde de clôture
+									</div>
+
+									<div class="journal-summary-value">
+										{{ journal.soldeCloture
+                                            |number_format(0, ',', ' ')
+                                        }}
+										FCFA
+									</div>
+								</div>
+							</div>
+						</div>
+
+					</div>
+
+					<div class="table-responsive">
+
+						<table class="table table-bordered table-hover journal-table">
+
+							<thead>
+								<tr>
+									<th>Date</th>
+									<th>Référence</th>
+									<th>Libellé</th>
+									<th>Mode</th>
+									<th>Pièce externe</th>
+									<th>Agent</th>
+									<th class="text-right">Entrée</th>
+									<th class="text-right">Sortie</th>
+									<th class="text-right">Solde</th>
+								</tr>
+							</thead>
+
+							<tbody>
+
+								<tr class="text-primary bg-light">
+									<td colspan="8">
+										<strong>Solde d’ouverture</strong>
+									</td>
+
+									<td class="text-right journal-solde">
+										{{ journal.soldeOuverture
+                                            |number_format(0, ',', ' ')
+                                        }}
+									</td>
+								</tr>
+
+								{% for ligne in journal.lignes %}
+
+									{% set mouvement = ligne.mouvement %}
+
+									<tr>
+										<td>
+											{{ mouvement.dateOperation
+                                                |date('d/m/Y H:i')
+                                            }}
+										</td>
+
+										<td>
+											<strong>
+												{{ mouvement.reference }}
+											</strong>
+										</td>
+
+										<td>
+											{{ mouvement.libelle }}
+										</td>
+
+										<td>
+											{{ mouvement.modePaiement
+                                                |replace({
+                                                    '_': ' '
+                                                })
+                                                |title
+                                            }}
+										</td>
+
+										<td>
+											{{ mouvement.referenceExterne
+                                                ?: '—'
+                                            }}
+										</td>
+
+										<td>
+											{% if mouvement.agent %}
+												{{ mouvement.agent.username }}
+											{% else %}
+												—
+											{% endif %}
+										</td>
+
+										<td class="text-right journal-entree">
+											{% if ligne.entree > 0 %}
+												{{ ligne.entree
+                                                    |number_format(0, ',', ' ')
+                                                }}
+											{% else %}
+												—
+											{% endif %}
+										</td>
+
+										<td class="text-right journal-sortie">
+											{% if ligne.sortie > 0 %}
+												{{ ligne.sortie
+                                                    |number_format(0, ',', ' ')
+                                                }}
+											{% else %}
+												—
+											{% endif %}
+										</td>
+
+										<td class="text-right journal-solde">
+											{{ ligne.solde
+                                                |number_format(0, ',', ' ')
+                                            }}
+										</td>
+									</tr>
+
+								{% else %}
+
+									<tr>
+										<td colspan="9" class="text-center py-5 text-muted">
+											<i class="fa fa-inbox fa-2x mb-2"></i>
+
+											<div>
+												Aucun mouvement validé durant
+																																																																																																												                                                cette période.
+											</div>
+										</td>
+									</tr>
+
+								{% endfor %}
+
+							</tbody>
+
+							<tfoot>
+								<tr class="text-primary bg-light">
+									<th colspan="6">
+										Totaux de la période
+																																																																																										                                        —
+										{{ journal.nombre }}
+										opération(s)
+									</th>
+
+									<th class="text-right journal-entree">
+										{{ journal.totalEntrees
+                                            |number_format(0, ',', ' ')
+                                        }}
+									</th>
+
+									<th class="text-right journal-sortie">
+										{{ journal.totalSorties
+                                            |number_format(0, ',', ' ')
+                                        }}
+									</th>
+
+									<th class="text-right journal-solde">
+										{{ journal.soldeCloture
+                                            |number_format(0, ',', ' ')
+                                        }}
+									</th>
+								</tr>
+							</tfoot>
+
+						</table>
+
+					</div>
+
+				</div>
+			</div>
+
+		{% else %}
+
+			<div class="alert alert-info">
+				<i class="fa fa-info-circle mr-1"></i>
+				Sélectionnez une caisse et une période pour afficher
+																																				                le journal.
+			</div>
+
+		{% endif %}
+
+	</div>
+
+{% endblock %}
+
+{% block javascripts %}
+	{{ parent() }}
+
+	<script src="{{ asset( 'assets/plugins/sweet-alert/sweetalert2.all.min.js' ) }}"></script>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+document.querySelectorAll('.js-flash-message').forEach(function (element) {
+const type = element.dataset.type || 'info';
+const message = element.dataset.message || '';
+
+let icon = 'info';
+let title = 'Information';
+
+if (type === 'success') {
+icon = 'success';
+title = 'Opération réussie';
+} else if (type === 'error' || type === 'danger') {
+icon = 'error';
+title = 'Erreur';
+} else if (type === 'warning') {
+icon = 'warning';
+title = 'Attention';
+}
+
+Swal.fire({
+icon: icon,
+title: title,
+text: message,
+confirmButtonText: 'D’accord',
+confirmButtonColor: '#6259ca'
+});
+});
+});
+	</script>
+{% endblock %}

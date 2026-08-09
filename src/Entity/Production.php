@@ -12,6 +12,15 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: ProductionRepository::class)]
 class Production
 {
+
+public const PRODUCTION_A_PRODUIRE = 'a_produire';
+public const PRODUCTION_EN_COURS = 'en_production';
+public const PRODUCTION_TERMINEE = 'terminee';
+public const PRODUCTION_PRETE_LIVRAISON = 'prete_livraison';
+public const PRODUCTION_EN_LIVRAISON = 'en_livraison';
+public const PRODUCTION_LIVREE = 'livree';
+public const PRODUCTION_ANNULEE = 'annulee';
+public const PRODUCTION_NON_REQUISE = 'non_requise';
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -37,6 +46,20 @@ class Production
 
     #[ORM\Column]
     private ?bool $etat = null;
+    #[ORM\Column(options: ['default' => false])]
+private bool $gestionStock = false;
+
+#[ORM\OneToMany(
+    targetEntity: ProduitArticleStock::class,
+    mappedBy: 'produit',
+    cascade: ['persist', 'remove'],
+    orphanRemoval: true
+)]
+#[ORM\OrderBy([
+    'ordre' => 'ASC',
+    'id' => 'ASC',
+])]
+private Collection $articlesStock;
 
     /**
      * @var Collection<int, ConsommationEncres>
@@ -47,6 +70,7 @@ class Production
     public function __construct()
     {
         $this->consommationEncres = new ArrayCollection();
+        $this->articlesStock = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -167,4 +191,54 @@ class Production
 
         return $this;
     }
+
+    public function isGestionStock(): bool
+{
+    return $this->gestionStock;
+}
+
+public function setGestionStock(bool $gestionStock): static
+{
+    $this->gestionStock = $gestionStock;
+
+    return $this;
+}
+/**
+ * @return Collection<int, ProduitArticleStock>
+ */
+public function getArticlesStock(): Collection
+{
+    return $this->articlesStock;
+}
+
+public function addArticleStock(
+    ProduitArticleStock $articleStock
+): static {
+    if (!$this->articlesStock->contains($articleStock)) {
+        $this->articlesStock->add($articleStock);
+
+        $articleStock->setProduit(
+            $this
+        );
+    }
+
+    return $this;
+}
+
+public function removeArticleStock(
+    ProduitArticleStock $articleStock
+): static {
+    if ($this->articlesStock->removeElement($articleStock)) {
+        if (
+            $articleStock->getProduit()
+            === $this
+        ) {
+            $articleStock->setProduit(
+                null
+            );
+        }
+    }
+
+    return $this;
+}
 }

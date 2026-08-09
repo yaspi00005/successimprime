@@ -1,0 +1,86 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Clients{% endblock %}
+
+{% block body %}
+    <h1>Clients</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ client.id }}</td>
+            </tr>
+            <tr>
+                <th>Code</th>
+                <td>{{ client.code }}</td>
+            </tr>
+            <tr>
+                <th>RaisonSociale</th>
+                <td>{{ client.raisonSociale }}</td>
+            </tr>
+            <tr>
+                <th>Nom</th>
+                <td>{{ client.nom }}</td>
+            </tr>
+            <tr>
+                <th>Prenom</th>
+                <td>{{ client.prenom }}</td>
+            </tr>
+            <tr>
+                <th>Telephone</th>
+                <td>{{ client.telephone }}</td>
+            </tr>
+            <tr>
+                <th>Telephone2</th>
+                <td>{{ client.telephone2 }}</td>
+            </tr>
+            <tr>
+                <th>Email</th>
+                <td>{{ client.email }}</td>
+            </tr>
+            <tr>
+                <th>Adresse</th>
+                <td>{{ client.adresse }}</td>
+            </tr>
+            <tr>
+                <th>Ville</th>
+                <td>{{ client.ville }}</td>
+            </tr>
+            <tr>
+                <th>Nif</th>
+                <td>{{ client.nif }}</td>
+            </tr>
+            <tr>
+                <th>Rccm</th>
+                <td>{{ client.rccm }}</td>
+            </tr>
+            <tr>
+                <th>TypeClient</th>
+                <td>{{ client.typeClient }}</td>
+            </tr>
+            <tr>
+                <th>PlafondCredit</th>
+                <td>{{ client.plafondCredit }}</td>
+            </tr>
+            <tr>
+                <th>Observation</th>
+                <td>{{ client.observation }}</td>
+            </tr>
+            <tr>
+                <th>CreatedAt</th>
+                <td>{{ client.createdAt ? client.createdAt|date('Y-m-d H:i:s') : '' }}</td>
+            </tr>
+            <tr>
+                <th>UpdatedAt</th>
+                <td>{{ client.updatedAt ? client.updatedAt|date('Y-m-d H:i:s') : '' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_clients_index') }}">back to list</a>
+
+    <a href="{{ path('app_clients_edit', {'id': client.id}) }}">edit</a>
+
+    {{ include('clients/_delete_form.html.twig') }}
+{% endblock %}

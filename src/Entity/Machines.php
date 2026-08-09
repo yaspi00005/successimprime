@@ -53,6 +53,12 @@ class Machines
     #[ORM\Column(length: 20)]
     private ?string $etat = null;
 
+    #[ORM\Column(length: 50, unique: true, nullable: true)]
+    private ?string $numeroMachine = null;
+
+    #[ORM\Column(length: 45, unique: true)]
+    private ?string $adresseIp = null;
+
     /**
      * @var Collection<int, CommandesDetails>
      */
@@ -155,12 +161,12 @@ class Machines
         return $this;
     }
 
-    public function getNbTetes(): ?Number
+    public function getNbTetes(): ?int
     {
         return $this->nbTetes;
     }
 
-    public function setNbTetes(Number $nbTetes): static
+    public function setNbTetes(int $nbTetes): static
     {
         $this->nbTetes = $nbTetes;
 
@@ -191,24 +197,24 @@ class Machines
         return $this;
     }
 
-    public function getCompteurM2(): ?Number
+    public function getCompteurM2(): ?int
     {
         return $this->compteurM2;
     }
 
-    public function setCompteurM2(Number $compteurM2): static
+    public function setCompteurM2(int $compteurM2): static
     {
         $this->compteurM2 = $compteurM2;
 
         return $this;
     }
 
-    public function getCompteurHeures(): ?Number
+    public function getCompteurHeures(): ?int
     {
         return $this->compteurHeures;
     }
 
-    public function setCompteurHeures(Number $compteurHeures): static
+    public function setCompteurHeures(int $compteurHeures): static
     {
         $this->compteurHeures = $compteurHeures;
 
@@ -316,4 +322,46 @@ class Machines
 
         return $this;
     }
+
+    public function getNumeroMachine(): ?string
+    {
+        return $this->numeroMachine;
+    }
+
+    public function setNumeroMachine(?string $numeroMachine): static
+    {
+        $this->numeroMachine = $numeroMachine;
+
+        return $this;
+    }
+
+    
+
+   public function getAdresseIp(): ?string
+{
+    return $this->adresseIp;
+}
+
+public function setAdresseIp(string $adresseIp): static
+{
+    $adresseIp = trim($adresseIp);
+
+    if (!filter_var($adresseIp, FILTER_VALIDATE_IP)) {
+        throw new \InvalidArgumentException(
+            'L’adresse IP de la machine est invalide.'
+        );
+    }
+
+    $this->adresseIp = $adresseIp;
+
+    return $this;
+}
+
+    public function __toString(): string
+    {
+        return $this->nom ?? 'Machine';
+        return $this->nom ?? 'Machine';
+    }
+
+    
 }

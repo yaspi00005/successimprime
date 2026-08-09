@@ -1,0 +1,522 @@
+<?php
+
+namespace App\Controller;
+
+use App\Entity\Clients;
+use App\Form\ClientsType;
+use App\Repository\ClientsRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+
+#[Route('/clients')]
+final class ClientsController extends AbstractController
+{
+    #[Route(
+        '',
+        name: 'app_clients_index',
+        methods: ['GET']
+    )]
+    public function index(): Response
+    {
+        $nouveauClient = new Clients();
+
+        $formAjout = $this->createForm(
+            ClientsType::class,
+            $nouveauClient,
+            [
+                'action' => $this->generateUrl('app_clients_new'),
+                'method' => 'POST',
+            ]
+        );
+
+        return $this->render('clients/index.html.twig', [
+            'formAjout' => $formAjout->createView(),
+        ]);
+    }
+
+    /*
+     * Cette route doit rester avant /{id}.
+     */
+    #[Route(
+        '/actions-en-masse',
+        name: 'app_clients_mass_action',
+        methods: ['POST']
+    )]
+    public function massAction(
+        Request $request,
+        ClientsRepository $clientsRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $data = json_decode(
+            $request->getContent(),
+            true
+        ) ?? [];
+
+        if (!$this->isCsrfTokenValid(
+            'clients_mass_action',
+            $data['_token'] ?? ''
+        )) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Jeton de sécurité invalide.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $ids = array_values(array_unique(array_filter(
+            array_map(
+                'intval',
+                is_array($data['ids'] ?? null)
+                    ? $data['ids']
+                    : []
+            )
+        )));
+
+        $action = $data['action'] ?? '';
+
+        if ($ids === []) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Sélectionnez au moins un client.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (!in_array(
+            $action,
+            ['bloquer', 'debloquer', 'supprimer'],
+            true
+        )) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Action non reconnue.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $clients = $clientsRepository->findBy([
+            'id' => $ids,
+        ]);
+
+        if ($clients === []) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Aucun client correspondant trouvé.',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        foreach ($clients as $client) {
+            if ($action === 'bloquer') {
+                $client->setStatut(false);
+            } elseif ($action === 'debloquer') {
+                $client->setStatut(true);
+            } elseif ($action === 'supprimer') {
+                $entityManager->remove($client);
+            }
+        }
+
+        $entityManager->flush();
+
+        $messages = [
+            'bloquer' =>
+            'Les clients sélectionnés ont été bloqués.',
+            'debloquer' =>
+            'Les clients sélectionnés ont été débloqués.',
+            'supprimer' =>
+            'Les clients sélectionnés ont été supprimés.',
+        ];
+
+        return $this->json([
+            'success' => true,
+            'message' => $messages[$action],
+        ]);
+    }
+
+    #[Route(
+        '/new',
+        name: 'app_clients_new',
+        methods: ['POST']
+    )]
+    public function new(
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $client = new Clients();
+
+        /*
+         * Code provisoire nécessaire parce que la colonne code
+         * est obligatoire et unique avant le premier flush.
+         */
+        $client->setCode(
+            'TMP-' . bin2hex(random_bytes(12))
+        );
+
+        $form = $this->createForm(
+            ClientsType::class,
+            $client
+        );
+
+        $form->handleRequest($request);
+        if (
+    !$this->isGranted('ROLE_ADMIN')
+    && $client->isB2B()
+) {
+    return $this->json([
+        'success' => false,
+        'message' =>
+            'Vous n’êtes pas autorisé à créer un client B2B.',
+    ], Response::HTTP_FORBIDDEN);
+}
+
+        if (!$form->isSubmitted()) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Le formulaire n’a pas été soumis.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->validerIdentiteClient($form, $client);
+
+        if (!$form->isValid()) {
+            return $this->json([
+                'success' => false,
+                'message' =>
+                'Veuillez corriger les champs indiqués.',
+                'errors' => $this->getFormErrors($form),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $entityManager->persist($client);
+
+        /*
+         * Premier flush : Doctrine génère l’identifiant.
+         */
+        $entityManager->flush();
+
+        /*
+         * L’ID devient le numéro client définitif.
+         */
+        $client->genererCodeDepuisId();
+
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'message' => sprintf(
+                'Le client %s a été ajouté avec succès.',
+                $client->getCode()
+            ),
+            'client' => [
+                'id' => $client->getId(),
+                'code' => $client->getCode(),
+            ],
+        ], Response::HTTP_CREATED);
+    }
+
+    #[Route(
+        '/{id}/formulaire-modification',
+        name: 'app_clients_edit_form',
+        requirements: ['id' => '\d+'],
+        methods: ['GET']
+    )]
+    public function editForm(
+        Clients $client
+    ): Response {
+        $form = $this->createForm(
+            ClientsType::class,
+            $client,
+            [
+                'action' => $this->generateUrl(
+                    'app_clients_edit',
+                    ['id' => $client->getId()]
+                ),
+                'method' => 'POST',
+            ]
+        );
+
+        return $this->render(
+            'clients/_modal_form.html.twig',
+            [
+                'form' => $form->createView(),
+                'client' => $client,
+                'mode' => 'edit',
+            ]
+        );
+    }
+
+    #[Route(
+        '/{id}/edit',
+        name: 'app_clients_edit',
+        requirements: ['id' => '\d+'],
+        methods: ['POST']
+    )]
+    public function edit(
+        Request $request,
+        Clients $client,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $form = $this->createForm(
+            ClientsType::class,
+            $client
+        );
+
+        $form->handleRequest($request);
+if (
+    !$this->isGranted('ROLE_ADMIN')
+    && $client->isB2B()
+) {
+    return $this->json([
+        'success' => false,
+        'message' =>
+            'Vous n’êtes pas autorisé à définir un client en B2B.',
+    ], Response::HTTP_FORBIDDEN);
+}
+        if (!$form->isSubmitted()) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Le formulaire n’a pas été soumis.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->validerIdentiteClient($form, $client);
+
+        if (!$form->isValid()) {
+            return $this->json([
+                'success' => false,
+                'message' =>
+                'Veuillez corriger les champs indiqués.',
+                'errors' => $this->getFormErrors($form),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'message' => sprintf(
+                'Le client %s a été modifié avec succès.',
+                $client->getCode()
+            ),
+        ]);
+    }
+
+    #[Route(
+        '/{id}/toggle-statut',
+        name: 'app_clients_toggle_statut',
+        requirements: ['id' => '\d+'],
+        methods: ['POST']
+    )]
+    public function toggleStatut(
+        Clients $client,
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $data = json_decode(
+            $request->getContent(),
+            true
+        ) ?? [];
+
+        if (!$this->isCsrfTokenValid(
+            'toggle_client_' . $client->getId(),
+            $data['_token'] ?? ''
+        )) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Jeton de sécurité invalide.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $client->setStatut(!$client->isStatut());
+
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'statut' => $client->isStatut(),
+            'message' => $client->isStatut()
+                ? 'Le client a été débloqué.'
+                : 'Le client a été bloqué.',
+        ]);
+    }
+
+    #[Route(
+        '/{id}',
+        name: 'app_clients_show',
+        requirements: ['id' => '\d+'],
+        methods: ['GET']
+    )]
+    public function show(
+        Clients $client
+    ): Response {
+        return $this->render('clients/show.html.twig', [
+            'client' => $client,
+        ]);
+    }
+
+    #[Route(
+        '/{id}',
+        name: 'app_clients_delete',
+        requirements: ['id' => '\d+'],
+        methods: ['POST']
+    )]
+    public function delete(
+        Request $request,
+        Clients $client,
+        EntityManagerInterface $entityManager
+    ): Response {
+        if ($this->isCsrfTokenValid(
+            'delete' . $client->getId(),
+            $request->getPayload()->getString('_token')
+        )) {
+            $entityManager->remove($client);
+            $entityManager->flush();
+        }
+
+        return $this->redirectToRoute(
+            'app_clients_index',
+            [],
+            Response::HTTP_SEE_OTHER
+        );
+    }
+
+    private function validerIdentiteClient(
+        FormInterface $form,
+        Clients $client
+    ): void {
+        if (
+            $client->isB2B()
+            && trim((string) $client->getRaisonSociale()) === ''
+        ) {
+            $form->get('raisonSociale')->addError(
+                new FormError(
+                    'La raison sociale est obligatoire pour un client B2B.'
+                )
+            );
+        }
+
+        if (
+            $client->isB2C()
+            && trim((string) $client->getNom()) === ''
+            && trim((string) $client->getPrenom()) === ''
+        ) {
+            $form->get('nom')->addError(
+                new FormError(
+                    'Indiquez au moins le nom ou le prénom du client.'
+                )
+            );
+        }
+    }
+
+    private function getFormErrors(
+        FormInterface $form
+    ): array {
+        $errors = [];
+
+        foreach ($form->getErrors(true) as $error) {
+            $origine = $error->getOrigin();
+
+            $champ = $origine !== null
+                ? $origine->getName()
+                : 'formulaire';
+
+            $errors[$champ][] = $error->getMessage();
+        }
+
+        return $errors;
+    }
+    #[Route(
+        '/datatable',
+        name: 'app_clients_datatable',
+        methods: ['GET']
+    )]
+    public function datatable(
+        Request $request,
+        ClientsRepository $clientsRepository
+    ): JsonResponse {
+        $draw = max(
+            0,
+            $request->query->getInt('draw')
+        );
+
+        $start = max(
+            0,
+            $request->query->getInt('start')
+        );
+
+        $length = $request->query->getInt('length', 10);
+
+        if (!in_array($length, [10, 25, 50, 100], true)) {
+            $length = 10;
+        }
+
+        $searchData = $request->query->all('search');
+        $search = trim((string) ($searchData['value'] ?? ''));
+
+        $resultat = $clientsRepository->rechercherPourDataTable(
+            $start,
+            $length,
+            $search
+        );
+
+        $data = [];
+
+        foreach ($resultat['clients'] as $client) {
+            $nomClient = trim(
+                (string) (
+                    $client->getRaisonSociale()
+                    ?: $client->getPrenom() . ' ' . $client->getNom()
+                )
+            );
+
+            $data[] = [
+                'id' => $client->getId(),
+                'code' => $client->getCode(),
+                'client' => $nomClient ?: '-',
+                'typeClient' => $client->getTypeClient(),
+                'telephone' => $client->getTelephone() ?: '-',
+                'telephone2' => $client->getTelephone2(),
+                'email' => $client->getEmail() ?: '-',
+                'ville' => $client->getVille() ?: '-',
+                'nif' => $client->getNif() ?: '-',
+                'rccm' => $client->getRccm() ?: '-',
+                'plafondCredit' => $client->getPlafondCredit(),
+                'statut' => $client->isStatut(),
+                'createdAt' => $client->getCreatedAt()
+                    ? $client->getCreatedAt()->format('d/m/Y H:i')
+                    : '-',
+
+                'showUrl' => $this->generateUrl(
+                    'app_clients_show',
+                    ['id' => $client->getId()]
+                ),
+
+                'editFormUrl' => $this->generateUrl(
+                    'app_clients_edit_form',
+                    ['id' => $client->getId()]
+                ),
+
+                'toggleUrl' => $this->generateUrl(
+                    'app_clients_toggle_statut',
+                    ['id' => $client->getId()]
+                ),
+
+                'toggleToken' => $this->container
+                    ->get('security.csrf.token_manager')
+                    ->getToken(
+                        'toggle_client_' . $client->getId()
+                    )
+                    ->getValue(),
+            ];
+        }
+
+        return $this->json([
+            'draw' => $draw,
+            'recordsTotal' => $resultat['total'],
+            'recordsFiltered' => $resultat['filtered'],
+            'data' => $data,
+        ]);
+    }
+}

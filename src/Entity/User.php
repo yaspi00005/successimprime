@@ -40,22 +40,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Commandes::class, mappedBy: 'agents')]
     private Collection $commandes;
 
-    #[ORM\Column]
+    #[ORM\Column(options: ['default' => true])]
     private ?bool $actif = null;
 
     #[ORM\OneToOne(inversedBy: 'user', cascade: ['persist'])]
-#[ORM\JoinColumn(nullable: false)]
-private ?Employes $employe = null;
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Employes $employe = null;
 
     #[ORM\Column]
-    private ?\DateTime $dateAdd = null;
+    private ?\DateTimeImmutable $dateAdd = null;
 
     #[ORM\Column]
-    private ?\DateTime $dateUpdate = null;
+    private ?\DateTimeImmutable $dateUpdate = null;
+
+    /**
+     * @var Collection<int, Paiements>
+     */
+    #[ORM\OneToMany(targetEntity: Paiements::class, mappedBy: 'encaissePar')]
+    private Collection $paiements;
 
     public function __construct()
     {
         $this->commandes = new ArrayCollection();
+        $this->paiements = new ArrayCollection();
+
+        $maintenant = new \DateTimeImmutable();
+        $this->dateAdd = $maintenant;
+        $this->dateUpdate = $maintenant;
     }
 
     public function getId(): ?int
@@ -128,7 +139,7 @@ private ?Employes $employe = null;
     public function __serialize(): array
     {
         $data = (array) $this;
-        $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
+        $data["\0" . self::class . "\0password"] = hash('crc32c', $this->password);
 
         return $data;
     }
@@ -175,43 +186,82 @@ private ?Employes $employe = null;
         return $this;
     }
 
-  public function getEmploye(): ?Employes
-{
-    return $this->employe;
-}
+    public function getEmploye(): ?Employes
+    {
+        return $this->employe;
+    }
 
-public function setEmploye(?Employes $employe): static
-{
-    $this->employe = $employe;
+    public function setEmploye(?Employes $employe): static
+    {
+        $this->employe = $employe;
 
-    return $this;
-}
+        return $this;
+    }
 
-    public function getDateAdd(): ?\DateTime
+    public function getDateAdd(): \DateTimeImmutable
     {
         return $this->dateAdd;
     }
 
-    public function setDateAdd(\DateTime $dateAdd): static
+    public function setDateAdd(\DateTimeImmutable $dateAdd): static
     {
         $this->dateAdd = $dateAdd;
 
         return $this;
     }
 
-    public function getDateUpdate(): ?\DateTime
+    public function getDateUpdate(): \DateTimeImmutable
     {
         return $this->dateUpdate;
     }
 
-    public function setDateUpdate(\DateTime $dateUpdate): static
+    public function setDateUpdate(\DateTimeImmutable $dateUpdate): static
     {
         $this->dateUpdate = $dateUpdate;
 
         return $this;
     }
-    public function isEnabled(): bool
-{
-    return $this->actif === true;
-}
+
+
+
+    /**
+     * @return Collection<int, Paiements>
+     */
+    public function getPaiements(): Collection
+    {
+        return $this->paiements;
+    }
+
+    public function addPaiement(Paiements $paiement): static
+    {
+        if (!$this->paiements->contains($paiement)) {
+            $this->paiements->add($paiement);
+            $paiement->setEncaissePar($this);
+        }
+
+        return $this;
+    }
+
+    public function removePaiement(Paiements $paiement): static
+    {
+        if ($this->paiements->removeElement($paiement)) {
+            // set the owning side to null (unless already changed)
+            if ($paiement->getEncaissePar() === $this) {
+                $paiement->setEncaissePar(null);
+            }
+        }
+
+        return $this;
+    }
+    public function __toString(): string
+    {
+        if ($this->employe !== null) {
+            return trim(
+                ($this->employe->getPrenom() ?? '') . ' ' .
+                    ($this->employe->getNom() ?? '')
+            );
+        }
+
+        return $this->username ?? $this->email ?? 'Utilisateur';
+    }
 }

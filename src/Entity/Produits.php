@@ -6,6 +6,7 @@ use App\Repository\ProduitsRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ProduitsRepository::class)]
 class Produits
@@ -32,6 +33,14 @@ class Produits
 
     #[ORM\Column(nullable: true)]
     private ?float $prixBase = null;
+    /**
+ * Prix net réservé aux clients B2B.
+ *
+ * Le prix affiché sur la facture restera prixBase.
+ * La remise sera : prixBase - prixB2B.
+ */
+#[ORM\Column(nullable: true)]
+private ?float $prixB2B = null;
 
     #[ORM\Column(options: ['default' => true])]
     private bool $personnalisable = true;
@@ -104,6 +113,33 @@ class Produits
     )]
     #[ORM\OrderBy(['ordre' => 'ASC'])]
     private Collection $configurations;
+
+   #[ORM\Column(
+    length: 30,
+    options: ['default' => 'unite']
+)]
+#[Assert\Choice(choices: [
+    'forfait',
+    'unite',
+    'heure',
+    'feuille',
+    'exemplaire',
+    'metre',
+    'metre_carre',
+    'point',
+    'face',
+])]
+private string $modeCalcul = 'unite';
+
+#[ORM\Column(options: ['default' => false])]
+private bool $gestionStock = false;
+
+#[ORM\ManyToOne]
+#[ORM\JoinColumn(
+    nullable: true,
+    onDelete: 'SET NULL'
+)]
+private ?Articles $articleStock = null;
 
     public function __construct()
     {
@@ -390,4 +426,104 @@ class Produits
 
         return $this;
     }
+
+    public function getPrixB2B(): ?float
+{
+    return $this->prixB2B;
+}
+
+public function setPrixB2B(?float $prixB2B): static
+{
+    if ($prixB2B === null) {
+        $this->prixB2B = null;
+
+        return $this;
+    }
+
+    $prixB2B = max(0, $prixB2B);
+
+    if (
+        $this->prixBase !== null
+        && $prixB2B > $this->prixBase
+    ) {
+        throw new \DomainException(
+            'Le prix B2B ne peut pas dépasser le prix normal du produit.'
+        );
+    }
+
+    $this->prixB2B = $prixB2B;
+
+    return $this;
+}
+public function getModeCalcul(): string
+{
+    return $this->modeCalcul;
+}
+
+public function setModeCalcul(?string $modeCalcul): static
+{
+    $modesAutorises = [
+        'forfait',
+        'unite',
+        'heure',
+        'feuille',
+        'exemplaire',
+        'metre',
+        'metre_carre',
+        'point',
+        'face',
+    ];
+
+    $modeCalcul = strtolower(
+        trim($modeCalcul ?? '')
+    );
+
+    $this->modeCalcul = in_array(
+        $modeCalcul,
+        $modesAutorises,
+        true
+    ) ? $modeCalcul : 'unite';
+
+    return $this;
+}
+
+public function utiliseSurface(): bool
+{
+    return $this->modeCalcul === 'metre_carre';
+}
+
+public function utiliseLongueur(): bool
+{
+    return $this->modeCalcul === 'metre';
+}
+
+public function estForfaitaire(): bool
+{
+    return $this->modeCalcul === 'forfait';
+}
+public function isGestionStock(): bool
+{
+    return $this->gestionStock;
+}
+
+public function setGestionStock(
+    bool $gestionStock
+): static {
+    $this->gestionStock = $gestionStock;
+
+    return $this;
+}
+
+public function getArticleStock(): ?Articles
+{
+    return $this->articleStock;
+}
+
+public function setArticleStock(
+    ?Articles $articleStock
+): static {
+    $this->articleStock = $articleStock;
+
+    return $this;
+}
 }

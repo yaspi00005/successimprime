@@ -1,0 +1,609 @@
+{% set estAssistante = estAssistante|default(
+    is_granted('ROLE_ASSISTANTE_COMMERCIALE')
+) %}
+{{ form_start(form, {
+    attr: {
+        id: 'form-mouvement-tresorerie',
+        novalidate: 'novalidate',
+        autocomplete: 'off'
+    }
+}) }}
+
+{% if not form.vars.valid %}
+	<div class="alert alert-danger border-0 shadow-sm mb-4">
+		<div class="d-flex align-items-start">
+			<i class="fa fa-exclamation-circle fa-2x mr-3"></i>
+
+			<div>
+				<strong>Le formulaire contient des erreurs.</strong>
+				<div>
+					Vérifiez les champs signalés avant de continuer.
+				</div>
+			</div>
+		</div>
+	</div>
+{% endif %}
+
+<div class="card border shadow-sm mb-4">
+	<div class="card-header bg-light">
+		<h3 class="card-title text-primary mb-0">
+			<i class="fa fa-exchange text-primary mr-2"></i>
+			Informations principales
+		</h3>
+	</div>
+
+	<div class="card-body">
+
+		<div class="row">
+
+			<div class="col-md-4">
+				<div class="form-group">
+					{{ form_label(form.type, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					<span class="text-danger">*</span>
+
+					{{ form_widget(form.type, {
+                        attr: form.type.vars.attr|merge({
+                            class: (
+                                'form-control form-select'
+                                ~ (
+                                    form.type.vars.errors|length
+                                    ? ' is-invalid'
+                                    : ''
+                                )
+                            )
+                        })
+                    }) }}
+
+					{% for error in form.type.vars.errors %}
+						<div class="invalid-feedback d-block">
+							<i class="fa fa-exclamation-circle mr-1"></i>
+							{{ error.message }}
+						</div>
+					{% endfor %}
+				</div>
+			</div>
+
+			<div class="col-md-5">
+				<div class="form-group">
+					{{ form_label(form.montant, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					<span class="text-danger">*</span>
+
+					<div class="input-group">
+						{{ form_widget(form.montant, {
+                            attr: form.montant.vars.attr|merge({
+                                class: (
+                                    'form-control montant-input text-right'
+                                    ~ (
+                                        form.montant.vars.errors|length
+                                        ? ' is-invalid'
+                                        : ''
+                                    )
+                                )
+                            })
+                        }) }}
+
+						<div class="input-group-append">
+							<span class="input-group-text font-weight-bold">
+								FCFA
+							</span>
+						</div>
+					</div>
+
+					{% for error in form.montant.vars.errors %}
+						<div class="invalid-feedback d-block">
+							<i class="fa fa-exclamation-circle mr-1"></i>
+							{{ error.message }}
+						</div>
+					{% endfor %}
+
+					<small class="form-text text-muted">
+						Exemple : 25 000
+					</small>
+				</div>
+			</div>
+
+			<div class="col-md-3">
+				<div class="form-group">
+					{{ form_label(form.devise, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					{{ form_widget(form.devise, {
+                        attr: form.devise.vars.attr|merge({
+                            class: 'form-control form-select'
+                        })
+                    }) }}
+
+					{{ form_errors(form.devise) }}
+				</div>
+			</div>
+
+		</div>
+
+		<div class="row">
+
+			<div id="blocCompteSource" class="col-md-6">
+				<div class="form-group">
+					{{ form_label(form.compteSource, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					<span class="text-danger compte-required">*</span>
+
+					{{ form_widget(form.compteSource, {
+                        attr: form.compteSource.vars.attr|merge({
+                            class: (
+                                'form-control form-select'
+                                ~ (
+                                    form.compteSource.vars.errors|length
+                                    ? ' is-invalid'
+                                    : ''
+                                )
+                            )
+                        })
+                    }) }}
+
+					{% for error in form.compteSource.vars.errors %}
+						<div class="invalid-feedback d-block">
+							<i class="fa fa-exclamation-circle mr-1"></i>
+							{{ error.message }}
+						</div>
+					{% endfor %}
+
+					<small class="form-text text-muted">
+						Le montant sera retiré de ce compte.
+					</small>
+				</div>
+			</div>
+
+			<div id="blocCompteDestination" class="col-md-6">
+				<div class="form-group">
+					{{ form_label(form.compteDestination, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					<span class="text-danger compte-required">*</span>
+
+					{{ form_widget(form.compteDestination, {
+                        attr: form.compteDestination.vars.attr|merge({
+                            class: (
+                                'form-control form-select'
+                                ~ (
+                                    form.compteDestination.vars.errors|length
+                                    ? ' is-invalid'
+                                    : ''
+                                )
+                            )
+                        })
+                    }) }}
+
+					{% for error in form.compteDestination.vars.errors %}
+						<div class="invalid-feedback d-block">
+							<i class="fa fa-exclamation-circle mr-1"></i>
+							{{ error.message }}
+						</div>
+					{% endfor %}
+
+					<small class="form-text text-muted">
+						Le montant sera ajouté à ce compte.
+					</small>
+				</div>
+			</div>
+
+		</div>
+
+	</div>
+</div>
+
+<div class="card border shadow-sm mb-4">
+	<div class="card-header bg-light">
+		<h3 class="card-title text-primary mb-0">
+			<i class="fa fa-file-text-o text-primary mr-2"></i>
+			Détails de l’opération
+		</h3>
+	</div>
+
+	<div class="card-body">
+
+		<div class="row">
+
+			<div class="col-md-6">
+				<div class="form-group">
+					{{ form_label(form.libelle, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					<span class="text-danger">*</span>
+
+					{{ form_widget(form.libelle, {
+                        attr: form.libelle.vars.attr|merge({
+                            class: (
+                                'form-control'
+                                ~ (
+                                    form.libelle.vars.errors|length
+                                    ? ' is-invalid'
+                                    : ''
+                                )
+                            )
+                        })
+                    }) }}
+
+					{% for error in form.libelle.vars.errors %}
+						<div class="invalid-feedback d-block">
+							<i class="fa fa-exclamation-circle mr-1"></i>
+							{{ error.message }}
+						</div>
+					{% endfor %}
+				</div>
+			</div>
+
+			<div class="col-md-6">
+				<div class="form-group">
+					{{ form_label(form.dateOperation, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					<span class="text-danger">*</span>
+
+					{{ form_widget(form.dateOperation, {
+                        attr: form.dateOperation.vars.attr|merge({
+                            class: (
+                                'form-control'
+                                ~ (
+                                    form.dateOperation.vars.errors|length
+                                    ? ' is-invalid'
+                                    : ''
+                                )
+                            )
+                        })
+                    }) }}
+
+					{{ form_errors(form.dateOperation) }}
+				</div>
+			</div>
+
+		</div>
+
+		<div class="row">
+
+			<div class="col-md-6">
+				<div class="form-group">
+					{{ form_label(form.modePaiement, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					{{ form_widget(form.modePaiement, {
+                        attr: form.modePaiement.vars.attr|merge({
+                            class: 'form-control form-select'
+                        })
+                    }) }}
+
+					{{ form_errors(form.modePaiement) }}
+				</div>
+			</div>
+
+			<div class="col-md-6">
+				<div class="form-group">
+					{{ form_label(form.referenceExterne, null, {
+                        label_attr: {
+                            class: 'font-weight-bold'
+                        }
+                    }) }}
+
+					{{ form_widget(form.referenceExterne, {
+                        attr: form.referenceExterne.vars.attr|merge({
+                            class: 'form-control'
+                        })
+                    }) }}
+
+					{{ form_help(form.referenceExterne) }}
+					{{ form_errors(form.referenceExterne) }}
+				</div>
+			</div>
+
+		</div>
+
+		<div class="form-group">
+			{{ form_label(form.description, null, {
+                label_attr: {
+                    class: 'font-weight-bold'
+                }
+            }) }}
+
+			{{ form_widget(form.description, {
+                attr: form.description.vars.attr|merge({
+                    class: 'form-control',
+                    rows: 4
+                })
+            }) }}
+
+			{{ form_errors(form.description) }}
+		</div>
+
+	</div>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm">
+	<i class="fa fa-shield mr-2"></i>
+
+	{% if estAssistante %}
+		Vous pouvez enregistrer uniquement un encaissement ou un
+		        décaissement. Le compte concerné sera immédiatement mis à jour.
+	{% else %}
+		Le mouvement sera enregistré de façon sécurisée et les comptes
+		        concernés seront immédiatement mis à jour.
+	{% endif %}
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-4">
+
+	<small class="text-muted">
+		<span class="text-danger">*</span>
+		Champs obligatoires
+	</small>
+
+	<div>
+		<a href="{{ path('app_mouvement_tresorerie_index') }}" class="btn btn-light border mr-2">
+			<i class="fa fa-arrow-left mr-1"></i>
+			Retour
+		</a>
+
+		<button type="submit" id="boutonEnregistrerMouvement" class="btn btn-primary">
+			<i class="fa fa-save mr-1"></i>
+			{{ bouton_label|default('Enregistrer le mouvement') }}
+		</button>
+	</div>
+
+</div>
+
+{{ form_end(form) }}
+
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+const formulaire = document.getElementById('form-mouvement-tresorerie');
+
+if (! formulaire) {
+return;
+}
+
+const estAssistante = formulaire.dataset.estAssistante === '1';
+
+const typeMouvement = document.getElementById({{ form.type.vars.id|json_encode|raw }});
+
+const champMontant = document.getElementById({{ form.montant.vars.id|json_encode|raw }});
+
+const champSource = document.getElementById({{ form.compteSource.vars.id|json_encode|raw }});
+
+const champDestination = document.getElementById({{ form.compteDestination.vars.id|json_encode|raw }});
+
+const blocSource = document.getElementById('blocCompteSource');
+
+const blocDestination = document.getElementById('blocCompteDestination');
+
+const boutonEnregistrer = document.getElementById('boutonEnregistrerMouvement');
+
+/*
+         * Protection visuelle :
+         * l’assistante ne voit pas l’option Transfert.
+         * Le contrôleur conserve la véritable sécurité.
+         */
+if (estAssistante && typeMouvement) {
+Array.from(typeMouvement.options).forEach(function (option) {
+if (option.value === 'transfert') {
+option.remove();
+}
+});
+
+if (typeMouvement.value === 'transfert' || !['', 'encaissement', 'decaissement'].includes(typeMouvement.value)) {
+typeMouvement.value = '';
+}
+}
+
+function formaterMontant(valeur) {
+const chiffres = String(valeur || '').replace(/\D/g, '');
+
+if (chiffres === '') {
+return '';
+}
+
+return chiffres.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+if (champMontant) {
+champMontant.value = formaterMontant(champMontant.value);
+
+champMontant.addEventListener('input', function () {
+const position = this.selectionStart;
+const ancienneLongueur = this.value.length;
+
+this.value = formaterMontant(this.value);
+
+const nouvelleLongueur = this.value.length;
+const nouvellePosition = position + nouvelleLongueur - ancienneLongueur;
+
+this.setSelectionRange(nouvellePosition, nouvellePosition);
+});
+}
+
+function afficherBloc(bloc, champ, visible) {
+if (! bloc) {
+return;
+}
+
+bloc.style.display = visible ? '' : 'none';
+
+if (champ) {
+champ.required = visible;
+champ.disabled = ! visible;
+
+if (! visible) {
+champ.value = '';
+champ.setCustomValidity('');
+}
+}
+}
+
+function verifierTransfert() {
+if (! typeMouvement || typeMouvement.value !== 'transfert') {
+if (champDestination) {
+champDestination.setCustomValidity('');
+}
+
+return true;
+}
+
+if (! champSource || ! champDestination) {
+return false;
+}
+
+const memeCompte = champSource.value !== '' && champDestination.value !== '' && champSource.value === champDestination.value;
+
+champDestination.setCustomValidity(memeCompte ? 'Les comptes source et destination doivent être différents.' : '');
+
+return ! memeCompte;
+}
+
+function actualiserComptes() {
+if (! typeMouvement) {
+return;
+}
+
+const type = typeMouvement.value;
+
+/*
+             * Protection supplémentaire si l’option Transfert
+             * est injectée manuellement dans le HTML.
+             */
+if (estAssistante && !['', 'encaissement', 'decaissement'].includes(type)) {
+typeMouvement.value = '';
+
+afficherBloc(blocSource, champSource, false);
+
+afficherBloc(blocDestination, champDestination, false);
+
+Swal.fire({
+icon: 'error',
+title: 'Action non autorisée',
+text: 'Vous pouvez effectuer uniquement un encaissement ou un décaissement.',
+confirmButtonText: 'D’accord',
+confirmButtonColor: '#6259ca'
+});
+
+return;
+}
+
+afficherBloc(blocSource, champSource, type === 'decaissement' || type === 'transfert');
+
+afficherBloc(blocDestination, champDestination, type === 'encaissement' || type === 'transfert');
+
+verifierTransfert();
+}
+
+if (typeMouvement) {
+typeMouvement.addEventListener('change', actualiserComptes);
+}
+
+if (champSource) {
+champSource.addEventListener('change', verifierTransfert);
+}
+
+if (champDestination) {
+champDestination.addEventListener('change', verifierTransfert);
+}
+
+formulaire.addEventListener('submit', function (event) {
+const type = typeMouvement ? typeMouvement.value : '';
+
+if (estAssistante && !['encaissement', 'decaissement'].includes(type)) {
+event.preventDefault();
+
+Swal.fire({
+icon: 'error',
+title: 'Action non autorisée',
+text: 'Sélectionnez un encaissement ou un décaissement.',
+confirmButtonText: 'Corriger',
+confirmButtonColor: '#6259ca'
+});
+
+return;
+}
+
+if (! verifierTransfert()) {
+event.preventDefault();
+
+Swal.fire({
+icon: 'error',
+title: 'Comptes identiques',
+text: 'Sélectionnez deux comptes différents.',
+confirmButtonText: 'Corriger',
+confirmButtonColor: '#6259ca'
+});
+
+if (champDestination) {
+champDestination.focus();
+}
+
+return;
+}
+
+if (! formulaire.checkValidity()) {
+event.preventDefault();
+
+formulaire.classList.add('was-validated');
+
+Swal.fire({
+icon: 'error',
+title: 'Formulaire incomplet',
+text: 'Veuillez vérifier les champs obligatoires.',
+confirmButtonText: 'Vérifier',
+confirmButtonColor: '#6259ca'
+});
+
+const premierChampInvalide = formulaire.querySelector(':invalid');
+
+if (premierChampInvalide) {
+premierChampInvalide.focus();
+}
+
+return;
+}
+
+/*
+                 * « 25 000 » devient « 25000 »
+                 * avant le traitement Symfony.
+                 */
+if (champMontant) {
+champMontant.value = champMontant.value.replace(/\s/g, '');
+}
+
+if (boutonEnregistrer) {
+boutonEnregistrer.disabled = true;
+boutonEnregistrer.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>' + ' Enregistrement...';
+}
+});
+
+actualiserComptes();
+});
+</script>

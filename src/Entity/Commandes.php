@@ -3,13 +3,16 @@
 namespace App\Entity;
 
 use App\Repository\CommandesRepository;
-use BcMath\Number;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: CommandesRepository::class)]
+#[ORM\Table(name: 'commandes')]
 class Commandes
 {
     #[ORM\Id]
@@ -17,215 +20,118 @@ class Commandes
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(length: 30)]
-    private ?string $commandes = null;
-
-    #[ORM\ManyToOne(inversedBy: 'commandes')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?Clients $clients = null;
-
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $montantTotal = null;
-
-    #[ORM\Column]
-    private ?int $remises = null;
-
-    #[ORM\Column]
-    private ?int $montantApayer = null;
-
-    #[ORM\Column]
-    private ?\DateTime $dateCommandes = null;
-
-    #[ORM\Column]
-    private ?\DateTime $dateLivraisons = null;
-
-    #[ORM\ManyToOne(inversedBy: 'commandes')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?user $agents = null;
-
-    #[ORM\Column]
-    private ?bool $deleted = null;
-
-    #[ORM\Column]
-    private ?bool $statut = null;
-
-    #[ORM\Column(length: 50)]
+    #[ORM\Column(length: 50, unique: true, nullable: true)]
     private ?string $numero = null;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE)]
-    private ?\DateTime $dateCommande = null;
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    #[Assert\NotNull(message: 'Veuillez sélectionner un client.')]
+    private ?Clients $clients = null;
 
-    #[ORM\Column]
-    private ?\DateTime $dateLivraison = null;
+    #[ORM\ManyToOne(inversedBy: 'commandes')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $agents = null;
 
-    #[ORM\Column]
-    private ?bool $etat = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+    private ?\DateTimeInterface $dateCommande = null;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $remise = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeInterface $dateLivraison = null;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $tva = null;
+    #[ORM\Column(options: ['default' => 0])]
+    private int $remise = 0;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $totalHt = null;
+    #[ORM\Column(options: ['default' => 0])]
+    private int $tva = 0;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $totalTtc = null;
+    #[ORM\Column(options: ['default' => 0])]
+    private int $totalHt = 0;
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(options: ['default' => 0])]
+    private int $totalTtc = 0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $montantApayer = 0;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $observation = null;
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $deleted = false;
+
+    #[ORM\Column(options: ['default' => true])]
+    private bool $statut = true;
+
+    #[ORM\Column(options: ['default' => true])]
+    private bool $etat = true;
+    #[ORM\Column(
+        name: 'statut_paiement',
+        length: 20,
+        options: ['default' => 'impayee']
+    )]
+    private string $statutPaiement = 'impayee';
 
     /**
      * @var Collection<int, CommandesDetails>
      */
-    #[ORM\OneToMany(targetEntity: CommandesDetails::class, mappedBy: 'commande')]
+    #[ORM\OneToMany(
+        targetEntity: CommandesDetails::class,
+        mappedBy: 'commande',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
+    #[Assert\Count(
+        min: 1,
+        minMessage: 'Ajoutez au moins un détail à la commande.'
+    )]
+    #[Assert\Valid]
     private Collection $commandesDetails;
 
     /**
      * @var Collection<int, Paiements>
      */
-    #[ORM\OneToMany(targetEntity: Paiements::class, mappedBy: 'commande')]
+    #[ORM\OneToMany(
+        targetEntity: Paiements::class,
+        mappedBy: 'commande',
+        cascade: ['persist']
+    )]
     private Collection $paiements;
 
     /**
      * @var Collection<int, Factures>
      */
-    #[ORM\OneToMany(targetEntity: Factures::class, mappedBy: 'commande')]
+    #[ORM\OneToMany(
+        targetEntity: Factures::class,
+        mappedBy: 'commande',
+        cascade: ['persist']
+    )]
     private Collection $factures;
+
+    #[ORM\Column]
+    private ?int $resteAPayer = 0;
+
+    #[ORM\Column]
+    private ?int $totalPaye = 0;
+    #[ORM\Column(type: UuidType::NAME, unique: true)]
+    private Uuid $publicId;
 
     public function __construct()
     {
+        $this->dateCommande = new \DateTime();
         $this->commandesDetails = new ArrayCollection();
         $this->paiements = new ArrayCollection();
         $this->factures = new ArrayCollection();
+        $this->publicId = Uuid::v7();
     }
 
     public function getId(): ?int
     {
         return $this->id;
     }
-
-    public function getCommandes(): ?string
+    public function getPublicId(): Uuid
     {
-        return $this->commandes;
+        return $this->publicId;
     }
-
-    public function setCommandes(string $commandes): static
-    {
-        $this->commandes = $commandes;
-
-        return $this;
-    }
-
-    public function getClients(): ?CLients
-    {
-        return $this->clients;
-    }
-
-    public function setClients(?CLients $clients): static
-    {
-        $this->clients = $clients;
-
-        return $this;
-    }
-
-    public function getMontantTotal(): ?Number
-    {
-        return $this->montantTotal;
-    }
-
-    public function setMontantTotal(Number $montantTotal): static
-    {
-        $this->montantTotal = $montantTotal;
-
-        return $this;
-    }
-
-    public function getRemises(): ?int
-    {
-        return $this->remises;
-    }
-
-    public function setRemises(int $remises): static
-    {
-        $this->remises = $remises;
-
-        return $this;
-    }
-
-    public function getMontantApayer(): ?int
-    {
-        return $this->montantApayer;
-    }
-
-    public function setMontantApayer(int $montantApayer): static
-    {
-        $this->montantApayer = $montantApayer;
-
-        return $this;
-    }
-
-    public function getDateCommandes(): ?\DateTime
-    {
-        return $this->dateCommandes;
-    }
-
-    public function setDateCommandes(\DateTime $dateCommandes): static
-    {
-        $this->dateCommandes = $dateCommandes;
-
-        return $this;
-    }
-
-    public function getDateLivraisons(): ?\DateTime
-    {
-        return $this->dateLivraisons;
-    }
-
-    public function setDateLivraisons(\DateTime $dateLivraisons): static
-    {
-        $this->dateLivraisons = $dateLivraisons;
-
-        return $this;
-    }
-
-    public function getAgents(): ?user
-    {
-        return $this->agents;
-    }
-
-    public function setAgents(?user $agents): static
-    {
-        $this->agents = $agents;
-
-        return $this;
-    }
-
-    public function isDeleted(): ?bool
-    {
-        return $this->deleted;
-    }
-
-    public function setDeleted(bool $deleted): static
-    {
-        $this->deleted = $deleted;
-
-        return $this;
-    }
-
-    public function isStatut(): ?bool
-    {
-        return $this->statut;
-    }
-
-    public function setStatut(bool $statut): static
-    {
-        $this->statut = $statut;
-
-        return $this;
-    }
-
     public function getNumero(): ?string
     {
         return $this->numero;
@@ -238,86 +144,113 @@ class Commandes
         return $this;
     }
 
-    public function getDateCommande(): ?\DateTime
+    public function getClients(): ?Clients
     {
-        return $this->dateCommande;
+        return $this->clients;
     }
 
-    public function setDateCommande(\DateTime $dateCommande): static
+    public function setClients(?Clients $clients): static
     {
-        $this->dateCommande = $dateCommande;
+        $this->clients = $clients;
 
         return $this;
     }
 
-    public function getDateLivraison(): ?\DateTime
+    public function getAgents(): ?User
+    {
+        return $this->agents;
+    }
+
+    public function setAgents(?User $agents): static
+    {
+        $this->agents = $agents;
+
+        return $this;
+    }
+
+    public function getDateCommande(): ?\DateTimeImmutable
+    {
+        return $this->dateCommande;
+    }
+
+    public function setDateCommande(
+        ?\DateTimeImmutable $dateCommande
+    ): static {
+        $this->dateCommande =
+            $dateCommande ?? new \DateTimeImmutable();
+
+        return $this;
+    }
+
+    public function getDateLivraison(): ?\DateTimeImmutable
     {
         return $this->dateLivraison;
     }
 
-    public function setDateLivraison(\DateTime $dateLivraison): static
-    {
+    public function setDateLivraison(
+        ?\DateTimeInterface $dateLivraison
+    ): static {
         $this->dateLivraison = $dateLivraison;
 
         return $this;
     }
 
-    public function isEtat(): ?bool
-    {
-        return $this->etat;
-    }
-
-    public function setEtat(bool $etat): static
-    {
-        $this->etat = $etat;
-
-        return $this;
-    }
-
-    public function getRemise(): ?Number
+    public function getRemise(): int
     {
         return $this->remise;
     }
 
-    public function setRemise(Number $remise): static
+    public function setRemise(?int $remise): static
     {
-        $this->remise = $remise;
+        $this->remise = max(0, $remise ?? 0);
 
         return $this;
     }
 
-    public function getTva(): ?Number
+    public function getTva(): int
     {
         return $this->tva;
     }
 
-    public function setTva(Number $tva): static
+    public function setTva(?int $tva): static
     {
-        $this->tva = $tva;
+        $this->tva = max(0, $tva ?? 0);
 
         return $this;
     }
 
-    public function getTotalHt(): ?Number
+    public function getTotalHt(): int
     {
         return $this->totalHt;
     }
 
-    public function setTotalHt(Number $totalHt): static
+    public function setTotalHt(?int $totalHt): static
     {
-        $this->totalHt = $totalHt;
+        $this->totalHt = max(0, $totalHt ?? 0);
 
         return $this;
     }
 
-    public function getTotalTtc(): ?Number
+    public function getTotalTtc(): int
     {
         return $this->totalTtc;
     }
 
-    public function setTotalTtc(Number $totalTtc): static
+    public function setTotalTtc(?int $totalTtc): static
     {
-        $this->totalTtc = $totalTtc;
+        $this->totalTtc = max(0, $totalTtc ?? 0);
+
+        return $this;
+    }
+
+    public function getMontantApayer(): int
+    {
+        return $this->montantApayer;
+    }
+
+    public function setMontantApayer(?int $montantApayer): static
+    {
+        $this->montantApayer = max(0, $montantApayer ?? 0);
 
         return $this;
     }
@@ -327,9 +260,45 @@ class Commandes
         return $this->observation;
     }
 
-    public function setObservation(string $observation): static
+    public function setObservation(?string $observation): static
     {
         $this->observation = $observation;
+
+        return $this;
+    }
+
+    public function isDeleted(): bool
+    {
+        return $this->deleted;
+    }
+
+    public function setDeleted(bool $deleted): static
+    {
+        $this->deleted = $deleted;
+
+        return $this;
+    }
+
+    public function isStatut(): bool
+    {
+        return $this->statut;
+    }
+
+    public function setStatut(bool $statut): static
+    {
+        $this->statut = $statut;
+
+        return $this;
+    }
+
+    public function isEtat(): bool
+    {
+        return $this->etat;
+    }
+
+    public function setEtat(bool $etat): static
+    {
+        $this->etat = $etat;
 
         return $this;
     }
@@ -342,8 +311,9 @@ class Commandes
         return $this->commandesDetails;
     }
 
-    public function addCommandesDetail(CommandesDetails $commandesDetail): static
-    {
+    public function addCommandesDetail(
+        CommandesDetails $commandesDetail
+    ): static {
         if (!$this->commandesDetails->contains($commandesDetail)) {
             $this->commandesDetails->add($commandesDetail);
             $commandesDetail->setCommande($this);
@@ -352,10 +322,10 @@ class Commandes
         return $this;
     }
 
-    public function removeCommandesDetail(CommandesDetails $commandesDetail): static
-    {
+    public function removeCommandesDetail(
+        CommandesDetails $commandesDetail
+    ): static {
         if ($this->commandesDetails->removeElement($commandesDetail)) {
-            // set the owning side to null (unless already changed)
             if ($commandesDetail->getCommande() === $this) {
                 $commandesDetail->setCommande(null);
             }
@@ -385,7 +355,6 @@ class Commandes
     public function removePaiement(Paiements $paiement): static
     {
         if ($this->paiements->removeElement($paiement)) {
-            // set the owning side to null (unless already changed)
             if ($paiement->getCommande() === $this) {
                 $paiement->setCommande(null);
             }
@@ -415,7 +384,6 @@ class Commandes
     public function removeFacture(Factures $facture): static
     {
         if ($this->factures->removeElement($facture)) {
-            // set the owning side to null (unless already changed)
             if ($facture->getCommande() === $this) {
                 $facture->setCommande(null);
             }
@@ -423,4 +391,96 @@ class Commandes
 
         return $this;
     }
+
+    public function __toString(): string
+    {
+        return $this->numero ?? 'Nouvelle commande';
+    }
+
+    public function getResteAPayer(): int
+    {
+        return max(
+            0,
+            (int) $this->getTotalTtc() - $this->getTotalPaye()
+        );
+    }
+
+    public function setResteAPayer(int $resteApayer): static
+    {
+        $this->resteAPayer = $resteApayer;
+
+        return $this;
+    }
+
+    public function getTotalPaye(): int
+    {
+        $total = 0;
+
+        foreach ($this->paiements as $paiement) {
+            $total += (int) $paiement->getMontant();
+        }
+
+        return $total;
+    }
+
+    public function setTotalPaye(int $totalPaye): static
+    {
+        $this->totalPaye = $totalPaye;
+
+        return $this;
+    }
+    public function actualiserStatutPaiement(): static
+    {
+        $totalTtc = (int) $this->getTotalTtc();
+        $totalPaye = $this->getTotalPaye();
+
+        if ($totalPaye <= 0) {
+            $this->statutPaiement = 'impayee';
+        } elseif ($totalPaye < $totalTtc) {
+            $this->statutPaiement = 'partielle';
+        } else {
+            $this->statutPaiement = 'payee';
+        }
+
+        return $this;
+    }
+
+    public function getStatutPaiement(): string
+    {
+        $totalTtc = (int) $this->getTotalTtc();
+        $totalPaye = $this->getTotalPaye();
+
+        if ($totalPaye <= 0) {
+            return 'impayee';
+        }
+
+        if ($totalPaye < $totalTtc) {
+            return 'partielle';
+        }
+
+        return 'payee';
+    }
+
+
+    public function setStatutPaiement(string $statutPaiement): static
+    {
+        $statutsAutorises = [
+            self::PAIEMENT_IMPAYE,
+            self::PAIEMENT_PARTIEL,
+            self::PAIEMENT_PAYE,
+        ];
+
+        if (!in_array($statutPaiement, $statutsAutorises, true)) {
+            throw new \InvalidArgumentException(
+                'Statut de paiement invalide.'
+            );
+        }
+
+        $this->statutPaiement = $statutPaiement;
+
+        return $this;
+    }
+    public const PAIEMENT_IMPAYE = 'impayee';
+    public const PAIEMENT_PARTIEL = 'partielle';
+    public const PAIEMENT_PAYE = 'payee';
 }

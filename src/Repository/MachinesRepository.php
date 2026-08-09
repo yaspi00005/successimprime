@@ -15,7 +15,13 @@ class MachinesRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Machines::class);
     }
-
+public function findOneByAdresseIp(
+    string $adresseIp
+): ?Machines {
+    return $this->findOneBy([
+        'adresseIp' => $adresseIp,
+    ]);
+}
     //    /**
     //     * @return Machines[] Returns an array of Machines objects
     //     */

@@ -18,6 +18,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Entity\Produits;
+
+
 
 #[Route('/produit-configurations')]
 #[IsGranted('ROLE_ADMIN')]
@@ -190,114 +193,114 @@ final class ProduitConfigurationController extends AbstractController
      * =========================================================
      */
 
-   #[Route(
-    '/mass-action',
-    name: 'app_produit_configuration_mass_action',
-    methods: ['POST']
-)]
-public function massAction(
-    Request $request,
-    EntityManagerInterface $entityManager,
-    ProduitConfigurationRepository $configurationRepository
-): JsonResponse {
-    $data = $this->lireJson($request);
+    #[Route(
+        '/mass-action',
+        name: 'app_produit_configuration_mass_action',
+        methods: ['POST']
+    )]
+    public function massAction(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        ProduitConfigurationRepository $configurationRepository
+    ): JsonResponse {
+        $data = $this->lireJson($request);
 
-    if ($data === null) {
-        return $this->erreur(
-            'Données JSON invalides.',
-            Response::HTTP_BAD_REQUEST
-        );
-    }
-
-    if (!$this->isCsrfTokenValid(
-        'produit_configurations_mass_action',
-        $data['_token'] ?? null
-    )) {
-        return $this->erreur(
-            'Jeton de sécurité invalide.',
-            Response::HTTP_FORBIDDEN
-        );
-    }
-
-    $action = trim(
-        (string) ($data['action'] ?? '')
-    );
-
-    $actionsAutorisees = [
-        'publish',
-        'unpublish',
-        'delete',
-    ];
-
-    if (!in_array(
-        $action,
-        $actionsAutorisees,
-        true
-    )) {
-        return $this->erreur(
-            'Action de masse non autorisée.',
-            Response::HTTP_BAD_REQUEST
-        );
-    }
-
-    $ids = $this->nettoyerIds(
-        $data['ids'] ?? []
-    );
-
-    if ($ids === []) {
-        return $this->erreur(
-            'Sélectionnez au moins une configuration.',
-            Response::HTTP_BAD_REQUEST
-        );
-    }
-
-    $configurations =
-        $configurationRepository->findBy([
-            'id' => $ids,
-        ]);
-
-    if (count($configurations) !== count($ids)) {
-        return $this->erreur(
-            'Une ou plusieurs configurations sont introuvables.',
-            Response::HTTP_NOT_FOUND
-        );
-    }
-
-    foreach ($configurations as $configuration) {
-        if ($action === 'publish') {
-            $configuration->setActive(true);
-        } elseif ($action === 'unpublish') {
-            $configuration->setActive(false);
-        } else {
-            $entityManager->remove(
-                $configuration
+        if ($data === null) {
+            return $this->erreur(
+                'Données JSON invalides.',
+                Response::HTTP_BAD_REQUEST
             );
         }
+
+        if (!$this->isCsrfTokenValid(
+            'produit_configurations_mass_action',
+            $data['_token'] ?? null
+        )) {
+            return $this->erreur(
+                'Jeton de sécurité invalide.',
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        $action = trim(
+            (string) ($data['action'] ?? '')
+        );
+
+        $actionsAutorisees = [
+            'publish',
+            'unpublish',
+            'delete',
+        ];
+
+        if (!in_array(
+            $action,
+            $actionsAutorisees,
+            true
+        )) {
+            return $this->erreur(
+                'Action de masse non autorisée.',
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $ids = $this->nettoyerIds(
+            $data['ids'] ?? []
+        );
+
+        if ($ids === []) {
+            return $this->erreur(
+                'Sélectionnez au moins une configuration.',
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $configurations =
+            $configurationRepository->findBy([
+                'id' => $ids,
+            ]);
+
+        if (count($configurations) !== count($ids)) {
+            return $this->erreur(
+                'Une ou plusieurs configurations sont introuvables.',
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        foreach ($configurations as $configuration) {
+            if ($action === 'publish') {
+                $configuration->setActive(true);
+            } elseif ($action === 'unpublish') {
+                $configuration->setActive(false);
+            } else {
+                $entityManager->remove(
+                    $configuration
+                );
+            }
+        }
+
+        $entityManager->flush();
+
+        $nombre = count($configurations);
+
+        $message = match ($action) {
+            'publish' =>
+            $nombre
+                . ' configuration(s) publiée(s).',
+
+            'unpublish' =>
+            $nombre
+                . ' configuration(s) dépubliée(s).',
+
+            'delete' =>
+            $nombre
+                . ' configuration(s) supprimée(s).',
+        };
+
+        return $this->json([
+            'success' => true,
+            'message' => $message,
+        ]);
     }
-
-    $entityManager->flush();
-
-    $nombre = count($configurations);
-
-    $message = match ($action) {
-        'publish' =>
-            $nombre
-            . ' configuration(s) publiée(s).',
-
-        'unpublish' =>
-            $nombre
-            . ' configuration(s) dépubliée(s).',
-
-        'delete' =>
-            $nombre
-            . ' configuration(s) supprimée(s).',
-    };
-
-    return $this->json([
-        'success' => true,
-        'message' => $message,
-    ]);
-}
 
     /*
      * =========================================================
@@ -402,7 +405,7 @@ public function massAction(
         }
 
         if (!$this->isCsrfTokenValid(
-            'update_produit_configuration_'.$configuration->getId(),
+            'update_produit_configuration_' . $configuration->getId(),
             $data['_token'] ?? null
         )) {
             return $this->erreur('Jeton de sécurité invalide.', Response::HTTP_FORBIDDEN);
@@ -442,48 +445,48 @@ public function massAction(
         ]);
     }
 
-   #[Route(
-    '/{id}/toggle-status',
-    name: 'app_produit_configuration_toggle_status',
-    requirements: ['id' => '\d+'],
-    methods: ['POST']
-)]
-public function toggleStatus(
-    ProduitConfiguration $configuration,
-    Request $request,
-    EntityManagerInterface $entityManager
-): JsonResponse {
-    $data = $this->lireJson($request) ?? [];
+    #[Route(
+        '/{id}/toggle-status',
+        name: 'app_produit_configuration_toggle_status',
+        requirements: ['id' => '\d+'],
+        methods: ['POST']
+    )]
+    public function toggleStatus(
+        ProduitConfiguration $configuration,
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $data = $this->lireJson($request) ?? [];
 
-    if (!$this->isCsrfTokenValid(
-        'toggle_produit_configuration_'
-        .$configuration->getId(),
-        $data['_token'] ?? null
-    )) {
-        return $this->erreur(
-            'Jeton de sécurité invalide.',
-            Response::HTTP_FORBIDDEN
+        if (!$this->isCsrfTokenValid(
+            'toggle_produit_configuration_'
+                . $configuration->getId(),
+            $data['_token'] ?? null
+        )) {
+            return $this->erreur(
+                'Jeton de sécurité invalide.',
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        $configuration->setActive(
+            !$configuration->isActive()
         );
-    }
 
-    $configuration->setActive(
-        !$configuration->isActive()
-    );
+        $entityManager->flush();
 
-    $entityManager->flush();
+        return $this->json([
+            'success' => true,
 
-    return $this->json([
-        'success' => true,
-
-        'message' =>
+            'message' =>
             $configuration->isActive()
                 ? 'La configuration a été publiée.'
                 : 'La configuration a été dépubliée.',
 
-        'active' =>
+            'active' =>
             $configuration->isActive(),
-    ]);
-}
+        ]);
+    }
 
     #[Route('/{id}/delete/ajax', name: 'app_produit_configuration_delete_ajax', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function deleteAjax(
@@ -494,7 +497,7 @@ public function toggleStatus(
         $data = $this->lireJson($request) ?? [];
 
         if (!$this->isCsrfTokenValid(
-            'delete_produit_configuration_'.$configuration->getId(),
+            'delete_produit_configuration_' . $configuration->getId(),
             $data['_token'] ?? null
         )) {
             return $this->erreur('Jeton de sécurité invalide.', Response::HTTP_FORBIDDEN);
@@ -662,27 +665,49 @@ public function toggleStatus(
             'format' => $configuration->getFormat()?->getId(),
             'prixBase' => $configuration->getPrixBase(),
             'modeCalcul' => $configuration->getModeCalcul(),
+            'prixBase' => $configuration->getPrixBase(),
+            'modeCalcul' => $configuration->getModeCalcul(),
+            'modeDimension' =>
+            $this->determinerModeDimension($configuration),
+            'quantiteMinimale' =>
+            $configuration->getQuantiteMinimale(),
+            'quantiteMaximale' =>
+            $configuration->getQuantiteMaximale(),
             'quantiteMinimale' => $configuration->getQuantiteMinimale(),
             'quantiteMaximale' => $configuration->getQuantiteMaximale(),
             'description' => $configuration->getDescription(),
             'active' => $configuration->isActive(),
             'ordre' => $configuration->getOrdre(),
-            'finitions' => array_map(
-                static fn (ProduitConfigurationFinition $ligne): array => [
+            'finitions' => array_values(array_map(
+                static fn(
+                    ProduitConfigurationFinition $ligne
+                ): array => [
+                    'id' => $ligne->getId(),
                     'finition' => $ligne->getFinition()?->getId(),
+                    'nom' => $ligne->getFinition()?->getNom() ?? 'Finition',
                     'obligatoire' => $ligne->isObligatoire(),
-                    'selectionneeParDefaut' => $ligne->isSelectionneeParDefaut(),
+                    'selectionneeParDefaut' =>
+                    $ligne->isSelectionneeParDefaut(),
                     'payante' => $ligne->isPayante(),
                     'prix' => $ligne->getPrix(),
                     'modeCalcul' => $ligne->getModeCalcul(),
-                    'quantiteMinimale' => $ligne->getQuantiteMinimale(),
-                    'quantiteMaximale' => $ligne->getQuantiteMaximale(),
+                    'quantiteMinimale' =>
+                    $ligne->getQuantiteMinimale(),
+                    'quantiteMaximale' =>
+                    $ligne->getQuantiteMaximale(),
                     'active' => $ligne->isActive(),
                     'ordre' => $ligne->getOrdre(),
                     'description' => $ligne->getDescription(),
                 ],
-                $configuration->getConfigurationFinitions()->toArray()
-            ),
+                array_values(array_filter(
+                    $configuration
+                        ->getConfigurationFinitions()
+                        ->toArray(),
+                    static fn(
+                        ProduitConfigurationFinition $ligne
+                    ): bool => $ligne->isActive()
+                ))
+            )),
         ];
     }
 
@@ -758,5 +783,121 @@ public function toggleStatus(
     private function erreur(string $message, int $status): JsonResponse
     {
         return $this->json(['success' => false, 'message' => $message], $status);
+    }
+
+
+    #[Route(
+        '/produit/{id}/ajax',
+        name: 'app_produit_configuration_by_produit_ajax',
+        requirements: ['id' => '\d+'],
+        methods: ['GET']
+    )]
+    public function parProduit(
+        Produits $produit,
+        ProduitConfigurationRepository $configurationRepository
+    ): JsonResponse {
+        $configurations = $configurationRepository->findBy(
+            [
+                'produit' => $produit,
+                'active' => true,
+            ],
+            [
+                'ordre' => 'ASC',
+                'id' => 'ASC',
+            ]
+        );
+
+        $resultats = array_map(
+            function (
+                ProduitConfiguration $configuration
+            ): array {
+                $typeImpression =
+                    $configuration->getTypeImpression();
+
+                $support =
+                    $configuration->getSupport();
+
+                $format =
+                    $configuration->getFormat();
+
+                return [
+                    'id' => $configuration->getId(),
+
+                    'libelle' => (string) $configuration,
+
+                    'typeImpression' => [
+                        'id' => $typeImpression?->getId(),
+                        'nom' => $typeImpression?->getNom(),
+                    ],
+
+                    'support' => [
+                        'id' => $support?->getId(),
+                        'nom' => $support?->getNom(),
+                    ],
+
+                    'format' => [
+                        'id' => $format?->getId(),
+                        'nom' => $format?->getNom(),
+                    ],
+
+                    'prixBase' =>
+                    $configuration->getPrixBase(),
+
+                    'modeCalcul' =>
+                    $configuration->getModeCalcul(),
+
+                    'modeDimension' =>
+                    $this->determinerModeDimension(
+                        $configuration
+                    ),
+
+                    'quantiteMinimale' =>
+                    $configuration->getQuantiteMinimale(),
+
+                    'quantiteMaximale' =>
+                    $configuration->getQuantiteMaximale(),
+                ];
+            },
+            $configurations
+        );
+
+        return $this->json([
+            'success' => true,
+            'produit' => [
+                'id' => $produit->getId(),
+                'nom' => $produit->getNom(),
+            ],
+            'configurations' => $resultats,
+        ]);
+    }
+    private function determinerModeDimension(
+        ProduitConfiguration $configuration
+    ): string {
+        $modeCalcul = strtolower(
+            trim(
+                (string) $configuration->getModeCalcul()
+            )
+        );
+
+        if (
+            in_array(
+                $modeCalcul,
+                [
+                    'metre',
+                    'metre_carre',
+                    'm2',
+                    'surface',
+                ],
+                true
+            )
+        ) {
+            return 'mesure';
+        }
+
+        if ($configuration->getFormat() !== null) {
+            return 'format';
+        }
+
+        return 'aucune';
     }
 }

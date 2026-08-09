@@ -15,7 +15,71 @@ class ClientsRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Clients::class);
     }
+/**
+ * Recherche paginée pour DataTables.
+ *
+ * @return array{
+ *     clients: array,
+ *     total: int,
+ *     filtered: int
+ * }
+ */
+public function rechercherPourDataTable(
+    int $start,
+    int $length,
+    string $search = ''
+): array {
+    // Nombre total de clients
+    $total = (int) $this->createQueryBuilder('c')
+        ->select('COUNT(c.id)')
+        ->getQuery()
+        ->getSingleScalarResult();
 
+    // Requête avec recherche
+    $qb = $this->createQueryBuilder('c');
+
+    if ($search !== '') {
+        $qb
+            ->andWhere(
+                $qb->expr()->orX(
+                    'LOWER(c.code) LIKE LOWER(:search)',
+                    'LOWER(c.nom) LIKE LOWER(:search)',
+                    'LOWER(c.prenom) LIKE LOWER(:search)',
+                    'LOWER(c.raisonSociale) LIKE LOWER(:search)',
+                    'LOWER(c.telephone) LIKE LOWER(:search)',
+                    'LOWER(c.telephone2) LIKE LOWER(:search)',
+                    'LOWER(c.email) LIKE LOWER(:search)',
+                    'LOWER(c.ville) LIKE LOWER(:search)',
+                    'LOWER(c.nif) LIKE LOWER(:search)',
+                    'LOWER(c.rccm) LIKE LOWER(:search)'
+                )
+            )
+            ->setParameter('search', '%' . $search . '%');
+    }
+
+    // Nombre après filtrage
+    $countQb = clone $qb;
+
+    $filtered = (int) $countQb
+        ->select('COUNT(c.id)')
+        ->resetDQLPart('orderBy')
+        ->getQuery()
+        ->getSingleScalarResult();
+
+    // Résultats de la page
+    $clients = $qb
+        ->orderBy('c.id', 'DESC')
+        ->setFirstResult(max(0, $start))
+        ->setMaxResults(max(1, $length))
+        ->getQuery()
+        ->getResult();
+
+    return [
+        'clients' => $clients,
+        'total' => $total,
+        'filtered' => $filtered,
+    ];
+}
     //    /**
     //     * @return Clients[] Returns an array of Clients objects
     //     */

@@ -15,6 +15,30 @@ class ArticlesRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Articles::class);
     }
+    public function calculerStockDisponible(
+    Articles $article,
+    EntityManagerInterface $em
+): int {
+    $totalEntrees = (int) $em
+        ->getRepository(StockEntrees::class)
+        ->createQueryBuilder('e')
+        ->select('COALESCE(SUM(e.quantites), 0)')
+        ->andWhere('e.article = :article')
+        ->setParameter('article', $article)
+        ->getQuery()
+        ->getSingleScalarResult();
+
+    $totalSorties = (int) $em
+        ->getRepository(StockSorties::class)
+        ->createQueryBuilder('s')
+        ->select('COALESCE(SUM(s.quantite), 0)')
+        ->andWhere('s.article = :article')
+        ->setParameter('article', $article)
+        ->getQuery()
+        ->getSingleScalarResult();
+
+    return $totalEntrees - $totalSorties;
+}
 
     //    /**
     //     * @return Articles[] Returns an array of Articles objects

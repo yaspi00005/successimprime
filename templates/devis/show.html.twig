@@ -1,0 +1,336 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Devis
+	{{ devis.numero|default('#' ~ devis.id) }}
+{% endblock %}
+
+{% block body %}
+	{% set numero = devis.numero|default('DEV-' ~ '%05d'|format(devis.id)) %}
+	{% set client = devis.clients|default(null) %}
+	{% set details = devis.devisDetails|default([]) %}
+	{% set statut = devis.statut|default('brouillon') %}
+
+	<div class="side-app">
+		<div class="page-header">
+			<ol class="breadcrumb">
+				<li class="breadcrumb-item">
+					<a href="{{ path('app_devis_index') }}">Devis</a>
+				</li>
+				<li class="breadcrumb-item active" aria-current="page">{{ numero }}</li>
+			</ol>
+
+			<div>
+				<a href="{{ path('app_devis_index') }}" class="btn btn-sm btn-light">
+					<i class="fe fe-arrow-left mr-1"></i>
+					Retour
+				</a>
+				{% if devis.statut == 'accepte' and devis.commande is null %}
+					<form method="post" action="{{ path( 'app_devis_convertir_commande', {'id': devis.id} ) }}" class="d-inline" onsubmit="return confirm(
+																																			            'Valider ce devis et créer définitivement la commande ?'
+																																			        );">
+						<input type="hidden" name="_token" value="{{ csrf_token( 'convertir-devis-' ~ devis.id ) }}">
+
+						<button type="submit" class="btn btn-sm btn-success">
+							<i class="fe fe-check-circle"></i>
+							Valider et créer la commande
+						</button>
+					</form>
+				{% elseif devis.commande %}
+					<a href="{{ path( 'app_commandes_show', {'id': devis.commande.id} ) }}" class="btn btn-primary">
+						<i class="fe fe-eye"></i>
+						Voir la commande créée
+					</a>
+				{% endif %}
+				<a href="{{ path('app_devis_edit', {'id': devis.id}) }}" class="btn btn-sm btn-primary">
+					<i class="fe fe-edit-2 mr-1"></i>
+					Modifier
+				</a>
+				<button type="button" class="btn btn-sm btn-secondary" onclick="window.print()">
+					<i class="fe fe-printer mr-1"></i>
+					Imprimer
+				</button>
+			</div>
+		</div>
+
+		{% for type, messages in app.flashes %}
+			{% for message in messages %}
+				<div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show">
+					{{ message }}
+					<button type="button" class="close" data-dismiss="alert">&times;</button>
+				</div>
+			{% endfor %}
+		{% endfor %}
+
+		<div class="row">
+			<div class="col-xl-8 col-lg-8">
+				<div class="card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<div>
+							<h3 class="card-title mb-1">Détails du devis</h3>
+							<small class="text-muted">{{ numero }}</small>
+						</div>
+
+						{% set statutClasses = {
+							'brouillon': 'secondary', 'envoye': 'primary', 'accepte': 'success',
+							'refuse': 'danger', 'expire': 'warning', 'converti': 'info', 'annule': 'dark'
+						} %}
+						{% set statutLibelles = {
+							'brouillon': 'Brouillon', 'envoye': 'Envoyé', 'accepte': 'Accepté',
+							'refuse': 'Refusé', 'expire': 'Expiré', 'converti': 'Converti', 'annule': 'Annulé'
+						} %}
+						<span class="badge badge-{{ statutClasses[statut]|default('secondary') }}">
+							{{ statutLibelles[statut]|default(statut|replace({'_': ' '})|capitalize) }}
+						</span>
+					</div>
+
+					<div class="card-body">
+						{% if details is empty %}
+							<div class="alert alert-info mb-0">
+								Aucun travail n’est associé à ce devis.
+							</div>
+						{% else %}
+							{% for detail in details %}
+								{% set configuration = detail.produitConfiguration|default(null) %}
+
+								<div class="border rounded mb-4">
+									<div class="bg-light border-bottom p-3 d-flex justify-content-between align-items-center text-primary">
+										<div>
+											<h5 class="mb-1">
+												{{ detail.designation|default(detail.produit.nom|default('Produit non renseigné')) }}
+											</h5>
+											<small class="text-primary ">Travail n°
+												{{ loop.index }}</small>
+										</div>
+										<strong>{{ detail.totalTtc|default(0)|number_format(0, ',', ' ') }}
+											FCFA</strong>
+									</div>
+
+									<div class="p-3">
+										<div class="row">
+											<div class="col-md-4 mb-3">
+												<small class="text-muted d-block">Type d’impression</small>
+												<strong>{{ configuration.typeImpression.nom|default('—') }}</strong>
+											</div>
+											<div class="col-md-4 mb-3">
+												<small class="text-muted d-block">Support</small>
+												<strong>{{ configuration.support.nom|default('—') }}</strong>
+											</div>
+											<div class="col-md-4 mb-3">
+												<small class="text-muted d-block">Format</small>
+												<strong>{{ configuration.format.nom|default('—') }}</strong>
+											</div>
+											<div class="col-md-3 mb-3">
+												<small class="text-muted d-block">Quantité</small>
+												<strong>{{ detail.quantite|default(1) }}</strong>
+											</div>
+											<div class="col-md-3 mb-3">
+												<small class="text-muted d-block">Dimensions</small>
+												<strong>
+													{% if detail.largeur|default(0) or detail.longueur|default(0) %}
+														{{ detail.largeur|default(0) }}
+														×
+														{{ detail.longueur|default(0) }}
+													{% else %}
+														—
+													{% endif %}
+												</strong>
+											</div>
+											<div class="col-md-3 mb-3">
+												<small class="text-muted d-block">Surface</small>
+												<strong>{{ detail.surface|default(0)|number_format(2, ',', ' ') }}
+													m²</strong>
+											</div>
+											<div class="col-md-3 mb-3">
+												<small class="text-muted d-block">Prix unitaire</small>
+												<strong>{{ detail.prixUnitaire|default(0)|number_format(0, ',', ' ') }}
+													FCFA</strong>
+											</div>
+										</div>
+
+										{% if detail.finitions|default([]) is not empty %}
+											<div class="mt-2">
+												<h6 class="mb-2">Finitions</h6>
+												<div class="table-responsive">
+													<table class="table table-sm table-bordered mb-0">
+														<thead class="bg-light">
+															<tr>
+																<th>Finition</th>
+																<th>Mode de calcul</th>
+																<th class="text-center">Quantité</th>
+																<th class="text-right">Prix appliqué</th>
+																<th class="text-right">Montant</th>
+															</tr>
+														</thead>
+														<tbody>
+															{% for finition in detail.finitions %}
+																<tr>
+																	<td>
+																		{{ finition.nomFinition|default(finition.finition.nom|default('Finition')) }}
+																	</td>
+																	<td>{{ finition.modeCalcul|default('forfait')|replace({'_': ' '})|capitalize }}</td>
+																	<td class="text-center">{{ finition.quantite|default(1) }}</td>
+																	<td class="text-right">
+																		{{ finition.prixApplique|default(0)|number_format(0, ',', ' ') }}
+																		FCFA
+																	</td>
+																	<td class="text-right font-weight-bold">
+																		{{ finition.montant|default(0)|number_format(0, ',', ' ') }}
+																		FCFA
+																	</td>
+																</tr>
+															{% endfor %}
+														</tbody>
+													</table>
+												</div>
+											</div>
+										{% endif %}
+
+										{% if detail.description|default('') %}
+											<div class="mt-3">
+												<small class="text-muted d-block">Description / consignes</small>
+												<div class="border rounded bg-light p-2">
+													{{ detail.description|nl2br }}
+												</div>
+											</div>
+										{% endif %}
+
+										<div class="row mt-3">
+											<div class="col-md-4">
+												<small class="text-muted d-block">Total HT</small>
+												<strong>{{ detail.totalHt|default(0)|number_format(0, ',', ' ') }}
+													FCFA</strong>
+											</div>
+											<div class="col-md-4">
+												<small class="text-muted d-block">TVA</small>
+												<strong>{{ detail.tva|default(0) }}
+													%</strong>
+											</div>
+											<div class="col-md-4 text-md-right">
+												<small class="text-muted d-block">Total TTC</small>
+												<strong class="text-primary">
+													{{ detail.totalTtc|default(0)|number_format(0, ',', ' ') }}
+													FCFA
+												</strong>
+											</div>
+										</div>
+									</div>
+								</div>
+							{% endfor %}
+						{% endif %}
+					</div>
+				</div>
+			</div>
+
+			<div class="col-xl-4 col-lg-4">
+				<div class="card">
+					<div class="card-header">
+						<h3 class="card-title">Client</h3>
+					</div>
+					<div class="card-body">
+						<h5 class="mb-2">
+							{{ client.raisonSociale|default(client.nomComplet|default(client.nom|default('Client non renseigné'))) }}
+						</h5>
+
+						{% if client.telephone|default('') %}
+							<p class="mb-2">
+								<i class="fe fe-phone mr-2 text-primary"></i>
+								{{ client.telephone }}
+							</p>
+						{% endif %}
+
+						{% if client.email|default('') %}
+							<p class="mb-2">
+								<i class="fe fe-mail mr-2 text-primary"></i>
+								{{ client.email }}
+							</p>
+						{% endif %}
+
+						{% if client.adresse|default('') %}
+							<p class="mb-0">
+								<i class="fe fe-map-pin mr-2 text-primary"></i>
+								{{ client.adresse }}
+							</p>
+						{% endif %}
+					</div>
+				</div>
+
+				<div class="card">
+					<div class="card-header">
+						<h3 class="card-title">Récapitulatif</h3>
+					</div>
+					<div class="card-body">
+						<div class="d-flex justify-content-between mb-3">
+							<span>Total HT</span>
+							<strong>{{ devis.totalHt|default(0)|number_format(0, ',', ' ') }}
+								FCFA</strong>
+						</div>
+						<div class="d-flex justify-content-between mb-3">
+							<span>Remise</span>
+							<strong>{{ devis.remise|default(0)|number_format(0, ',', ' ') }}
+								FCFA</strong>
+						</div>
+						<div class="d-flex justify-content-between mb-3">
+							<span>TVA</span>
+							<strong>{{ devis.tva|default(0) }}
+								%</strong>
+						</div>
+						<hr>
+						<div class="d-flex justify-content-between mb-3">
+							<span class="h5 mb-0">Total TTC</span>
+							<strong class="h5 mb-0 text-primary">
+								{{ devis.totalTtc|default(0)|number_format(0, ',', ' ') }}
+								FCFA
+							</strong>
+						</div>
+						<div class="d-flex justify-content-between mb-3">
+							<span>Montant à payer</span>
+							<strong class="text-success">
+								{{ devis.montantApayer|default(0)|number_format(0, ',', ' ') }}
+								FCFA
+							</strong>
+						</div>
+					</div>
+				</div>
+
+				{% if devis.observation|default('') %}
+					<div class="card">
+						<div class="card-header">
+							<h3 class="card-title">Observation</h3>
+						</div>
+						<div class="card-body">
+							{{ devis.observation|nl2br }}
+						</div>
+					</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+{% endblock %}
+
+{% block stylesheets %}
+	{{ parent() }}
+	<style>
+		@media print {
+			.app-sidebar,
+			.header,
+			.page-header .btn,
+			.breadcrumb,
+			.footer {
+				display: none !important;
+			}
+
+			.side-app,
+			.app-content,
+			.main-content {
+				margin: 0 !important;
+				padding: 0 !important;
+			}
+
+			.card {
+				border: 1px solid #ddd !important;
+				box-shadow: none !important;
+				break-inside: avoid;
+			}
+		}
+	</style>
+{% endblock %}

@@ -1,0 +1,638 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}
+	Livraisons
+{% endblock %}
+
+{% block body %}
+
+	<div
+		class="side-app">
+
+		{# ==========================================================
+		       PAGE HEADER
+		       ========================================================== #}
+		<div class="page-header">
+
+			<ol class="breadcrumb">
+
+				<li class="breadcrumb-item">
+					<a href="#">
+						Gestion commerciale
+					</a>
+				</li>
+
+				<li class="breadcrumb-item active">
+					Livraisons
+				</li>
+
+			</ol>
+
+		</div>
+
+
+		{# ==========================================================
+		       COMPTEURS
+		       ========================================================== #}
+		<div class="row">
+
+			<div class="col-xl-3 col-md-6">
+
+				<div class="card">
+
+					<div class="card-body">
+
+						<div class="d-flex align-items-center">
+
+							<div class="mr-3">
+
+								<span class="avatar avatar-lg bg-primary-transparent text-primary">
+
+									<i class="fa fa-box"></i>
+
+								</span>
+
+							</div>
+
+							<div>
+
+								<div class="text-muted">
+									Prêtes à livrer
+								</div>
+
+								<h3 class="mb-0">
+									{{ compteurs.prete|default(0) }}
+								</h3>
+
+							</div>
+
+						</div>
+
+					</div>
+
+				</div>
+
+			</div>
+
+
+			<div class="col-xl-3 col-md-6">
+
+				<div class="card">
+
+					<div class="card-body">
+
+						<div class="d-flex align-items-center">
+
+							<div class="mr-3">
+
+								<span class="avatar avatar-lg bg-warning-transparent text-warning">
+
+									<i class="fa fa-truck"></i>
+
+								</span>
+
+							</div>
+
+							<div>
+
+								<div class="text-muted">
+									En livraison
+								</div>
+
+								<h3 class="mb-0">
+									{{ compteurs.en_livraison|default(0) }}
+								</h3>
+
+							</div>
+
+						</div>
+
+					</div>
+
+				</div>
+
+			</div>
+
+
+			<div class="col-xl-3 col-md-6">
+
+				<div class="card">
+
+					<div class="card-body">
+
+						<div class="d-flex align-items-center">
+
+							<div class="mr-3">
+
+								<span class="avatar avatar-lg bg-success-transparent text-success">
+
+									<i class="fa fa-check-circle"></i>
+
+								</span>
+
+							</div>
+
+							<div>
+
+								<div class="text-muted">
+									Livrées
+								</div>
+
+								<h3 class="mb-0">
+									{{ compteurs.livree|default(0) }}
+								</h3>
+
+							</div>
+
+						</div>
+
+					</div>
+
+				</div>
+
+			</div>
+
+
+			<div class="col-xl-3 col-md-6">
+
+				<div class="card">
+
+					<div class="card-body">
+
+						<div class="d-flex align-items-center">
+
+							<div class="mr-3">
+
+								<span class="avatar avatar-lg bg-info-transparent text-info">
+
+									<i class="fa fa-shopping-cart"></i>
+
+								</span>
+
+							</div>
+
+							<div>
+
+								<div class="text-muted">
+									Livraisons directes
+								</div>
+
+								<h3 class="mb-0">
+									{{ compteurs.directe|default(0) }}
+								</h3>
+
+							</div>
+
+						</div>
+
+					</div>
+
+				</div>
+
+			</div>
+
+		</div>
+
+
+		{# ==========================================================
+		       FILTRES
+		       ========================================================== #}
+		<div class="card mb-4">
+
+			<div class="card-header">
+
+				<h3 class="card-title mb-0">
+					<i class="fa fa-filter mr-1"></i>
+					Recherche et filtres
+				</h3>
+
+			</div>
+
+			<div class="card-body">
+
+				<form method="get" action="{{ path('app_livraisons_index') }}">
+
+					<div
+						class="row">
+
+						{# RECHERCHE #}
+						<div class="col-lg-4 col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label">
+									Recherche
+								</label>
+
+								<input type="text" name="q" class="form-control" value="{{ filtres.q|default('') }}" placeholder="Produit, désignation..." autocomplete="off">
+
+							</div>
+
+						</div>
+
+
+						{# STATUT #}
+						<div class="col-lg-2 col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label">
+									Statut
+								</label>
+
+								<select name="statut" class="form-control">
+
+									<option value="">
+										Tous
+									</option>
+
+									<option value="prete_livraison" {% if filtres.statut|default('') == 'prete_livraison' %} selected {% endif %}>
+										Prête livraison
+									</option>
+
+									<option value="en_livraison" {% if filtres.statut|default('') == 'en_livraison' %} selected {% endif %}>
+										En livraison
+									</option>
+
+									<option value="livree" {% if filtres.statut|default('') == 'livree' %} selected {% endif %}>
+										Livrée
+									</option>
+
+								</select>
+
+							</div>
+
+						</div>
+
+
+						{# ORIGINE #}
+						<div class="col-lg-2 col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label">
+									Origine
+								</label>
+
+								<select name="origine" class="form-control">
+
+									<option value="">
+										Toutes
+									</option>
+
+									<option value="production" {% if filtres.origine|default('') == 'production' %} selected {% endif %}>
+										Production
+									</option>
+
+									<option value="directe" {% if filtres.origine|default('') == 'directe' %} selected {% endif %}>
+										Livraison directe
+									</option>
+
+								</select>
+
+							</div>
+
+						</div>
+
+
+						{# DATE DEBUT #}
+						<div class="col-lg-2 col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label">
+									Du
+								</label>
+
+								<input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut|default('') }}">
+
+							</div>
+
+						</div>
+
+
+						{# DATE FIN #}
+						<div class="col-lg-2 col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label">
+									Au
+								</label>
+
+								<input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin|default('') }}">
+
+							</div>
+
+						</div>
+
+					</div>
+
+
+					<div class="d-flex justify-content-end">
+
+						<a href="{{ path('app_livraisons_index') }}" class="btn btn-light mr-2">
+							<i class="fa fa-undo mr-1"></i>
+							Réinitialiser
+						</a>
+
+						<button type="submit" class="btn btn-primary">
+							<i class="fa fa-search mr-1"></i>
+							Rechercher
+						</button>
+
+					</div>
+
+				</form>
+
+			</div>
+
+		</div>
+
+
+		{# ==========================================================
+		       LISTE
+		       ========================================================== #}
+		<div class="card">
+
+			<div class="card-header d-flex justify-content-between align-items-center">
+
+				<div>
+
+					<h3 class="card-title mb-0">
+						Gestion des livraisons
+					</h3>
+
+					<small class="text-muted">
+						{{ livraisons|length }}
+						résultat{{ livraisons|length > 1 ? 's' : '' }}
+					</small>
+
+				</div>
+
+			</div>
+
+
+			<div class="table-responsive">
+
+				<table class="table table-bordered table-hover mb-0">
+
+					<thead>
+
+						<tr>
+
+							<th>
+								Commande
+							</th>
+
+							<th>
+								Produit / Désignation
+							</th>
+
+							<th class="text-center">
+								Quantité
+							</th>
+
+							<th>
+								Origine
+							</th>
+
+							<th>
+								Support
+							</th>
+
+							<th>
+								Machine
+							</th>
+
+							<th class="text-center">
+								Statut
+							</th>
+
+							<th class="text-center">
+								Actions
+							</th>
+
+						</tr>
+
+					</thead>
+
+
+					<tbody>
+
+						{% for detail in livraisons %}
+
+							<tr>
+
+								{# COMMANDE #}
+								<td class="align-middle">
+
+									{% if detail.commande %}
+
+										<strong>
+											#{{ detail.commande.id }}
+										</strong>
+
+									{% else %}
+
+										—
+
+									{% endif %}
+
+								</td>
+
+
+								{# PRODUIT #}
+								<td class="align-middle">
+
+									<strong>
+										{{ detail.designation }}
+									</strong>
+
+									{% if detail.produit %}
+
+										<div class="small text-muted">
+											{{ detail.produit.nom }}
+										</div>
+
+									{% endif %}
+
+								</td>
+
+
+								{# QUANTITE #}
+								<td class="text-center align-middle">
+
+									{{ detail.quantite }}
+
+								</td>
+
+
+								{# ORIGINE #}
+								<td class="align-middle">
+
+									{% if detail.productionNecessaire %}
+
+										<span class="badge badge-primary">
+
+											<i class="fa fa-print mr-1"></i>
+											Production
+
+										</span>
+
+									{% else %}
+
+										<span class="badge badge-info">
+
+											<i class="fa fa-shopping-cart mr-1"></i>
+											Vente directe
+
+										</span>
+
+									{% endif %}
+
+								</td>
+
+
+								{# SUPPORT #}
+								<td class="align-middle">
+
+									{% if detail.support %}
+
+										{{ detail.support.nom }}
+
+									{% else %}
+
+										—
+
+									{% endif %}
+
+								</td>
+
+
+								{# MACHINE #}
+								<td class="align-middle">
+
+									{% if detail.machine %}
+
+										{{ detail.machine.nom }}
+
+									{% else %}
+
+										—
+
+									{% endif %}
+
+								</td>
+
+
+								{# STATUT #}
+								<td class="text-center align-middle">
+
+									{% if detail.statutProduction == 'prete_livraison' %}
+
+										<span class="badge badge-primary">
+											Prête livraison
+										</span>
+
+									{% elseif detail.statutProduction == 'en_livraison' %}
+
+										<span class="badge badge-warning">
+											En livraison
+										</span>
+
+									{% elseif detail.statutProduction == 'livree' %}
+
+										<span class="badge badge-success">
+											Livrée
+										</span>
+
+									{% else %}
+
+										<span class="badge badge-secondary">
+											{{ detail.statutProduction|replace({'_': ' '})|capitalize }}
+										</span>
+
+									{% endif %}
+
+								</td>
+
+
+								{# ACTIONS #}
+								<td class="text-center align-middle">
+
+									<div
+										class="btn-group">
+
+										{# VOIR #}
+										<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-primary-light" title="Voir">
+											<i class="fa fa-eye"></i>
+										</a>
+
+
+										{# DEMARRER LIVRAISON #}
+										{% if detail.statutProduction == 'prete_livraison' %}
+
+											<form method="post" action="{{ path( 'app_livraisons_demarrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Démarrer cette livraison ?');">
+
+												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_demarrer_' ~ detail.id ) }}">
+
+												<button type="submit" class="btn btn-sm btn-warning-light" title="Démarrer la livraison">
+													<i class="fa fa-truck"></i>
+												</button>
+
+											</form>
+
+										{% endif %}
+
+
+										{# MARQUER LIVREE #}
+										{% if detail.statutProduction == 'en_livraison' %}
+
+											<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Confirmer la livraison de cet article ?');">
+
+												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
+
+												<button type="submit" class="btn btn-sm btn-success-light" title="Marquer comme livré">
+													<i class="fa fa-check"></i>
+												</button>
+
+											</form>
+
+										{% endif %}
+
+									</div>
+
+								</td>
+
+							</tr>
+
+						{% else %}
+
+							<tr>
+
+								<td colspan="8" class="text-center text-muted py-5">
+
+									<i class="fa fa-truck fa-3x mb-3"></i>
+
+									<div>
+										Aucune livraison trouvée.
+									</div>
+
+								</td>
+
+							</tr>
+
+						{% endfor %}
+
+					</tbody>
+
+				</table>
+
+			</div>
+
+		</div>
+
+	</div>
+
+{% endblock %}

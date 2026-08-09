@@ -1,0 +1,817 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gestion des clients
+{% endblock %}
+
+{% block body %}
+	<div class="side-app">
+		<div class="page-header">
+			<ol class="breadcrumb">
+				<li class="breadcrumb-item">
+					<a href="#">Clients</a>
+				</li>
+				<li class="breadcrumb-item active">
+					Liste des clients
+				</li>
+			</ol>
+
+			<div>
+				<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalAjoutClient">
+					<i class="fa fa-plus mr-1"></i>
+					Ajouter un client
+				</button>
+
+				<button type="button" class="btn btn-danger" data-client-mass-action="bloquer">
+					<i class="fa fa-lock mr-1"></i>
+					Bloquer
+				</button>
+
+				<button type="button" class="btn btn-success" data-client-mass-action="debloquer">
+					<i class="fa fa-unlock mr-1"></i>
+					Débloquer
+				</button>
+
+				<button type="button" class="btn btn-danger-light" data-client-mass-action="supprimer">
+					<i class="fa fa-trash mr-1"></i>
+					Supprimer
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<input type="hidden" id="clientsMassActionUrl" value="{{ path('app_clients_mass_action') }}">
+
+	<input type="hidden" id="clientsMassActionToken" value="{{ csrf_token('clients_mass_action') }}">
+	<input type="hidden" id="clientsDatatableUrl" value="{{ path('app_clients_datatable') }}">
+	<div class="row row-cards">
+		<div class="col-12">
+			<div class="card">
+				<div class="card-header border-bottom">
+					<h3 class="card-title">
+						Liste des clients
+					</h3>
+				</div>
+
+				<div class="card-body">
+					<div class="table-responsive">
+						<table id="clientsTable" class="table table-bordered table-striped table-hover" style="width: 100%;">
+							<thead>
+								<tr>
+									<th class="text-center">
+										<div class="custom-control custom-checkbox">
+											<input type="checkbox" id="clientCheckAll" class="custom-control-input">
+											<label for="clientCheckAll" class="custom-control-label"></label>
+										</div>
+									</th>
+
+									<th>Code</th>
+									<th>Client</th>
+									<th>Type</th>
+									<th>Téléphone</th>
+									<th>Email</th>
+									<th>Ville</th>
+									<th>NIF</th>
+									<th>RCCM</th>
+									<th>Plafond</th>
+									<th>Statut</th>
+									<th>Création</th>
+									<th class="text-center">Actions</th>
+								</tr>
+							</thead>
+
+							<tbody></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+		{# Modal d’ajout #}
+		<div class="modal fade" id="modalAjoutClient" tabindex="-1" role="dialog" aria-hidden="true">
+			<div class="modal-dialog modal-xl" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<div>
+							<h5 class="modal-title">
+								Ajouter un client
+							</h5>
+							<small class="text-muted">
+								Le numéro client sera généré automatiquement.
+							</small>
+						</div>
+
+						<button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+
+					{{ form_start(formAjout, {
+    action: path('app_clients_new'),
+    method: 'POST',
+    attr: {
+        id: 'formAjoutClient',
+        class: 'client-ajax-form'
+    }
+}) }}
+
+					<div class="modal-body">
+						<div class="alert alert-danger client-form-global-error d-none"></div>
+
+						<div class="row">
+							<div class="col-md-4">
+								{{ form_row(formAjout.typeClient) }}
+							</div>
+
+							<div class="col-md-8 client-zone-b2b">
+								{{ form_row(formAjout.raisonSociale) }}
+							</div>
+
+							<div class="col-md-6 client-zone-b2c">
+								{{ form_row(formAjout.prenom) }}
+							</div>
+
+							<div class="col-md-6 client-zone-b2c">
+								{{ form_row(formAjout.nom) }}
+							</div>
+
+							<div class="col-md-6">
+								{{ form_row(formAjout.telephone) }}
+							</div>
+
+							<div class="col-md-6">
+								{{ form_row(formAjout.telephone2) }}
+							</div>
+
+							<div class="col-md-6">
+								{{ form_row(formAjout.email) }}
+							</div>
+
+							<div class="col-md-6">
+								{{ form_row(formAjout.ville) }}
+							</div>
+
+							<div class="col-md-12">
+								{{ form_row(formAjout.adresse) }}
+							</div>
+
+							<div class="col-md-6 client-zone-b2b">
+								{{ form_row(formAjout.nif) }}
+							</div>
+
+							<div class="col-md-6 client-zone-b2b">
+								{{ form_row(formAjout.rccm) }}
+							</div>
+
+							<div class="col-md-6">
+								{{ form_row(formAjout.plafondCredit) }}
+							</div>
+
+							<div class="col-md-12">
+								{{ form_row(formAjout.observation) }}
+							</div>
+							<div class="col-md-4">
+								<div class="form-group">
+									<label class="d-block">Statut du client</label>
+
+									<label class="custom-switch">
+										{{ form_widget(formAjout.statut, {
+                attr: {
+                    class: 'custom-switch-input'
+                }
+            }) }}
+
+										<span class="custom-switch-indicator"></span>
+
+										<span class="custom-switch-description">
+											Actif
+										</span>
+									</label>
+
+									{{ form_errors(formAjout.statut) }}
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="modal-footer">
+						<button type="button" class="btn btn-light" data-dismiss="modal">
+							Annuler
+						</button>
+
+						<button type="submit" class="btn btn-primary client-submit-button">
+							<i class="fa fa-save mr-1"></i>
+							Enregistrer le client
+						</button>
+					</div>
+
+					{{ form_end(formAjout) }}
+				</div>
+			</div>
+		</div>
+
+		{# Modal de modification #}
+		<div class="modal fade" id="modalModificationClient" tabindex="-1" role="dialog" aria-hidden="true">
+			<div class="modal-dialog modal-xl" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title">
+							Modifier le client
+						</h5>
+
+						<button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+
+					<div id="clientEditModalContent">
+						<div class="modal-body text-center py-5">
+							<i class="fa fa-spinner fa-spin fa-2x"></i>
+							<p class="mt-3 mb-0">
+								Chargement du formulaire…
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+{% endblock %}
+{% block javascripts %}
+	{{ parent() }}
+
+	{# DataTables : à ajouter seulement s’il n’est pas déjà chargé dans base.html.twig #}
+	<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+	<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js"></script>
+
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+	<script>
+		$(document).ready(function () {
+if (!$.fn.DataTable) {
+console.error('DataTables n’est pas chargé.');
+
+Swal.fire({icon: 'error', title: 'Erreur JavaScript', text: 'La bibliothèque DataTables est introuvable.'});
+
+return;
+}
+
+if (typeof Swal === 'undefined') {
+console.error('SweetAlert2 n’est pas chargé.');
+return;
+}
+
+const datatableUrl = document.getElementById('clientsDatatableUrl').value;
+
+const checkAll = document.getElementById('clientCheckAll');
+
+const editModal = $('#modalModificationClient');
+
+const editContent = document.getElementById('clientEditModalContent');
+
+function escapeHtml(value) {
+return $('<div>').text(value ?? '').html();
+}
+
+const clientsTable = $('#clientsTable').DataTable({
+processing: true,
+serverSide: true,
+searching: true,
+searchDelay: 600,
+ordering: false,
+pageLength: 10,
+lengthMenu: [
+10, 25, 50, 100
+],
+autoWidth: false,
+scrollX: true,
+
+ajax: {
+url: datatableUrl,
+type: 'GET',
+dataType: 'json',
+
+dataSrc: function (json) {
+if (! json || !Array.isArray(json.data)) {
+console.error('Réponse DataTables incorrecte :', json);
+
+return [];
+}
+
+return json.data;
+},
+
+error: function (xhr) {
+console.error('Erreur DataTables :', xhr.status, xhr.responseText);
+
+Swal.fire({icon: 'error', title: 'Erreur de chargement', text: 'Impossible de charger la liste des clients.'});
+}
+},
+
+columns: [
+{
+data: 'id',
+searchable: false,
+className: 'text-center align-middle',
+render: function (id) {
+return `
+                                <div class="custom-control custom-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        id="client-item-${id}"
+                                        class="custom-control-input client-row-check"
+                                        value="${id}"
+                                    >
+                                    <label
+                                        for="client-item-${id}"
+                                        class="custom-control-label"
+                                    ></label>
+                                </div>
+                            `;
+}
+},
+{
+data: 'code',
+className: 'align-middle',
+render: function (code) {
+return `<strong>${
+escapeHtml(code)
+}</strong>`;
+}
+},
+{
+data: 'client',
+className: 'align-middle',
+defaultContent: '-',
+render: escapeHtml
+},
+{
+data: 'typeClient',
+className: 'align-middle',
+defaultContent: '-',
+render: function (type) {
+const classe = type === 'B2B' ? 'badge-primary' : 'badge-info';
+
+return `
+                                <span class="badge ${classe}">
+                                    ${
+escapeHtml(type)
+}
+                                </span>
+                            `;
+}
+}, {
+data: null,
+className: 'align-middle',
+render: function (data) {
+let contenu = escapeHtml(data.telephone || '-');
+
+if (data.telephone2) {
+contenu += `
+                                    <br>
+                                    <small class="text-muted">
+                                        ${
+escapeHtml(data.telephone2)
+}
+                                    </small>
+                                `;
+}
+
+return contenu;
+}
+}, {
+data: 'email',
+defaultContent: '-',
+render: escapeHtml
+}, {
+data: 'ville',
+defaultContent: '-',
+render: escapeHtml
+}, {
+data: 'nif',
+defaultContent: '-',
+render: escapeHtml
+}, {
+data: 'rccm',
+defaultContent: '-',
+render: escapeHtml
+}, {
+data: 'plafondCredit',
+className: 'text-nowrap',
+render: function (montant) {
+if (montant === null || montant === undefined || montant === '') {
+return '-';
+}
+
+return new Intl.NumberFormat('fr-FR').format(Number(montant)) + ' FCFA';
+}
+}, {
+data: 'statut',
+className: 'text-center',
+render: function (statut) {
+return statut ? '<span class="badge badge-success">Débloqué</span>' : '<span class="badge badge-danger">Bloqué</span>';
+}
+}, {
+data: 'createdAt',
+className: 'text-nowrap',
+defaultContent: '-',
+render: escapeHtml
+}, {
+data: null,
+searchable: false,
+className: 'text-center',
+render: function (data) {
+const actif = data.statut === true || data.statut === 1 || data.statut === '1';
+
+return `
+                                <div class="btn-group">
+                                    <a
+                                        href="${
+escapeHtml(data.showUrl)
+}"
+                                        class="btn btn-sm btn-info-light"
+                                        title="Consulter"
+                                    >
+                                        <i class="fa fa-eye"></i>
+                                    </a>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-primary-light btn-edit-client"
+                                        data-url="${
+escapeHtml(data.editFormUrl)
+}"
+                                        title="Modifier"
+                                    >
+                                        <i class="fa fa-edit"></i>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm ${
+actif ? 'btn-warning-light' : 'btn-success-light'
+} btn-toggle-client"
+                                        data-url="${
+escapeHtml(data.toggleUrl)
+}"
+                                        data-token="${
+escapeHtml(data.toggleToken)
+}"
+                                        data-statut="${
+actif ? '1' : '0'
+}"
+                                        data-client="${
+escapeHtml(data.client)
+}"
+                                    >
+                                        <i class="fa ${
+actif ? 'fa-lock' : 'fa-unlock'
+}"></i>
+                                    </button>
+                                </div>
+                            `;
+}
+}
+],
+
+language: {
+processing: 'Chargement des clients…',
+search: 'Rechercher :',
+lengthMenu: 'Afficher _MENU_ clients',
+info: 'Affichage de _START_ à _END_ sur _TOTAL_ clients',
+infoEmpty: 'Aucun client à afficher',
+zeroRecords: 'Aucun client correspondant',
+emptyTable: 'Aucun client disponible',
+paginate: {
+previous: 'Précédent',
+next: 'Suivant'
+}
+},
+
+drawCallback: function () {
+checkAll.checked = false;
+}
+});
+const clientsSelectionnes = new Set();
+
+function actualiserSelectionMultiple() {
+    const casesVisibles = document.querySelectorAll(
+        '#clientsTable .client-row-check'
+    );
+
+    let nombreCoche = 0;
+
+    casesVisibles.forEach(function (checkbox) {
+        const id = String(checkbox.value);
+
+        checkbox.checked = clientsSelectionnes.has(id);
+
+        if (checkbox.checked) {
+            nombreCoche++;
+        }
+    });
+
+    if (checkAll) {
+        checkAll.checked =
+            casesVisibles.length > 0 &&
+            nombreCoche === casesVisibles.length;
+
+        checkAll.indeterminate =
+            nombreCoche > 0 &&
+            nombreCoche < casesVisibles.length;
+    }
+
+    const compteur = document.getElementById(
+        'clientSelectedCount'
+    );
+
+    if (compteur) {
+        compteur.textContent = clientsSelectionnes.size;
+    }
+
+    const barreActions = document.getElementById(
+        'clientBulkActions'
+    );
+
+    if (barreActions) {
+        barreActions.classList.toggle(
+            'd-none',
+            clientsSelectionnes.size === 0
+        );
+    }
+}
+
+/*
+ * Case « Tout sélectionner »
+ */
+$(document).on('change', '#clientCheckAll', function () {
+    const toutCocher = this.checked;
+
+    document.querySelectorAll(
+        '#clientsTable .client-row-check'
+    ).forEach(function (checkbox) {
+        const id = String(checkbox.value);
+
+        checkbox.checked = toutCocher;
+
+        if (toutCocher) {
+            clientsSelectionnes.add(id);
+        } else {
+            clientsSelectionnes.delete(id);
+        }
+    });
+
+    actualiserSelectionMultiple();
+});
+
+/*
+ * Sélection individuelle
+ */
+$(document).on(
+    'change',
+    '#clientsTable .client-row-check',
+    function () {
+        const id = String(this.value);
+
+        if (this.checked) {
+            clientsSelectionnes.add(id);
+        } else {
+            clientsSelectionnes.delete(id);
+        }
+
+        actualiserSelectionMultiple();
+    }
+);
+
+/*
+ * Réappliquer la sélection après pagination,
+ * recherche ou actualisation DataTables.
+ */
+clientsTable.on('draw', function () {
+    actualiserSelectionMultiple();
+});
+
+/*
+ * Récupérer les identifiants sélectionnés pour une action de masse.
+ */
+function obtenirClientsSelectionnes() {
+    return Array.from(clientsSelectionnes);
+}
+function gererTypeClient(form) {
+    const select = form.querySelector(
+        '[name$="[typeClient]"]'
+    );
+
+    if (!select) {
+        return;
+    }
+
+    const estB2B = select.value === 'B2B';
+
+    form.querySelectorAll('.client-field-b2b').forEach(function (element) {
+        element.classList.toggle('d-none', !estB2B);
+    });
+
+    form.querySelectorAll('.client-field-b2c').forEach(function (element) {
+        element.classList.toggle('d-none', estB2B);
+    });
+}
+
+$(document).on('click', '.btn-edit-client', async function () {
+    const url = this.dataset.url;
+
+    if (!url) {
+        await Swal.fire({
+            icon: 'error',
+            title: 'Erreur',
+            text: 'L’adresse du formulaire de modification est absente.'
+        });
+
+        return;
+    }
+
+    editContent.innerHTML = `
+        <div class="modal-body text-center py-5">
+            <i class="fa fa-spinner fa-spin fa-2x"></i>
+            <p class="mt-3 mb-0">Chargement du formulaire…</p>
+        </div>
+    `;
+
+    editModal.modal('show');
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                'Impossible de charger le formulaire de modification.'
+            );
+        }
+
+        editContent.innerHTML = await response.text();
+
+        const form = document.getElementById(
+            'formModificationClient'
+        );
+
+        if (!form) {
+            throw new Error(
+                'Le formulaire de modification est introuvable.'
+            );
+        }
+
+        gererTypeClient(form);
+    } catch (error) {
+        editModal.modal('hide');
+
+        await Swal.fire({
+            icon: 'error',
+            title: 'Chargement impossible',
+            text: error.message
+        });
+    }
+});
+
+$(document).on(
+    'change',
+    '#formModificationClient [name$="[typeClient]"]',
+    function () {
+        const form = document.getElementById(
+            'formModificationClient'
+        );
+
+        if (form) {
+            gererTypeClient(form);
+        }
+    }
+);
+
+$(document).on(
+    'submit',
+    '#formModificationClient',
+    async function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const form = this;
+        const bouton = form.querySelector(
+            '.client-submit-button'
+        );
+
+        if (!bouton) {
+            return;
+        }
+
+        const ancienContenu = bouton.innerHTML;
+
+        bouton.disabled = true;
+        bouton.innerHTML = `
+            <i class="fa fa-spinner fa-spin mr-1"></i>
+            Enregistrement…
+        `;
+
+        form.querySelectorAll('.is-invalid').forEach(function (element) {
+            element.classList.remove('is-invalid');
+        });
+
+        form.querySelectorAll('.client-ajax-error').forEach(function (element) {
+            element.remove();
+        });
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new FormData(form)
+            });
+
+            const contentType =
+                response.headers.get('content-type') || '';
+
+            if (!contentType.includes('application/json')) {
+                throw new Error(
+                    'Le serveur n’a pas retourné une réponse JSON valide.'
+                );
+            }
+
+            const data = await response.json();
+
+            if (!response.ok || data.success !== true) {
+                if (data.errors) {
+                    Object.entries(data.errors).forEach(
+                        function ([champ, messages]) {
+                            const input = form.querySelector(
+                                `[name$="[${champ}]"]`
+                            );
+
+                            if (!input) {
+                                return;
+                            }
+
+                            input.classList.add('is-invalid');
+
+                            const erreur =
+                                document.createElement('div');
+
+                            erreur.className =
+                                'invalid-feedback d-block client-ajax-error';
+
+                            erreur.textContent = Array.isArray(messages)
+                                ? messages.join(' ')
+                                : messages;
+
+                            input.parentElement.appendChild(erreur);
+                        }
+                    );
+                }
+
+                await Swal.fire({
+                    icon: 'error',
+                    title: 'Modification impossible',
+                    text:
+                        data.message ||
+                        'Veuillez corriger les champs indiqués.'
+                });
+
+                return;
+            }
+
+            await Swal.fire({
+                icon: 'success',
+                title: 'Client modifié',
+                text:
+                    data.message ||
+                    'Le client a été modifié avec succès.',
+                confirmButtonText: 'OK'
+            });
+
+            editModal.modal('hide');
+            clientsTable.ajax.reload(null, false);
+        } catch (error) {
+            await Swal.fire({
+                icon: 'error',
+                title: 'Erreur',
+                text:
+                    error.message ||
+                    'Une erreur est survenue pendant la modification.'
+            });
+        } finally {
+            bouton.disabled = false;
+            bouton.innerHTML = ancienContenu;
+        }
+    }
+);
+
+/*
+             * Conserve ici la suite de ton code :
+             * soumettreFormulaireClient(),
+             * modification, blocage et actions de masse.
+             */
+});
+	</script>
+{% endblock %}

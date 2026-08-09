@@ -1,0 +1,420 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}
+	Paiement de la commande
+	{{ commande.reference|default('#' ~ commande.id) }}
+{% endblock %}
+
+{% set totalCommande = commande.totalTtc|default(0) %}
+{% set montantPaye = commande.totalPaye %}
+{% set montantRestant = commande.resteAPayer %}
+{% block body %}
+
+	<div class="page-header">
+		<div>
+			<h1 class="page-title">
+				Enregistrer un paiement
+			</h1>
+
+			<ol class="breadcrumb">
+				<li class="breadcrumb-item">
+					<a href="{{ path('app_commandes_index') }}">
+						Commandes
+					</a>
+				</li>
+
+				<li class="breadcrumb-item">
+					<a href="{{ path('app_commandes_show', { id: commande.id }) }}">
+						{{ commande.reference|default('Commande #' ~ commande.id) }}
+					</a>
+				</li>
+
+				<li class="breadcrumb-item active">
+					Paiement
+				</li>
+			</ol>
+		</div>
+
+		<div>
+			<a href="{{ path('app_commandes_show', { id: commande.id }) }}" class="btn btn-secondary">
+				<i class="fa fa-arrow-left mr-1"></i>
+				Retour à la commande
+			</a>
+		</div>
+	</div>
+
+
+	<div
+		class="row">
+		{# Résumé financier #}
+		<div class="col-xl-4 col-lg-5">
+			<div class="card">
+				<div class="card-header">
+					<h3 class="card-title">
+						Résumé de la commande
+					</h3>
+				</div>
+
+				<div class="card-body">
+					<div class="mb-4">
+						<div class="text-muted">
+							Référence
+						</div>
+
+						<div class="font-weight-bold">
+							{{ commande.reference|default(
+                                'Commande #' ~ commande.id
+                            ) }}
+						</div>
+					</div>
+
+					{% if commande.clients is defined and commande.clients %}
+						<div class="mb-4">
+							<div class="text-muted">
+								Client
+							</div>
+
+							<div class="font-weight-bold">
+								{% if commande.clients.nom is defined %}
+									{{ commande.clients.nom }}
+								{% else %}
+									{{ commande.clients }}
+								{% endif %}
+							</div>
+						</div>
+					{% endif %}
+
+					<div class="d-flex justify-content-between mb-3">
+						<span>Total de la commande</span>
+
+						<strong>
+							{{ totalCommande|number_format(0, ',', ' ') }}
+							FCFA
+						</strong>
+					</div>
+
+					<div class="d-flex justify-content-between mb-3">
+						<span>Total déjà payé</span>
+
+						<strong class="text-success">
+							{{ montantPaye|number_format(0, ',', ' ') }}
+							FCFA
+						</strong>
+					</div>
+
+					<hr>
+
+					<div class="d-flex justify-content-between">
+						<span class="font-weight-bold">
+							Reste à payer
+						</span>
+
+						<strong class="text-danger">
+							{{ montantRestant|number_format(0, ',', ' ') }}
+							FCFA
+						</strong>
+					</div>
+
+					<div class="mt-4">
+						{% if montantRestant <= 0 %}
+							<span class="badge badge-success">
+								Paiement terminé
+							</span>
+						{% elseif montantPaye > 0 %}
+							<span class="badge badge-warning">
+								Paiement partiel
+							</span>
+						{% else %}
+							<span class="badge badge-danger">
+								Commande impayée
+							</span>
+						{% endif %}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		{# Formulaire de paiement #}
+		<div class="col-xl-8 col-lg-7">
+			<div class="card">
+				<div class="card-header">
+					<h3 class="card-title">
+						Nouveau versement
+					</h3>
+				</div>
+
+				<div class="card-body">
+					{% if montantRestant > 0 %}
+						{{ form_start(form, {
+                            attr: {
+                                id: 'paiement-form',
+                                autocomplete: 'off'
+                            }
+                        }) }}
+
+						{% if not form.vars.valid %}
+							<div class="alert alert-danger">
+								<strong>
+									Le paiement ne peut pas être enregistré.
+								</strong>
+
+								{{ form_errors(form) }}
+							</div>
+						{% endif %}
+
+						<div class="form-group">
+							{{ form_label(form.montant) }}
+
+							<div class="input-group">
+								{{ form_widget(form.montant, {
+                                        attr: {
+                                            class: 'form-control',
+                                            min: 1,
+                                            max: montantRestant,
+                                            placeholder: 'Montant du versement',
+                                            autofocus: 'autofocus'
+                                        }
+                                    }) }}
+
+								<div class="input-group-append">
+									<span class="input-group-text">
+										FCFA
+									</span>
+								</div>
+							</div>
+
+							{{ form_errors(form.montant) }}
+
+							<small class="form-text text-muted">
+								Montant maximum :
+								<strong>
+									{{ montantRestant|number_format(
+                                            0,
+                                            ',',
+                                            ' '
+                                        ) }}
+									FCFA
+								</strong>
+							</small>
+						</div>
+
+						<div class="form-group">
+							{{ form_label(form.mode) }}
+
+							{{ form_widget(form.mode, {
+                                    attr: {
+                                        class: 'form-control custom-select'
+                                    }
+                                }) }}
+
+							{{ form_errors(form.mode) }}
+						</div>
+
+						<div class="form-group">
+							{{ form_label(form.reference) }}
+
+							{{ form_widget(form.reference, {
+                                    attr: {
+                                        class: 'form-control',
+                                        placeholder: 'Numéro de transaction, chèque...'
+                                    }
+                                }) }}
+
+							{{ form_errors(form.reference) }}
+
+							<small class="form-text text-muted">
+								La référence est facultative pour un paiement
+																																																																																																																                                    en espèces.
+							</small>
+						</div>
+
+						<div class="alert alert-info">
+							<i class="fa fa-user-circle mr-1"></i>
+
+							Ce paiement sera enregistré comme encaissé par :
+
+							<strong>
+								{% if app.user.prenom is defined
+                                        and app.user.nom is defined %}
+									{{ app.user.prenom }}
+									{{ app.user.nom }}
+								{% elseif app.user.email is defined %}
+									{{ app.user.email }}
+								{% else %}
+									{{ app.user.userIdentifier }}
+								{% endif %}
+							</strong>
+						</div>
+
+						<div class="text-right">
+							<a href="{{ path('app_commandes_show', { id: commande.id }) }}" class="btn btn-light">
+								Annuler
+							</a>
+
+							<button type="submit" id="btn-enregistrer-paiement" class="btn btn-primary">
+								<i class="fa fa-check-circle mr-1"></i>
+								Enregistrer le paiement
+							</button>
+						</div>
+
+						{{ form_end(form) }}
+					{% else %}
+						<div class="alert alert-success mb-0">
+							<i class="fa fa-check-circle mr-1"></i>
+
+							Cette commande est entièrement payée.
+						</div>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	{# Historique des paiements #}
+	<div class="card">
+		<div class="card-header">
+			<h3 class="card-title">
+				Historique des paiements
+			</h3>
+		</div>
+
+		<div class="card-body">
+			<div class="table-responsive">
+				<table class="table table-bordered table-hover">
+					<thead>
+						<tr>
+							<th>Date</th>
+							<th>Montant</th>
+							<th>Mode</th>
+							<th>Référence</th>
+							<th>Encaissé par</th>
+						</tr>
+					</thead>
+
+					<tbody>
+						{% for paiement in commande.paiements %}
+							<tr>
+								<td>
+									{{ paiement.date
+                                        ? paiement.date|date('d/m/Y à H:i')
+                                        : '-'
+                                    }}
+								</td>
+
+								<td class="font-weight-bold text-success">
+									{{ paiement.montant|number_format(
+                                        0,
+                                        ',',
+                                        ' '
+                                    ) }}
+									FCFA
+								</td>
+
+								<td>
+									{{ paiement.mode }}
+								</td>
+
+								<td>
+									{{ paiement.reference|default('-') }}
+								</td>
+
+								<td>
+									{% if paiement.encaissePar %}
+										{% if paiement.encaissePar.prenom is defined
+                                            and paiement.encaissePar.nom is defined %}
+											{{ paiement.encaissePar.prenom }}
+											{{ paiement.encaissePar.nom }}
+										{% elseif paiement.encaissePar.email is defined %}
+											{{ paiement.encaissePar.email }}
+										{% else %}
+											{{ paiement.encaissePar.userIdentifier }}
+										{% endif %}
+									{% else %}
+										-
+									{% endif %}
+								</td>
+							</tr>
+						{% else %}
+							<tr>
+								<td colspan="5" class="text-center text-muted py-5">
+									Aucun paiement enregistré pour cette commande.
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+
+					{% if commande.paiements|length > 0 %}
+						<tfoot>
+							<tr>
+								<th colspan="1">
+									Total encaissé
+								</th>
+
+								<th class="text-success">
+									{{ montantPaye|number_format(0, ',', ' ') }}
+									FCFA
+								</th>
+
+								<th colspan="3"></th>
+							</tr>
+						</tfoot>
+					{% endif %}
+				</table>
+			</div>
+		</div>
+	</div>
+{% endblock %}
+
+{% block javascripts %}
+	{{ parent() }}
+
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+const form = document.getElementById('paiement-form');
+const button = document.getElementById('btn-enregistrer-paiement');
+const montantInput = document.getElementById('{{ form.montant.vars.id|default('') }}');
+const resteAPayer = {{ montantRestant|default(0)|json_encode|raw }};
+
+if (! form || ! button) {
+return;
+}
+
+form.addEventListener('submit', function (event) {
+const montant = montantInput ? parseInt(montantInput.value || '0', 10) : 0;
+
+const resteAPayer = {{ montantRestant }};
+
+if (montant <= 0) {
+event.preventDefault();
+
+if (typeof Swal !== 'undefined') {
+Swal.fire({icon: 'error', title: 'Montant incorrect', text: 'Le montant doit être supérieur à zéro.'});
+} else {
+alert('Le montant doit être supérieur à zéro.');
+}
+
+return;
+}
+
+if (montant > resteAPayer) {
+event.preventDefault();
+
+if (typeof Swal !== 'undefined') {
+Swal.fire({
+icon: 'error',
+title: 'Montant trop élevé',
+text: 'Le montant ne peut pas dépasser le reste ' + 'à payer.'
+});
+} else {
+alert('Le montant dépasse le reste à payer.');
+}
+
+return;
+}
+
+button.disabled = true;
+button.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>' + ' Enregistrement...';
+});
+});
+	</script>
+{% endblock %}

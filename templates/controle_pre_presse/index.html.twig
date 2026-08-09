@@ -1,0 +1,173 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Contrôle prépresse
+{% endblock %}
+
+{% block body %}
+	<div class="side-app">
+		<div class="page-header">
+			<div>
+				<h1 class="page-title">Contrôle prépresse</h1>
+				<p class="text-muted mb-0">
+					Travaux contenant des fichiers à vérifier
+				</p>
+			</div>
+
+			<a href="{{ path('app_commandes_index') }}" class="btn btn-light">
+				<i class="fe fe-arrow-left mr-1"></i>
+				Commandes
+			</a>
+		</div>
+
+		{% for type, messages in app.flashes %}
+			{% for message in messages %}
+				<div class="alert alert-{{ type == 'error' ? 'danger' : type }}
+																								                        alert-dismissible fade show">
+					{{ message }}
+
+					<button type="button" class="close" data-dismiss="alert">
+						&times;
+					</button>
+				</div>
+			{% endfor %}
+		{% endfor %}
+
+		<div class="card">
+			<div class="card-header">
+				<h3 class="card-title">Travaux à contrôler</h3>
+			</div>
+
+			<div class="card-body">
+				{% if details is empty %}
+					<div class="alert alert-info mb-0">
+						Aucun fichier n’est actuellement en attente de contrôle.
+					</div>
+				{% else %}
+					<div class="table-responsive">
+						<table class="table table-bordered table-hover">
+							<thead class="text-primary bg-light">
+								<tr>
+									<th>Commande</th>
+									<th>Client</th>
+									<th>Travail</th>
+									<th class="text-center">Fichiers</th>
+									<th>Dernier contrôle</th>
+									<th class="text-center">Action</th>
+								</tr>
+							</thead>
+
+							<tbody>
+								{% for detail in details %}
+									{% set commande = detail.commande %}
+									{% set controles = detail.controlesPrePresse %}
+									{% set dernierControle =
+                                controles is not empty
+                                    ? controles|first
+                                    : null
+                            %}
+
+									<tr>
+										<td>
+											<strong>
+												{{ commande.numero|default(
+                                            'CMD-' ~ commande.id
+                                        ) }}
+											</strong>
+
+											<small class="d-block text-muted">
+												{{ commande.dateCommande
+                                            ? commande.dateCommande
+                                                |date('d/m/Y H:i')
+                                            : '—'
+                                        }}
+											</small>
+										</td>
+
+										<td>
+											{{ commande.clients.nom
+                                        |default(
+                                            commande.clients.raisonSociale
+                                            |default('—')
+                                        )
+                                    }}
+										</td>
+
+										<td>
+											<strong>
+												{{ detail.designation|default(
+                                            detail.produit.nom
+                                            |default('Travail sans désignation')
+                                        ) }}
+											</strong>
+
+											<small class="d-block text-muted">
+												Quantité :
+												{{ detail.quantite|default(1) }}
+											</small>
+										</td>
+
+										<td class="text-center">
+											<span class="badge badge-primary">
+												{{ detail.fichiers|length }}
+											</span>
+										</td>
+
+										<td>
+											{% if dernierControle %}
+												{% set statutControle =
+                                            dernierControle.statut
+                                        %}
+
+												{% if statutControle ==
+                                            'envoye_production'
+                                        %}
+													<span class="badge badge-success">
+														En production
+													</span>
+												{% elseif statutControle == 'valide' %}
+													<span class="badge badge-info">
+														Validé
+													</span>
+												{% elseif statutControle ==
+                                            'correction_requise'
+                                        %}
+													<span class="badge badge-danger">
+														Correction requise
+													</span>
+												{% elseif statutControle ==
+                                            'en_attente_bat'
+                                        %}
+													<span class="badge badge-warning">
+														En attente du BAT
+													</span>
+												{% else %}
+													<span class="badge badge-secondary">
+														{{ statutControle
+                                                    |replace({'_': ' '})
+                                                    |capitalize
+                                                }}
+													</span>
+												{% endif %}
+											{% else %}
+												<span class="badge badge-warning">
+													À contrôler
+												</span>
+											{% endif %}
+										</td>
+
+										<td class="text-center">
+											<a href="{{ path( 'app_controle_pre_presse_controler', {id: detail.id} ) }}" class="btn btn-sm btn-primary">
+												<i class="fe fe-check-square mr-1"></i>
+												Contrôler
+											</a>
+										</td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+{% endblock %}
