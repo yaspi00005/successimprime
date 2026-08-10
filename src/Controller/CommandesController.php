@@ -20,6 +20,8 @@ use App\Entity\ProduitConfigurationFinition;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use App\Entity\CommandesDetails;
+use App\Service\StockService;
+
 
 #[Route('/commandes')]
 final class CommandesController extends AbstractController
@@ -79,11 +81,16 @@ final class CommandesController extends AbstractController
     }
 
 
-    #[Route('/new', name: 'app_commandes_new', methods: ['GET', 'POST'])]
+    #[Route(
+        '/new',
+        name: 'app_commandes_new',
+        methods: ['GET', 'POST']
+    )]
     public function new(
         Request $request,
         EntityManagerInterface $entityManager,
-        CommandeDetailFichierRepository $fichierRepository
+        CommandeDetailFichierRepository $fichierRepository,
+        StockService $stockService
     ): Response {
         $commande = new Commandes();
 
@@ -97,7 +104,7 @@ final class CommandesController extends AbstractController
         /*
      * ============================================================
      * PREMIÈRE PHASE :
-     * VALIDATION ET SYNCHRONISATION DES DONNÉES
+     * VALIDATION / SYNCHRONISATION / CONTRÔLE STOCK
      * ============================================================
      */
         if (
@@ -105,28 +112,21 @@ final class CommandesController extends AbstractController
             && $form->isValid()
         ) {
             try {
-                /*
-             * Sécurise :
-             * - configurations
-             * - dimensions
-             * - prix
-             * - finitions
-             * - modes de calcul
-             */
                 $this->synchroniserDetailsEtFinitions(
                     $commande,
                     $form,
                     $entityManager
                 );
 
-                /*
-             * Rattache les fichiers téléchargés
-             * à chaque ligne de commande.
-             */
                 $this->rattacherFichiers(
                     $commande,
                     $fichierRepository
                 );
+
+                /*
+             * Contrôle du stock uniquement si
+             * la commande est validée.
+             */
             } catch (
                 \DomainException |
                 \RuntimeException $exception
@@ -144,117 +144,143 @@ final class CommandesController extends AbstractController
      * DEUXIÈME PHASE :
      * ENREGISTREMENT
      * ============================================================
-     *
-     * isValid() est volontairement vérifié une seconde fois,
-     * car une erreur métier peut avoir été ajoutée ci-dessus.
      */
         if (
             $form->isSubmitted()
             && $form->isValid()
         ) {
-            $maintenant = new \DateTimeImmutable();
+            try {
+                $maintenant =
+                    new \DateTimeImmutable();
 
-            /*
-         * Date de commande.
-         */
-            $commande->setDateCommande(
-                $maintenant
-            );
-
-            /*
-         * Date de livraison théorique.
-         */
-            $commande->setDateLivraison(
-                $this->ajouterHeuresOuvrees(
-                    $maintenant,
-                    48
-                )
-            );
-
-            /*
-         * Utilisateur connecté.
-         */
-            $utilisateur = $this->getUser();
-
-            if (!$utilisateur instanceof User) {
-                throw $this->createAccessDeniedException(
-                    'Vous devez être connecté pour enregistrer une commande.'
+                $commande->setDateCommande(
+                    $maintenant
                 );
-            }
 
-            $commande->setAgents(
-                $utilisateur
-            );
+                $commande->setDateLivraison(
+                    $this->ajouterHeuresOuvrees(
+                        $maintenant,
+                        48
+                    )
+                );
 
-            /*
-         * ========================================================
-         * ROUTAGE MÉTIER DES LIGNES
-         * ========================================================
-         *
-         * Important :
-         * seulement si la commande est déjà validée.
-         *
-         * Une commande brouillon ne doit encore apparaître
-         * ni en prépresse, ni en production, ni en livraison.
-         */
-            if ($this->commandeEstValidee($commande)) {
-                $this->preparerCircuitCommande(
+                $utilisateur =
+                    $this->getUser();
+
+                if (
+                    !$utilisateur
+                        instanceof User
+                ) {
+                    throw $this
+                        ->createAccessDeniedException(
+                            'Vous devez être connecté pour enregistrer une commande.'
+                        );
+                }
+
+                $commande->setAgents(
+                    $utilisateur
+                );
+
+                /*
+             * ====================================================
+             * ROUTAGE MÉTIER
+             * ====================================================
+             */
+                if (
+                    $this->commandeEstValidee(
+                        $commande
+                    )
+                ) {
+                    $this->preparerCircuitCommande(
+                        $commande
+                    );
+                }
+
+                /*
+             * ====================================================
+             * PREMIER PERSIST
+             * ====================================================
+             *
+             * Nécessaire pour que les détails de commande
+             * soient gérés par Doctrine avant création des
+             * réservations.
+             */
+                $entityManager->persist(
                     $commande
                 );
+
+                /*
+             * ====================================================
+             * RÉSERVATION DU STOCK
+             * ====================================================
+             *
+             * Aucune réservation pour un brouillon.
+             */
+                if (
+                    $this->commandeEstValidee(
+                        $commande
+                    )
+                ) {
+                    $stockService
+                        ->reserverPourCommande(
+                            $commande
+                        );
+                }
+
+                /*
+             * Commande + détails + réservations
+             * sont enregistrés ensemble.
+             */
+                $entityManager->flush();
+
+                /*
+             * ====================================================
+             * NUMÉRO DE COMMANDE
+             * ====================================================
+             */
+                $commande->setNumero(
+                    sprintf(
+                        'CMD-%06d-%s',
+                        $commande->getId(),
+                        $maintenant->format(
+                            'm-Y'
+                        )
+                    )
+                );
+
+                $entityManager->flush();
+
+                $this->addFlash(
+                    'success',
+                    sprintf(
+                        'La commande %s a été enregistrée avec succès.',
+                        $commande->getNumero()
+                    )
+                );
+
+                return $this->redirectToRoute(
+                    'app_commandes_show',
+                    [
+                        'id' =>
+                        $commande->getId(),
+                    ]
+                );
+            } catch (
+                \DomainException |
+                \RuntimeException $exception
+            ) {
+                /*
+             * Si la réservation échoue à ce stade,
+             * aucun enregistrement ne doit continuer.
+             */
+                $form->addError(
+                    new FormError(
+                        $exception->getMessage()
+                    )
+                );
             }
-
-            /*
-         * ========================================================
-         * PREMIER ENREGISTREMENT
-         * ========================================================
-         *
-         * Permet d'obtenir l'identifiant de la commande.
-         */
-            $entityManager->persist(
-                $commande
-            );
-
-            $entityManager->flush();
-
-            /*
-         * Génération du numéro après obtention de l'ID.
-         */
-            $commande->setNumero(
-                sprintf(
-                    'CMD-%06d-%s',
-                    $commande->getId(),
-                    $maintenant->format('m-Y')
-                )
-            );
-
-            $entityManager->flush();
-
-            /*
-         * ========================================================
-         * MESSAGE
-         * ========================================================
-         */
-            $this->addFlash(
-                'success',
-                sprintf(
-                    'La commande %s a été enregistrée avec succès.',
-                    $commande->getNumero()
-                )
-            );
-
-            return $this->redirectToRoute(
-                'app_commandes_show',
-                [
-                    'id' => $commande->getId(),
-                ]
-            );
         }
 
-        /*
-     * ============================================================
-     * AFFICHAGE
-     * ============================================================
-     */
         return $this->render(
             'commandes/new.html.twig',
             [
@@ -281,13 +307,91 @@ final class CommandesController extends AbstractController
         Request $request,
         Commandes $commande,
         EntityManagerInterface $entityManager,
-        CommandeDetailFichierRepository $fichierRepository
+        CommandeDetailFichierRepository $fichierRepository,
+        StockService $stockService
     ): Response {
-        $form = $this->createForm(CommandesType::class, $commande);
-        $form->handleRequest($request);
+        /*
+     * État AVANT modification du formulaire.
+     */
+        $commandeEtaitValidee =
+            $this->commandeEstValidee(
+                $commande
+            );
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        $circuitDejaCommence =
+            $this->commandeACommenceSonCircuit(
+                $commande
+            );
+        $commandeEtaitValidee =
+            $this->commandeEstValidee(
+                $commande
+            );
+
+        $circuitDejaCommence =
+            $this->commandeACommenceSonCircuit(
+                $commande
+            );
+
+        $empreinteDetailsAvant =
+            $this->creerEmpreinteDetails(
+                $commande
+            );
+        $form = $this->createForm(
+            CommandesType::class,
+            $commande
+        );
+
+        $form->handleRequest(
+            $request
+        );
+
+        if (
+            $form->isSubmitted()
+            && $circuitDejaCommence
+        ) {
+            $detailsSoumis = $request->request->all(
+                $form->getName()
+            )['commandesDetails'] ?? null;
+
+            if ($detailsSoumis !== null) {
+                $form->addError(
+                    new FormError(
+                        'Les lignes de cette commande ne peuvent plus être modifiées car la production ou la livraison a déjà commencé.'
+                    )
+                );
+            }
+        }
+        /*
+     * ============================================================
+     * PREMIÈRE PHASE :
+     * SYNCHRONISATION / CONTRÔLE
+     * ============================================================
+     */
+        if (
+            $form->isSubmitted()
+            && $form->isValid()
+        ) {
             try {
+                if ($circuitDejaCommence) {
+                    $this->verifierModificationStructurelleAutorisee(
+                        $commande
+                    );
+                }
+                $empreinteDetailsApres =
+                    $this->creerEmpreinteDetails(
+                        $commande
+                    );
+
+                if (
+                    $circuitDejaCommence
+                    && $empreinteDetailsAvant
+                    !== $empreinteDetailsApres
+                ) {
+                    throw new \DomainException(
+                        'Impossible de modifier les lignes de cette commande : '
+                            . 'la production ou la livraison a déjà commencé.'
+                    );
+                }
                 $this->synchroniserDetailsEtFinitions(
                     $commande,
                     $form,
@@ -298,32 +402,181 @@ final class CommandesController extends AbstractController
                     $commande,
                     $fichierRepository
                 );
-            } catch (\DomainException | \RuntimeException $exception) {
+
+                if (
+                    $this->commandeEstValidee(
+                        $commande
+                    )
+                ) {
+                    /*
+                 * Attention :
+                 * verifierStockCommande() utilise actuellement
+                 * le stock physique.
+                 *
+                 * La vraie vérification tenant compte des
+                 * réservations est également faite ensuite par
+                 * reserverPourCommande().
+                 */
+                }
+            } catch (
+                \DomainException |
+                \RuntimeException $exception
+            ) {
                 $form->addError(
-                    new FormError($exception->getMessage())
+                    new FormError(
+                        $exception->getMessage()
+                    )
                 );
             }
         }
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->flush();
+        /*
+ * ============================================================
+ * DEUXIÈME PHASE :
+ * ENREGISTREMENT
+ * ============================================================
+ */
+        if (
+            $form->isSubmitted()
+            && $form->isValid()
+        ) {
+            try {
+                $commandeEstValideeMaintenant =
+                    $this->commandeEstValidee(
+                        $commande
+                    );
 
-            $this->addFlash(
-                'success',
-                'La commande a été modifiée avec succès.'
-            );
+                /*
+         * ========================================================
+         * CAS 1 :
+         * BROUILLON → VALIDÉE
+         * ========================================================
+         */
+                if (
+                    !$commandeEtaitValidee
+                    && $commandeEstValideeMaintenant
+                ) {
+                    /*
+             * Entrée initiale dans le circuit.
+             */
+                    $this->preparerCircuitCommande(
+                        $commande
+                    );
 
-            return $this->redirectToRoute(
-                'app_commandes_show',
-                ['id' => $commande->getId()],
-                Response::HTTP_SEE_OTHER
-            );
+                    /*
+             * Réservation du stock.
+             */
+                    $stockService
+                        ->reserverPourCommande(
+                            $commande
+                        );
+                }
+
+                /*
+         * ========================================================
+         * CAS 2 :
+         * VALIDÉE → VALIDÉE
+         * ========================================================
+         */ elseif (
+                    $commandeEtaitValidee
+                    && $commandeEstValideeMaintenant
+                ) {
+                    /*
+             * Tant que le circuit métier n'a pas commencé,
+             * on autorise encore la modification et le
+             * recalcul des réservations.
+             */
+                    if (!$circuitDejaCommence) {
+                        $stockService
+                            ->reserverPourCommande(
+                                $commande
+                            );
+                    }
+
+                    /*
+             * Si production/livraison a commencé,
+             * on NE réinitialise surtout pas les statuts
+             * avec preparerCircuitCommande().
+             *
+             * Et on ne recrée pas non plus les réservations.
+             */
+                }
+
+                /*
+         * ========================================================
+         * CAS 3 :
+         * VALIDÉE → BROUILLON
+         * ========================================================
+         */ elseif (
+                    $commandeEtaitValidee
+                    && !$commandeEstValideeMaintenant
+                ) {
+                    if ($circuitDejaCommence) {
+                        throw new \DomainException(
+                            'Cette commande a déjà commencé son circuit de production ou de livraison. Elle ne peut plus être repassée en brouillon.'
+                        );
+                    }
+
+                    /*
+             * Aucune production/livraison n'a commencé :
+             * les réservations peuvent être libérées.
+             */
+                    $stockService
+                        ->libererReservationsCommande(
+                            $commande
+                        );
+                }
+
+                /*
+         * ========================================================
+         * CAS 4 :
+         * BROUILLON → BROUILLON
+         * ========================================================
+         *
+         * Rien à faire concernant le stock ou le circuit.
+         */
+
+                $entityManager->flush();
+
+                $this->addFlash(
+                    'success',
+                    'La commande a été modifiée avec succès.'
+                );
+
+                return $this->redirectToRoute(
+                    'app_commandes_show',
+                    [
+                        'id' =>
+                        $commande->getId(),
+                    ],
+                    Response::HTTP_SEE_OTHER
+                );
+            } catch (
+                \DomainException |
+                \RuntimeException |
+                \LogicException $exception
+            ) {
+                $form->addError(
+                    new FormError(
+                        $exception->getMessage()
+                    )
+                );
+            }
         }
 
-        return $this->render('commandes/edit.html.twig', [
-            'commande' => $commande,
-            'form' => $form,
-        ]);
+        return $this->render(
+            'commandes/edit.html.twig',
+            [
+                'commande' =>
+                $commande,
+
+                'form' =>
+                $form,
+
+                'circuitDejaCommence' =>
+                $circuitDejaCommence,
+            ]
+        );
     }
 
     #[Route('/{id}', name: 'app_commandes_delete', methods: ['POST'])]
@@ -447,45 +700,271 @@ final class CommandesController extends AbstractController
     }
 
     private function synchroniserDetailsEtFinitions(
-        Commandes $commande,
-        FormInterface $form,
-        EntityManagerInterface $entityManager
-    ): void {
-        $detailsForm = $form->get('commandesDetails');
+    Commandes $commande,
+    FormInterface $form,
+    EntityManagerInterface $entityManager
+): void {
+    $detailsForm =
+        $form->get('commandesDetails');
 
-        foreach ($detailsForm as $detailForm) {
-            $detail = $detailForm->getData();
+    foreach ($detailsForm as $detailForm) {
+        $detail =
+            $detailForm->getData();
 
-            if (!$detail instanceof CommandesDetails) {
-                continue;
-            }
-
-            if ($detail->isConfigurationAutomatique()) {
-                $this->synchroniserDetailAutomatique(
-                    $detail,
-                    $detailForm,
-                    $entityManager
-                );
-            } elseif ($detail->isConfigurationManuelle()) {
-                $this->synchroniserDetailManuel(
-                    $detail,
-                    $detailForm,
-                    $entityManager
-                );
-            } elseif ($detail->isSaisieLibre()) {
-                $this->synchroniserDetailLibre(
-                    $detail,
-                    $entityManager
-                );
-            } else {
-                throw new \DomainException(
-                    'Le mode de saisie du travail est invalide.'
-                );
-            }
-
-            $detail->calculerTotaux(false);
+        if (
+            !$detail instanceof CommandesDetails
+        ) {
+            continue;
         }
+
+        /*
+         * ====================================================
+         * TYPE : ARTICLE EN STOCK
+         * ====================================================
+         *
+         * Vente directe d'un article physique.
+         * Aucun produit, aucune configuration,
+         * aucun prépresse, aucune production.
+         */
+        if (
+            $detail->getTypeLigne()
+            === CommandesDetails::TYPE_ARTICLE
+        ) {
+            $article =
+                $detail->getArticle();
+
+            if ($article === null) {
+                throw new \DomainException(
+                    sprintf(
+                        'Veuillez sélectionner un article pour la ligne « %s ».',
+                        $detail->getDesignation()
+                        ?: 'Article en stock'
+                    )
+                );
+            }
+
+            if (
+                method_exists(
+                    $article,
+                    'isActif'
+                )
+                && !$article->isActif()
+            ) {
+                throw new \DomainException(
+                    sprintf(
+                        'L’article « %s » est désactivé.',
+                        $article->getDesignation()
+                    )
+                );
+            }
+
+            if (
+                method_exists(
+                    $article,
+                    'isVendable'
+                )
+                && !$article->isVendable()
+            ) {
+                throw new \DomainException(
+                    sprintf(
+                        'L’article « %s » n’est pas autorisé à la vente directe.',
+                        $article->getDesignation()
+                    )
+                );
+            }
+
+            /*
+             * Nettoyage de toutes les informations
+             * propres à une ligne Produit.
+             */
+            $detail->setProduit(null);
+
+            $detail->setProduitConfiguration(
+                null
+            );
+
+            $detail->setTypeImpression(null);
+
+            $detail->setSupport(null);
+
+            $detail->setFormat(null);
+
+            /*
+             * Pas de traitement technique.
+             */
+            $detail->setPrePresseNecessaire(
+                false
+            );
+
+            $detail->setProductionNecessaire(
+                false
+            );
+
+            /*
+             * Vente directe = calcul par quantité/unité.
+             *
+             * Garde cette ligne seulement si ton setter existe.
+             */
+            if (
+                method_exists(
+                    $detail,
+                    'setModeCalcul'
+                )
+            ) {
+                $detail->setModeCalcul(
+                    'unite'
+                );
+            }
+
+            /*
+             * Si aucune désignation n'est saisie,
+             * on utilise celle de l'article.
+             */
+            if (
+                trim(
+                    (string)
+                    $detail->getDesignation()
+                ) === ''
+            ) {
+                $detail->setDesignation(
+                    $article->getDesignation()
+                );
+            }
+
+            /*
+             * Pas de synchronisation ProduitConfiguration
+             * pour une vente directe d'article.
+             */
+
+            $detail->calculerTotaux(
+                false
+            );
+
+            continue;
+        }
+
+
+        /*
+         * ====================================================
+         * TYPE : SAISIE LIBRE
+         * ====================================================
+         */
+        if (
+            $detail->getTypeLigne()
+            === CommandesDetails::TYPE_LIBRE
+        ) {
+            /*
+             * Une ligne libre ne doit être reliée
+             * ni à un article, ni à un produit.
+             */
+            $detail->setArticle(null);
+
+            $detail->setProduit(null);
+
+            $detail->setProduitConfiguration(
+                null
+            );
+
+            $detail->setTypeImpression(null);
+
+            $detail->setSupport(null);
+
+            $detail->setFormat(null);
+
+            /*
+             * Par défaut :
+             * livraison directe.
+             */
+            $detail->setPrePresseNecessaire(
+                false
+            );
+
+            $detail->setProductionNecessaire(
+                false
+            );
+
+            $this->synchroniserDetailLibre(
+                $detail,
+                $entityManager
+            );
+
+            $detail->calculerTotaux(
+                false
+            );
+
+            continue;
+        }
+
+
+        /*
+         * ====================================================
+         * TYPE : PRODUIT / PRESTATION
+         * ====================================================
+         */
+        if (
+            $detail->getTypeLigne()
+            !== CommandesDetails::TYPE_PRODUIT
+        ) {
+            throw new \DomainException(
+                'Le type de ligne du travail est invalide.'
+            );
+        }
+
+        /*
+         * Une ligne Produit ne doit pas conserver
+         * un Article de vente directe.
+         */
+        $detail->setArticle(null);
+
+
+        /*
+         * ====================================================
+         * MODE DE CONFIGURATION DU PRODUIT
+         * ====================================================
+         */
+        if (
+            $detail->isConfigurationAutomatique()
+        ) {
+            $this->synchroniserDetailAutomatique(
+                $detail,
+                $detailForm,
+                $entityManager
+            );
+        } elseif (
+            $detail->isConfigurationManuelle()
+        ) {
+            $this->synchroniserDetailManuel(
+                $detail,
+                $detailForm,
+                $entityManager
+            );
+        } elseif (
+            $detail->isSaisieLibre()
+        ) {
+            /*
+             * Compatibilité temporaire avec ton ancien
+             * modeConfiguration = libre.
+             *
+             * À terme, TYPE_LIBRE suffit et cette branche
+             * pourra être retirée.
+             */
+            $this->synchroniserDetailLibre(
+                $detail,
+                $entityManager
+            );
+        } else {
+            throw new \DomainException(
+                'Le mode de saisie du travail est invalide.'
+            );
+        }
+
+        $detail->calculerTotaux(
+            false
+        );
     }
+}
+
+
     private function synchroniserDetailAutomatique(
         CommandesDetails $detail,
         FormInterface $detailForm,
@@ -890,11 +1369,11 @@ final class CommandesController extends AbstractController
     }
 
 
-   private function commandeEstValidee(
-    Commandes $commande
-): bool {
-    return $commande->isStatut();
-}
+    private function commandeEstValidee(
+        Commandes $commande
+    ): bool {
+        return $commande->isStatut();
+    }
 
 
     private function preparerCircuitCommande(
@@ -915,8 +1394,176 @@ final class CommandesController extends AbstractController
          */
             $detail->preparerApresValidationCommande();
             dump([
-            'apres' => $detail->getStatutProduction(),
-        ]);
+                'apres' => $detail->getStatutProduction(),
+            ]);
         }
+    }
+    private function commandeACommenceSonCircuit(
+        Commandes $commande
+    ): bool {
+        foreach (
+            $commande->getCommandesDetails()
+            as $detail
+        ) {
+            if (!$detail instanceof CommandesDetails) {
+                continue;
+            }
+
+            $statut =
+                $detail->getStatutProduction();
+
+            if (
+                in_array(
+                    $statut,
+                    [
+                        CommandesDetails::PRODUCTION_EN_COURS,
+                        CommandesDetails::PRODUCTION_TERMINEE,
+                        CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+                        CommandesDetails::PRODUCTION_EN_LIVRAISON,
+                        CommandesDetails::PRODUCTION_LIVREE,
+                    ],
+                    true
+                )
+            ) {
+                return true;
+            }
+
+            if (
+                method_exists(
+                    $detail,
+                    'getQuantiteLivree'
+                )
+                && (float) $detail->getQuantiteLivree() > 0
+            ) {
+                return true;
+            }
+
+            if (
+                method_exists(
+                    $detail,
+                    'getProductionDebuteLe'
+                )
+                && $detail->getProductionDebuteLe() !== null
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function verifierModificationStructurelleAutorisee(
+        Commandes $commande
+    ): void {
+        if (
+            !$this->commandeACommenceSonCircuit(
+                $commande
+            )
+        ) {
+            return;
+        }
+
+        throw new \DomainException(
+            'Cette commande a déjà commencé son circuit de production ou de livraison. '
+                . 'Les lignes ne peuvent plus être modifiées.'
+        );
+    }
+    private function creerEmpreinteDetails(
+        Commandes $commande
+    ): string {
+        $donnees = [];
+
+        foreach (
+            $commande->getCommandesDetails()
+            as $detail
+        ) {
+            if (!$detail instanceof CommandesDetails) {
+                continue;
+            }
+
+            $finitions = [];
+
+            foreach (
+                $detail->getFinitions()
+                as $finition
+            ) {
+                $finitions[] = [
+                    'id' =>
+                    $finition->getId(),
+
+                    'configuration' =>
+                    $finition
+                        ->getConfigurationFinition()
+                        ?->getId(),
+
+                    'quantite' =>
+                    $finition->getQuantite(),
+
+                    'prix' =>
+                    $finition->getPrixApplique(),
+
+                    'montant' =>
+                    $finition->getMontant(),
+                ];
+            }
+
+            $donnees[] = [
+                'id' =>
+                $detail->getId(),
+
+                'produit' =>
+                $detail->getProduit()
+                    ?->getId(),
+
+                'configuration' =>
+                $detail
+                    ->getProduitConfiguration()
+                    ?->getId(),
+
+                'designation' =>
+                $detail->getDesignation(),
+
+                'typeImpression' =>
+                $detail->getTypeImpression()
+                    ?->getId(),
+
+                'support' =>
+                $detail->getSupport()
+                    ?->getId(),
+
+                'format' =>
+                $detail->getFormat()
+                    ?->getId(),
+
+                'largeur' =>
+                $detail->getLargeur(),
+
+                'longueur' =>
+                $detail->getLongueur(),
+
+                'surface' =>
+                $detail->getSurface(),
+
+                'quantite' =>
+                $detail->getQuantite(),
+
+                'prixUnitaire' =>
+                $detail->getPrixUnitaire(),
+
+                'productionNecessaire' =>
+                $detail->isProductionNecessaire(),
+
+                'prePresseNecessaire' =>
+                $detail->isPrePresseNecessaire(),
+
+                'finitions' =>
+                $finitions,
+            ];
+        }
+
+        return hash(
+            'sha256',
+            serialize($donnees)
+        );
     }
 }

@@ -21,6 +21,13 @@ use App\Entity\Produits;
 use App\Entity\ProduitConfiguration;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Form\FormInterface;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Writer\PngWriter;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 
 
@@ -146,7 +153,9 @@ class DevisController extends AbstractController
                 $devi->getId(),
                 $maintenant->format('m-Y')
             ));
-
+$this->initialiserTokenAuthenticiteDevis(
+    $devis
+);
             $entityManager->flush();
 
             $this->addFlash(
@@ -269,45 +278,224 @@ public function edit(
     
 
     private function synchroniserDetailsEtFinitions(
-        Devis $devi,
-        FormInterface $form,
-        EntityManagerInterface $entityManager
-    ): void {
-        $detailsForm = $form->get('devisDetails');
+    Devis $devi,
+    FormInterface $form,
+    EntityManagerInterface $entityManager
+): void {
+    $detailsForm =
+        $form->get('devisDetails');
 
-        foreach ($detailsForm as $detailForm) {
-            $detail = $detailForm->getData();
+    foreach ($detailsForm as $detailForm) {
+        $detail =
+            $detailForm->getData();
 
-            if (!$detail instanceof DevisDetails) {
-                continue;
-            }
-
-            if ($detail->isConfigurationAutomatique()) {
-                $this->synchroniserDetailAutomatique(
-                    $detail,
-                    $detailForm,
-                    $entityManager
-                );
-            } elseif ($detail->isConfigurationManuelle()) {
-                $this->synchroniserDetailManuel(
-                    $detail,
-                    $detailForm,
-                    $entityManager
-                );
-            } elseif ($detail->isSaisieLibre()) {
-                $this->synchroniserDetailLibre(
-                    $detail,
-                    $entityManager
-                );
-            } else {
-                throw new \DomainException(
-                    'Le mode de saisie du travail est invalide.'
-                );
-            }
-
-            $detail->calculerTotaux(false);
+        if (
+            !$detail instanceof DevisDetails
+        ) {
+            continue;
         }
+
+
+        /*
+         * ====================================================
+         * ARTICLE EN STOCK
+         * ====================================================
+         */
+        if (
+            $detail->getTypeLigne()
+            === DevisDetails::TYPE_ARTICLE
+        ) {
+            $article =
+                $detail->getArticle();
+
+            if ($article === null) {
+                throw new \DomainException(
+                    'Veuillez sélectionner un article en stock.'
+                );
+            }
+
+            if (
+                method_exists(
+                    $article,
+                    'isActif'
+                )
+                && !$article->isActif()
+            ) {
+                throw new \DomainException(
+                    'Cet article est désactivé.'
+                );
+            }
+
+            if (
+                method_exists(
+                    $article,
+                    'isVendable'
+                )
+                && !$article->isVendable()
+            ) {
+                throw new \DomainException(
+                    'Cet article n’est pas autorisé à la vente directe.'
+                );
+            }
+
+
+            $detail->setProduit(null);
+            $detail->setProduitConfiguration(null);
+            $detail->setTypeImpression(null);
+            $detail->setSupport(null);
+            $detail->setFormat(null);
+
+
+            /*
+             * Désignation automatique.
+             */
+            $detail->setDesignation(
+                $article->getDesignation()
+            );
+
+
+            /*
+             * Prix automatique si aucun prix saisi.
+             */
+            if (
+                $detail->getPrixUnitaire()
+                <= 0
+            ) {
+                $detail->setPrixUnitaire(
+                    (int) (
+                        $article->getPrixVente()
+                        ?? 0
+                    )
+                );
+            }
+
+
+            $detail->setModeCalcul(
+                'unite'
+            );
+
+
+            /*
+             * Aucune finition produit.
+             */
+            foreach (
+                $detail->getFinitions()->toArray()
+                as $finition
+            ) {
+                $detail->removeFinition(
+                    $finition
+                );
+
+                if (
+                    $finition->getId()
+                    !== null
+                ) {
+                    $entityManager->remove(
+                        $finition
+                    );
+                }
+            }
+
+
+            $detail->calculerTotaux(
+                false
+            );
+
+            continue;
+        }
+
+
+        /*
+         * ====================================================
+         * SAISIE LIBRE
+         * ====================================================
+         */
+        if (
+            $detail->getTypeLigne()
+            === DevisDetails::TYPE_LIBRE
+        ) {
+            $detail->setArticle(null);
+
+            $detail->setProduit(null);
+            $detail->setProduitConfiguration(null);
+            $detail->setTypeImpression(null);
+            $detail->setSupport(null);
+            $detail->setFormat(null);
+
+
+            $this->synchroniserDetailLibre(
+                $detail,
+                $entityManager
+            );
+
+
+            $detail->calculerTotaux(
+                false
+            );
+
+            continue;
+        }
+
+
+        /*
+         * ====================================================
+         * PRODUIT
+         * ====================================================
+         */
+        if (
+            $detail->getTypeLigne()
+            !== DevisDetails::TYPE_PRODUIT
+        ) {
+            throw new \DomainException(
+                'Le type de ligne est invalide.'
+            );
+        }
+
+
+        $detail->setArticle(null);
+
+
+        if (
+            $detail->isConfigurationAutomatique()
+        ) {
+            $this->synchroniserDetailAutomatique(
+                $detail,
+                $detailForm,
+                $entityManager
+            );
+
+        } elseif (
+            $detail->isConfigurationManuelle()
+        ) {
+            $this->synchroniserDetailManuel(
+                $detail,
+                $detailForm,
+                $entityManager
+            );
+
+        } elseif (
+            $detail->isSaisieLibre()
+        ) {
+            /*
+             * Compatibilité temporaire ancien mode libre.
+             */
+            $this->synchroniserDetailLibre(
+                $detail,
+                $entityManager
+            );
+
+        } else {
+            throw new \DomainException(
+                'Le mode de saisie du travail est invalide.'
+            );
+        }
+
+
+        $detail->calculerTotaux(
+            false
+        );
     }
+}
    private function synchroniserDetailAutomatique(
     DevisDetails $detail,
     FormInterface $detailForm,
@@ -651,5 +839,353 @@ public function edit(
         );
     }
     
+#[Route(
+    '/{id}/pdf',
+    name: 'pdf',
+    requirements: ['id' => '\d+'],
+    methods: ['GET']
+)]
+public function pdf(
+    Devis $devis,
+    EntityManagerInterface $entityManager
+): Response {
+    /*
+     * =========================================================
+     * TOKEN D'AUTHENTICITÉ
+     * =========================================================
+     */
+
+    $tokenAvant = $devis->getTokenAuthenticite();
+
+    $qrCode = $this->genererQrCodeAuthenticiteDevis(
+        $devis
+    );
+
+    /*
+     * Sauvegarde le token uniquement s'il vient
+     * d'être généré.
+     */
+    if (
+        $tokenAvant
+        !== $devis->getTokenAuthenticite()
+    ) {
+        $entityManager->flush();
+    }
+
+
+    /*
+     * =========================================================
+     * CHEMINS DES DOCUMENTS
+     * =========================================================
+     */
+
+    $projectDir = $this->getParameter(
+        'kernel.project_dir'
+    );
+
+
+    $documents = [
+
+        /*
+         * -----------------------------------------------------
+         * DREPA TECHNOLOGIE
+         * -----------------------------------------------------
+         */
+        'drepa' => [
+
+            'logo' =>
+                $projectDir
+                . '/public/assets/images/documents/drepa-logo.png',
+
+            'signature' =>
+                $projectDir
+                . '/public/assets/images/documents/drepa-signature-cachet.png',
+
+        ],
+
+
+        /*
+         * -----------------------------------------------------
+         * MADIAL GROUP SARL / SUCCESS IMPRIM
+         * -----------------------------------------------------
+         */
+        'mdg_success' => [
+
+            'logoMdg' =>
+                $projectDir
+                . '/public/assets/images/documents/mdg-logo.png',
+
+            'logoSuccess' =>
+                $projectDir
+                . '/public/assets/images/documents/success-imprim-logo.png',
+
+            'signature' =>
+                $projectDir
+                . '/public/assets/images/documents/mdg-signature-cachet.png',
+
+        ],
+
+    ];
+
+
+    /*
+     * =========================================================
+     * DOMPDF
+     * =========================================================
+     */
+
+    $options = new Options();
+
+    $options->set(
+        'defaultFont',
+        'DejaVu Sans'
+    );
+
+    /*
+     * Permet notamment à Dompdf d'utiliser
+     * certaines ressources externes.
+     */
+    $options->set(
+        'isRemoteEnabled',
+        true
+    );
+
+    /*
+     * Autorise l'accès aux fichiers du projet.
+     * Très utile pour les logos/signatures locales.
+     */
+    $options->set(
+        'chroot',
+        $projectDir
+    );
+
+
+    $dompdf = new Dompdf(
+        $options
+    );
+
+
+    /*
+     * =========================================================
+     * RENDU TWIG
+     * =========================================================
+     */
+
+    $html = $this->renderView(
+        'devis/pdf.html.twig',
+        [
+            'devis' => $devis,
+
+            /*
+             * Logos et signatures.
+             */
+            'documents' => $documents,
+
+            /*
+             * QR Code.
+             */
+            'qrCodeDataUri' =>
+                $qrCode['dataUri'],
+
+            /*
+             * Adresse publique de vérification.
+             */
+            'verificationUrl' =>
+                $qrCode['url'],
+        ]
+    );
+
+
+    /*
+     * =========================================================
+     * CHARGEMENT HTML
+     * =========================================================
+     */
+
+    $dompdf->loadHtml(
+        $html,
+        'UTF-8'
+    );
+
+
+    /*
+     * =========================================================
+     * FORMAT
+     * =========================================================
+     */
+
+    $dompdf->setPaper(
+        'A4',
+        'portrait'
+    );
+
+
+    /*
+     * =========================================================
+     * GÉNÉRATION
+     * =========================================================
+     */
+
+    $dompdf->render();
+
+
+    /*
+     * =========================================================
+     * NOM DU FICHIER
+     * =========================================================
+     */
+
+    $numero = $devis->getNumero()
+        ?: sprintf(
+            'DEV-%05d',
+            $devis->getId()
+        );
+
+
+    /*
+     * Nettoyage du nom pour éviter
+     * les caractères problématiques.
+     */
+    $nomFichier = preg_replace(
+        '/[^A-Za-z0-9_\-]/',
+        '-',
+        $numero
+    );
+
+
+    /*
+     * =========================================================
+     * RÉPONSE PDF
+     * =========================================================
+     */
+
+    return new Response(
+        $dompdf->output(),
+        Response::HTTP_OK,
+        [
+            'Content-Type' =>
+                'application/pdf',
+
+            /*
+             * inline = ouverture dans le navigateur.
+             *
+             * Pour forcer le téléchargement :
+             * remplacer inline par attachment.
+             */
+            'Content-Disposition' =>
+                sprintf(
+                    'inline; filename="%s.pdf"',
+                    $nomFichier
+                ),
+        ]
+    );
+}
+
+private function initialiserTokenAuthenticiteDevis(
+    Devis $devis
+): void {
+    if (
+        trim((string) $devis->getTokenAuthenticite()) !== ''
+    ) {
+        return;
+    }
+
+    $devis->genererTokenAuthenticite();
+}
+
+private function genererQrCodeAuthenticiteDevis(
+    Devis $devis
+): array {
+    /*
+     * S'assure que le devis possède un token.
+     */
+    $this->initialiserTokenAuthenticiteDevis(
+        $devis
+    );
+
+    /*
+     * URL publique de vérification.
+     */
+    $urlVerification = $this->generateUrl(
+        'app_devis_verifier',
+        [
+            'token' => $devis->getTokenAuthenticite(),
+        ],
+        UrlGeneratorInterface::ABSOLUTE_URL
+    );
+
+    /*
+     * Construction du QR Code
+     * compatible avec les versions récentes
+     * de endroid/qr-code.
+     */
+    $builder = new Builder(
+        writer: new PngWriter(),
+        writerOptions: [],
+        validateResult: false,
+
+        data: $urlVerification,
+
+        encoding: new Encoding(
+            'UTF-8'
+        ),
+
+        errorCorrectionLevel:
+            ErrorCorrectionLevel::High,
+
+        size: 220,
+
+        margin: 10
+    );
+
+    /*
+     * Génération.
+     */
+    $result = $builder->build();
+
+    return [
+        'url' => $urlVerification,
+        'dataUri' => $result->getDataUri(),
+    ];
+}
+#[Route(
+    '/verifier/{token}',
+    name: 'verifier',
+    methods: ['GET']
+)]
+public function verifier(
+    string $token,
+    DevisRepository $devisRepository
+): Response {
+    $devis = $devisRepository->findOneBy([
+        'tokenAuthenticite' => $token,
+    ]);
+
+    if (!$devis instanceof Devis) {
+        $response = new Response();
+        $response->setStatusCode(
+            Response::HTTP_NOT_FOUND
+        );
+
+        return $this->render(
+            'devis/verifier.html.twig',
+            [
+                'valide' => false,
+                'devis' => null,
+                'token' => $token,
+            ],
+            $response
+        );
+    }
+
+    return $this->render(
+        'devis/verifier.html.twig',
+        [
+            'valide' => true,
+            'devis' => $devis,
+            'token' => $token,
+        ]
+    );
+}
    
 }

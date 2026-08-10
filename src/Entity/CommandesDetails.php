@@ -318,11 +318,6 @@ class CommandesDetails
     )]
     private Collection $stockSorties;
 
-    #[ORM\Column(
-        length: 30,
-        options: ['default' => 'produit']
-    )]
-    private string $typeLigne = 'produit';
 
     #[ORM\Column(
         length: 30,
@@ -348,12 +343,19 @@ class CommandesDetails
     private string $modeCalcul = 'unite';
 
     #[ORM\Column(options: ['default' => true])]
-private bool $prePresseNecessaire = true;
+    private bool $prePresseNecessaire = true;
 
 
     #[ORM\Column(options: ['default' => true])]
     private bool $productionNecessaire = true;
-    
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(
+        nullable: true,
+        onDelete: 'SET NULL'
+    )]
+    private ?Articles $article = null;
+
     public function __construct()
     {
         $this->finitions = new ArrayCollection();
@@ -363,6 +365,18 @@ private bool $prePresseNecessaire = true;
         $this->controlesPrePresse = new ArrayCollection();
         $this->etiquettes = new ArrayCollection();
     }
+
+    public const TYPE_PRODUIT = 'produit';
+    public const TYPE_ARTICLE = 'article';
+    public const TYPE_LIBRE = 'libre';
+
+    #[ORM\Column(
+        length: 20,
+        options: [
+            'default' => 'produit',
+        ]
+    )]
+    private string $typeLigne = self::TYPE_PRODUIT;
 
     public function getId(): ?int
     {
@@ -1279,71 +1293,29 @@ private bool $prePresseNecessaire = true;
 
         return $this;
     }
-    #[Assert\Callback]
-    public function validerModeCommande(
-        ExecutionContextInterface $context
-    ): void {
-        if ($this->isConfigurationAutomatique()) {
-            if ($this->produitConfiguration === null) {
-                $context
-                    ->buildViolation(
-                        'Une configuration est obligatoire en mode automatique.'
-                    )
-                    ->atPath('produitConfiguration')
-                    ->addViolation();
-            }
-
-            if ($this->produit === null) {
-                $context
-                    ->buildViolation(
-                        'Le produit est obligatoire en mode automatique.'
-                    )
-                    ->atPath('produit')
-                    ->addViolation();
-            }
-        }
-
-        if ($this->isConfigurationManuelle()) {
-            if ($this->produit === null) {
-                $context
-                    ->buildViolation(
-                        'Le produit est obligatoire en mode manuel.'
-                    )
-                    ->atPath('produit')
-                    ->addViolation();
-            }
-
-            if ($this->produitConfiguration !== null) {
-                $context
-                    ->buildViolation(
-                        'Une ligne manuelle ne doit pas utiliser '
-                            . 'une configuration automatique.'
-                    )
-                    ->atPath('produitConfiguration')
-                    ->addViolation();
-            }
-        }
-
-        if ($this->isSaisieLibre()) {
-            if ($this->produit !== null) {
-                $context
-                    ->buildViolation(
-                        'Une prestation libre ne doit pas être liée '
-                            . 'à un produit du catalogue.'
-                    )
-                    ->atPath('produit')
-                    ->addViolation();
-            }
-
-            if ($this->produitConfiguration !== null) {
-                $context
-                    ->buildViolation(
-                        'Une prestation libre ne doit pas utiliser '
-                            . 'une configuration automatique.'
-                    )
-                    ->atPath('produitConfiguration')
-                    ->addViolation();
-            }
+  #[Assert\Callback]
+public function validerModeCommande(
+    ExecutionContextInterface $context
+): void {
+    /*
+     * ========================================================
+     * TYPE : ARTICLE EN STOCK
+     * ========================================================
+     *
+     * Une vente directe d'article ne dépend ni d'un produit,
+     * ni d'une configuration Produit.
+     */
+    if (
+        $this->getTypeLigne()
+        === self::TYPE_ARTICLE
+    ) {
+        if ($this->getArticle() === null) {
+            $context
+                ->buildViolation(
+                    'Veuillez sélectionner un article en stock.'
+                )
+                ->atPath('article')
+                ->addViolation();
         }
 
         if ($this->prixUnitaire <= 0) {
@@ -1355,39 +1327,219 @@ private bool $prePresseNecessaire = true;
                 ->addViolation();
         }
 
+        return;
+    }
+
+
+    /*
+     * ========================================================
+     * TYPE : SAISIE LIBRE
+     * ========================================================
+     */
+    if (
+        $this->getTypeLigne()
+        === self::TYPE_LIBRE
+    ) {
         if (
-            $this->modeCalcul === 'metre_carre'
-            && (
-                $this->largeur === null
-                || (float) $this->largeur <= 0
-                || $this->longueur === null
-                || (float) $this->longueur <= 0
-            )
+            trim(
+                (string) $this->getDesignation()
+            ) === ''
         ) {
             $context
                 ->buildViolation(
-                    'La largeur et la longueur sont obligatoires '
-                        . 'pour un calcul au mètre carré.'
+                    'La désignation est obligatoire pour une saisie libre.'
                 )
-                ->atPath('largeur')
+                ->atPath('designation')
+                ->addViolation();
+        }
+
+        if ($this->prixUnitaire <= 0) {
+            $context
+                ->buildViolation(
+                    'Le prix unitaire doit être supérieur à zéro.'
+                )
+                ->atPath('prixUnitaire')
+                ->addViolation();
+        }
+
+        return;
+    }
+
+
+    /*
+     * ========================================================
+     * TYPE : PRODUIT / PRESTATION
+     * ========================================================
+     */
+    if (
+        $this->getTypeLigne()
+        !== self::TYPE_PRODUIT
+    ) {
+        $context
+            ->buildViolation(
+                'Le type de ligne est invalide.'
+            )
+            ->atPath('typeLigne')
+            ->addViolation();
+
+        return;
+    }
+
+
+    /*
+     * ========================================================
+     * MODE AUTOMATIQUE
+     * ========================================================
+     */
+    if (
+        $this->isConfigurationAutomatique()
+    ) {
+        if ($this->produitConfiguration === null) {
+            $context
+                ->buildViolation(
+                    'Une configuration est obligatoire en mode automatique.'
+                )
+                ->atPath('produitConfiguration')
+                ->addViolation();
+        }
+
+        if ($this->produit === null) {
+            $context
+                ->buildViolation(
+                    'Le produit est obligatoire en mode automatique.'
+                )
+                ->atPath('produit')
+                ->addViolation();
+        }
+    }
+
+
+    /*
+     * ========================================================
+     * MODE MANUEL
+     * ========================================================
+     */
+    if (
+        $this->isConfigurationManuelle()
+    ) {
+        if ($this->produit === null) {
+            $context
+                ->buildViolation(
+                    'Le produit est obligatoire en mode manuel.'
+                )
+                ->atPath('produit')
                 ->addViolation();
         }
 
         if (
-            $this->modeCalcul === 'metre'
-            && (
-                $this->longueur === null
-                || (float) $this->longueur <= 0
-            )
+            $this->produitConfiguration
+            !== null
         ) {
             $context
                 ->buildViolation(
-                    'La longueur est obligatoire pour un calcul au mètre.'
+                    'Une ligne manuelle ne doit pas utiliser '
+                    . 'une configuration automatique.'
                 )
-                ->atPath('longueur')
+                ->atPath('produitConfiguration')
                 ->addViolation();
         }
     }
+
+
+    /*
+     * ========================================================
+     * ANCIEN MODE LIBRE PRODUIT
+     * ========================================================
+     *
+     * Compatibilité temporaire avec modeConfiguration = libre.
+     */
+    if (
+        $this->isSaisieLibre()
+    ) {
+        if ($this->produit !== null) {
+            $context
+                ->buildViolation(
+                    'Une prestation libre ne doit pas être liée '
+                    . 'à un produit du catalogue.'
+                )
+                ->atPath('produit')
+                ->addViolation();
+        }
+
+        if (
+            $this->produitConfiguration
+            !== null
+        ) {
+            $context
+                ->buildViolation(
+                    'Une prestation libre ne doit pas utiliser '
+                    . 'une configuration automatique.'
+                )
+                ->atPath('produitConfiguration')
+                ->addViolation();
+        }
+    }
+
+
+    /*
+     * ========================================================
+     * PRIX
+     * ========================================================
+     */
+    if ($this->prixUnitaire <= 0) {
+        $context
+            ->buildViolation(
+                'Le prix unitaire doit être supérieur à zéro.'
+            )
+            ->atPath('prixUnitaire')
+            ->addViolation();
+    }
+
+
+    /*
+     * ========================================================
+     * CALCUL AU MÈTRE CARRÉ
+     * ========================================================
+     */
+    if (
+        $this->modeCalcul === 'metre_carre'
+        && (
+            $this->largeur === null
+            || (float) $this->largeur <= 0
+            || $this->longueur === null
+            || (float) $this->longueur <= 0
+        )
+    ) {
+        $context
+            ->buildViolation(
+                'La largeur et la longueur sont obligatoires '
+                . 'pour un calcul au mètre carré.'
+            )
+            ->atPath('largeur')
+            ->addViolation();
+    }
+
+
+    /*
+     * ========================================================
+     * CALCUL AU MÈTRE
+     * ========================================================
+     */
+    if (
+        $this->modeCalcul === 'metre'
+        && (
+            $this->longueur === null
+            || (float) $this->longueur <= 0
+        )
+    ) {
+        $context
+            ->buildViolation(
+                'La longueur est obligatoire pour un calcul au mètre.'
+            )
+            ->atPath('longueur')
+            ->addViolation();
+    }
+}
     /**
      * @return list<string>
      */
@@ -1583,9 +1735,9 @@ private bool $prePresseNecessaire = true;
      * - fabrication : reste à produire ;
      * - vente directe : devient immédiatement prête à livrer.
      */
-   public function preparerApresValidationCommande(): static
-{
-    /*
+    public function preparerApresValidationCommande(): static
+    {
+        /*
      * ========================================================
      * 1. LIVRAISON DIRECTE
      * ========================================================
@@ -1593,49 +1745,49 @@ private bool $prePresseNecessaire = true;
      * Pas de prépresse.
      * Pas de production.
      */
-    if (
-        !$this->prePresseNecessaire
-        && !$this->productionNecessaire
-    ) {
-        $this->statutProduction =
-            self::PRODUCTION_PRETE_LIVRAISON;
+        if (
+            !$this->prePresseNecessaire
+            && !$this->productionNecessaire
+        ) {
+            $this->statutProduction =
+                self::PRODUCTION_PRETE_LIVRAISON;
 
-        return $this;
-    }
+            return $this;
+        }
 
-    /*
+        /*
      * ========================================================
      * 2. PRODUCTION SANS PRÉPRESSE
      * ========================================================
      */
-    if (
-        !$this->prePresseNecessaire
-        && $this->productionNecessaire
-    ) {
-        $this->statutProduction =
-            self::PRODUCTION_A_PRODUIRE;
+        if (
+            !$this->prePresseNecessaire
+            && $this->productionNecessaire
+        ) {
+            $this->statutProduction =
+                self::PRODUCTION_A_PRODUIRE;
 
-        return $this;
-    }
+            return $this;
+        }
 
-    /*
+        /*
      * ========================================================
      * 3. PRÉPRESSE + PRODUCTION
      * ========================================================
      *
      * La ligne reste en attente du contrôle prépresse.
      */
-    if (
-        $this->prePresseNecessaire
-        && $this->productionNecessaire
-    ) {
-        $this->statutProduction =
-            self::PRODUCTION_A_PRODUIRE;
+        if (
+            $this->prePresseNecessaire
+            && $this->productionNecessaire
+        ) {
+            $this->statutProduction =
+                self::PRODUCTION_A_PRODUIRE;
 
-        return $this;
-    }
+            return $this;
+        }
 
-    /*
+        /*
      * ========================================================
      * 4. PRÉPRESSE SANS PRODUCTION
      * ========================================================
@@ -1643,11 +1795,11 @@ private bool $prePresseNecessaire = true;
      * Cas particulier : après validation prépresse,
      * la ligne pourra aller directement à la livraison.
      */
-    $this->statutProduction =
-        self::PRODUCTION_NON_REQUISE;
+        $this->statutProduction =
+            self::PRODUCTION_NON_REQUISE;
 
-    return $this;
-}
+        return $this;
+    }
 
     /**
      * Démarrage d'une véritable production.
@@ -2040,17 +2192,7 @@ private bool $prePresseNecessaire = true;
         return $this;
     }
 
-    public function getTypeLigne(): string
-    {
-        return $this->typeLigne;
-    }
 
-    public function setTypeLigne(?string $typeLigne): static
-    {
-        $this->typeLigne = $typeLigne ?: 'produit';
-
-        return $this;
-    }
 
     public function getModeSaisie(): string
     {
@@ -2156,57 +2298,98 @@ private bool $prePresseNecessaire = true;
         return $this->quantiteLivree >= $this->quantite;
     }
     public function enregistrerQuantiteLivree(
-    int $quantite
-): static {
-    if ($quantite <= 0) {
-        throw new \InvalidArgumentException(
-            'La quantité livrée doit être supérieure à zéro.'
-        );
-    }
+        int $quantite
+    ): static {
+        if ($quantite <= 0) {
+            throw new \InvalidArgumentException(
+                'La quantité livrée doit être supérieure à zéro.'
+            );
+        }
 
-    $restante = $this->getQuantiteRestanteLivraison();
+        $restante = $this->getQuantiteRestanteLivraison();
 
-    if ($quantite > $restante) {
-        throw new \InvalidArgumentException(
-            sprintf(
-                'La quantité à livrer (%d) dépasse la quantité restante (%d).',
-                $quantite,
-                $restante
-            )
-        );
-    }
+        if ($quantite > $restante) {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    'La quantité à livrer (%d) dépasse la quantité restante (%d).',
+                    $quantite,
+                    $restante
+                )
+            );
+        }
 
-    $this->quantiteLivree += $quantite;
+        $this->quantiteLivree += $quantite;
 
-    /*
+        /*
      * Livraison complète.
      */
-    if ($this->estTotalementLivree()) {
+        if ($this->estTotalementLivree()) {
+            $this->statutProduction =
+                self::PRODUCTION_LIVREE;
+
+            return $this;
+        }
+
+        /*
+     * Livraison partielle :
+     * il reste encore quelque chose à livrer.
+     */
         $this->statutProduction =
-            self::PRODUCTION_LIVREE;
+            self::PRODUCTION_PRETE_LIVRAISON;
+
+        return $this;
+    }
+    public function isPrePresseNecessaire(): bool
+    {
+        return $this->prePresseNecessaire;
+    }
+
+    public function setPrePresseNecessaire(
+        bool $prePresseNecessaire
+    ): static {
+        $this->prePresseNecessaire = $prePresseNecessaire;
+
+        return $this;
+    }
+    public function getArticle(): ?Articles
+    {
+        return $this->article;
+    }
+
+    public function setArticle(
+        ?Articles $article
+    ): static {
+        $this->article = $article;
 
         return $this;
     }
 
-    /*
-     * Livraison partielle :
-     * il reste encore quelque chose à livrer.
-     */
-    $this->statutProduction =
-        self::PRODUCTION_PRETE_LIVRAISON;
+    public function getTypeLigne(): string
+    {
+        return $this->typeLigne;
+    }
 
-    return $this;
-}
-public function isPrePresseNecessaire(): bool
-{
-    return $this->prePresseNecessaire;
-}
+    public function setTypeLigne(
+        string $typeLigne
+    ): static {
+        if (
+            !in_array(
+                $typeLigne,
+                [
+                    self::TYPE_PRODUIT,
+                    self::TYPE_ARTICLE,
+                    self::TYPE_LIBRE,
+                ],
+                true
+            )
+        ) {
+            throw new \InvalidArgumentException(
+                'Type de ligne invalide.'
+            );
+        }
 
-public function setPrePresseNecessaire(
-    bool $prePresseNecessaire
-): static {
-    $this->prePresseNecessaire = $prePresseNecessaire;
+        $this->typeLigne = $typeLigne;
 
-    return $this;
-}
+        return $this;
+    }
 }

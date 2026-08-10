@@ -11,7 +11,9 @@ use App\Entity\ProduitConfigurationFinition;
 use App\Entity\Produits;
 use App\Entity\Supports;
 use App\Entity\TypesImpression;
+use App\Entity\Articles;
 use App\Repository\ProduitConfigurationRepository;
+use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -465,7 +467,66 @@ class CommandesDetailsType extends AbstractType
                 'label' => 'Ligne active',
                 'required' => false,
             ])
+            ->add('article', EntityType::class, [
+    'class' => Articles::class,
 
+    'choice_label' => static function (
+        Articles $article
+    ): string {
+        return sprintf(
+            '%s — %s',
+            $article->getReference(),
+            $article->getDesignation()
+        );
+    },
+
+    'query_builder' => static function (
+        EntityRepository $repository
+    ) {
+        return $repository
+            ->createQueryBuilder('a')
+            ->andWhere('a.actif = :actif')
+            ->andWhere('a.vendable = :vendable')
+            ->setParameter('actif', true)
+            ->setParameter('vendable', true)
+            ->orderBy('a.designation', 'ASC');
+    },
+
+    'placeholder' =>
+        'Rechercher un article en stock...',
+
+    'required' => false,
+
+    'attr' => [
+        'class' =>
+            'form-control js-select-search js-article-stock',
+
+        'data-detail-field' =>
+            'article',
+
+        'data-placeholder' =>
+            'Référence ou désignation...',
+    ],
+])
+->add('typeLigne', ChoiceType::class, [
+    'label' => 'Type de ligne',
+    'choices' => [
+        'Produit / prestation' =>
+            CommandesDetails::TYPE_PRODUIT,
+
+        'Article en stock' =>
+            CommandesDetails::TYPE_ARTICLE,
+
+        'Saisie libre' =>
+            CommandesDetails::TYPE_LIBRE,
+    ],
+    'expanded' => true,
+    'multiple' => false,
+    'required' => true,
+    'attr' => [
+        'class' => 'js-type-ligne',
+    ],
+])
             ->add('priorite', ChoiceType::class, [
                 'label' => 'Priorité',
                 'required' => true,

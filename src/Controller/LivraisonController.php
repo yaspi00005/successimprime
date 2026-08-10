@@ -5,7 +5,8 @@ namespace App\Controller;
 use App\Entity\CommandesDetails;
 use App\Entity\User;
 use App\Repository\CommandesDetailsRepository;
-use App\Repository\MachinesRepository;
+use App\Entity\StockSorties;
+use App\Service\StockService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -456,54 +457,148 @@ final class LivraisonController extends AbstractController
      * MARQUER COMME LIVRÉE
      * ============================================================
      */
-    #[Route(
-        '/{id}/livrer',
-        name: 'livrer',
-        requirements: [
-            'id' => '\d+',
-        ],
-        methods: ['POST']
-    )]
-    public function livrer(
-        CommandesDetails $detail,
-        Request $request,
-        EntityManagerInterface $em
-    ): Response {
-        $this->verifierJeton(
-            $request,
-            'livraison_livrer_' . $detail->getId()
-        );
+   #[Route(
+    '/{id}/livrer',
+    name: 'livrer',
+    requirements: [
+        'id' => '\d+',
+    ],
+    methods: ['POST']
+)]
+public function livrer(
+    CommandesDetails $detail,
+    Request $request,
+    EntityManagerInterface $em,
+    StockService $stockService
+): Response {
+    $this->verifierJeton(
+        $request,
+        'livraison_livrer_' . $detail->getId()
+    );
 
-        try {
+    try {
+        /*
+         * La ligne doit déjà être en livraison.
+         */
+        if (
+            $detail->getStatutProduction()
+            !== CommandesDetails::PRODUCTION_EN_LIVRAISON
+        ) {
+            throw new \LogicException(
+                'La ligne doit être en livraison avant d’être confirmée.'
+            );
+        }
+
+
+        /*
+         * ========================================================
+         * VENTE DIRECTE D'ARTICLE
+         * ========================================================
+         */
+        if (
+            $detail->getTypeLigne()
+            === CommandesDetails::TYPE_ARTICLE
+        ) {
+            $article =
+                $detail->getArticle();
+
+            if ($article === null) {
+                throw new \LogicException(
+                    'Aucun article en stock n’est associé à cette ligne.'
+                );
+            }
+
+
+            $quantite =
+                (float) $detail->getQuantite();
+
+            if ($quantite <= 0) {
+                throw new \LogicException(
+                    'La quantité à livrer est invalide.'
+                );
+            }
+
+
             /*
-             * La méthode de l'entité vérifie déjà que
-             * le détail est EN_LIVRAISON.
+             * Référence stable pour éviter
+             * une double sortie de stock.
+             */
+            $reference =
+                sprintf(
+                    'LIV-DIRECT-%06d',
+                    (int) $detail->getId()
+                );
+
+
+            /*
+             * Sortie de stock.
+             */
+            $stockService->consommerPourDetail(
+                $detail,
+                StockSorties::ORIGINE_LIVRAISON,
+                $reference,
+                $quantite
+            );
+
+
+            /*
+             * Passage au statut livré.
              */
             $detail->marquerLivree();
 
+
             $em->flush();
+
 
             $this->addFlash(
                 'success',
                 sprintf(
-                    '« %s » a été marqué comme livré.',
+                    '« %s » a été livré. La sortie de stock a été enregistrée.',
                     $detail->getDesignation()
                 )
             );
-        } catch (\LogicException $e) {
-            $this->addFlash(
-                'error',
-                $e->getMessage()
+
+
+            return $this->redirectToRoute(
+                'app_livraisons_show',
+                [
+                    'id' => $detail->getId(),
+                ]
             );
         }
 
-        return $this->redirectToRoute(
-            'app_livraisons_show',
-            [
-                'id' => $detail->getId(),
-            ]
+
+        /*
+         * ========================================================
+         * AUTRES TYPES
+         * ========================================================
+         */
+        throw new \LogicException(
+            sprintf(
+                'La ligne « %s » doit être livrée à partir d’un bon de livraison.',
+                $detail->getDesignation()
+            )
+        );
+
+    } catch (
+        \LogicException |
+        \RuntimeException |
+        \DomainException $e
+    ) {
+        $this->addFlash(
+            'error',
+            $e->getMessage()
         );
     }
+
+
+    return $this->redirectToRoute(
+        'app_livraisons_show',
+        [
+            'id' => $detail->getId(),
+        ]
+    );
+}
 
     /*
      * ============================================================

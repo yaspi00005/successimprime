@@ -3,6 +3,9 @@
 namespace App\Repository;
 
 use App\Entity\Articles;
+use App\Entity\StockEntrees;
+use App\Entity\StockSorties;
+
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

@@ -53,7 +53,110 @@
 		<input type="hidden" id="produitReorderUrl" value="{{ path('app_produits_reorder') }}">
 
 		<input type="hidden" id="produitReorderToken" value="{{ csrf_token('produits_reorder') }}">
+		<div class="card mb-3">
 
+			<div class="card-body py-3">
+
+				<div class="row align-items-end">
+
+					<div class="col-lg-5 col-md-6">
+
+						<label for="produitRecherche">
+							Rechercher un produit
+						</label>
+
+						<div class="input-group">
+
+							<div class="input-group-prepend">
+								<span class="input-group-text">
+									<i class="fa fa-search"></i>
+								</span>
+							</div>
+
+							<input type="text" id="produitRecherche" class="form-control" placeholder="Code, nom, catégorie, support, format, finition..." autocomplete="off">
+
+							<div class="input-group-append">
+
+								<button type="button" id="produitRechercheReset" class="btn btn-secondary" title="Effacer la recherche">
+									<i class="fa fa-times"></i>
+								</button>
+
+							</div>
+
+						</div>
+
+					</div>
+
+
+					<div class="col-lg-3 col-md-3">
+
+						<label for="produitFiltreStatut">
+							Publication
+						</label>
+
+						<select id="produitFiltreStatut" class="form-control">
+							<option value="">
+								Tous
+							</option>
+
+							<option value="publie">
+								Publiés
+							</option>
+
+							<option value="non_publie">
+								Non publiés
+							</option>
+
+						</select>
+
+					</div>
+
+
+					<div class="col-lg-2 col-md-3">
+
+						<label for="produitFiltreActif">
+							État
+						</label>
+
+						<select id="produitFiltreActif" class="form-control">
+							<option value="">
+								Tous
+							</option>
+
+							<option value="actif">
+								Actifs
+							</option>
+
+							<option value="inactif">
+								Désactivés
+							</option>
+
+						</select>
+
+					</div>
+
+
+					<div class="col-lg-2 col-md-12 mt-3 mt-lg-0">
+
+						<div class="border rounded p-2 text-center">
+
+							<small class="text-muted d-block">
+								Résultats
+							</small>
+
+							<strong id="produitRechercheCompteur">
+								{{ produits|length }}
+							</strong>
+
+						</div>
+
+					</div>
+
+				</div>
+
+			</div>
+
+		</div>
 		<div class="card">
 
 			<div class="card-header">
@@ -93,7 +196,7 @@
 
 							{% for produit in produits %}
 
-								<tr id="produit-row-{{ produit.id }}" class="produit-sortable-row" data-id="{{ produit.id }}">
+								<tr id="produit-row-{{ produit.id }}" class="produit-sortable-row" data-id="{{ produit.id }}" data-code="{{ produit.code|lower|e('html_attr') }}" data-nom="{{ produit.nom|lower|e('html_attr') }}" data-categorie="{{ produit.categorieProduit ? produit.categorieProduit.nom|lower|e('html_attr') : '' }}" data-publie="{{ produit.publie ? '1' : '0' }}" data-actif="{{ produit.actif ? '1' : '0' }}">
 
 									<td class="text-center align-middle">
 										<i class="fa fa-arrows-alt produit-drag-handle" style="cursor: move;"></i>
@@ -189,27 +292,27 @@
 											</button>
 
 											<button type="button" class="btn btn-sm {{
-																																																												produit.publie
-																																																													? 'btn-warning-light'
-																																																													: 'btn-success-light'
-																																																											}} btn-toggle-produit" data-url="{{ path( 'app_produits_toggle_publication', {id: produit.id} ) }}" data-token="{{ csrf_token( 'toggle_produit_' ~ produit.id ) }}" data-nom="{{ produit.nom }}" data-publie="{{ produit.publie ? '1' : '0' }}">
+																																																																																																												produit.publie
+																																																																																																													? 'btn-warning-light'
+																																																																																																													: 'btn-success-light'
+																																																																																																											}} btn-toggle-produit" data-url="{{ path( 'app_produits_toggle_publication', {id: produit.id} ) }}" data-token="{{ csrf_token( 'toggle_produit_' ~ produit.id ) }}" data-nom="{{ produit.nom }}" data-publie="{{ produit.publie ? '1' : '0' }}">
 												<i class="fa {{
-																																																																produit.publie
-																																																																	? 'fa-eye-slash'
-																																																																	: 'fa-eye'
-																																																															}}"></i>
+																																																																																																																				produit.publie
+																																																																																																																					? 'fa-eye-slash'
+																																																																																																																					: 'fa-eye'
+																																																																																																																			}}"></i>
 											</button>
 
 											<button type="button" class="btn btn-sm {{
-																																																												produit.actif
-																																																													? 'btn-secondary-light'
-																																																													: 'btn-success-light'
-																																																											}} btn-toggle-status-produit" data-url="{{ path( 'app_produits_toggle_status', {id: produit.id} ) }}" data-token="{{ csrf_token( 'toggle_status_produit_' ~ produit.id ) }}" data-nom="{{ produit.nom }}" data-actif="{{ produit.actif ? '1' : '0' }}">
+																																																																																																												produit.actif
+																																																																																																													? 'btn-secondary-light'
+																																																																																																													: 'btn-success-light'
+																																																																																																											}} btn-toggle-status-produit" data-url="{{ path( 'app_produits_toggle_status', {id: produit.id} ) }}" data-token="{{ csrf_token( 'toggle_status_produit_' ~ produit.id ) }}" data-nom="{{ produit.nom }}" data-actif="{{ produit.actif ? '1' : '0' }}">
 												<i class="fa {{
-																																																																produit.actif
-																																																																	? 'fa-ban'
-																																																																	: 'fa-check'
-																																																															}}"></i>
+																																																																																																																				produit.actif
+																																																																																																																					? 'fa-ban'
+																																																																																																																					: 'fa-check'
+																																																																																																																			}}"></i>
 											</button>
 
 											<button type="button" class="btn btn-sm btn-danger-light btn-delete-produit" data-url="{{ path( 'app_produits_delete_ajax', {id: produit.id} ) }}" data-token="{{ csrf_token( 'delete_produit_' ~ produit.id ) }}" data-nom="{{ produit.nom }}">
@@ -618,7 +721,7 @@
 
 							{% for article in articles %}
 								<option value="{{ article.id }}">
-									{{ article.nom }}
+									{{ article.designation }}
 								</option>
 							{% endfor %}
 

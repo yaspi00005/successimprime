@@ -15,6 +15,11 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ORM\Table(name: 'devis_details')]
 class DevisDetails
 {
+
+public const TYPE_PRODUIT = 'produit';
+public const TYPE_ARTICLE = 'article';
+public const TYPE_LIBRE = 'libre';
+    
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -160,12 +165,18 @@ class DevisDetails
     #[ORM\Column(options: ['default' => false])]
     private bool $emballage = false;
 
-    #[ORM\Column(
-    length: 30,
+  #[ORM\Column(
+    length: 20,
     options: ['default' => 'produit']
 )]
-private string $typeLigne = 'produit';
+private string $typeLigne = self::TYPE_PRODUIT;
 
+#[ORM\ManyToOne]
+#[ORM\JoinColumn(
+    nullable: true,
+    onDelete: 'SET NULL'
+)]
+private ?Articles $article = null;
 #[ORM\Column(
     length: 30,
     options: ['default' => 'automatique']
@@ -730,16 +741,22 @@ private string $modeSaisie = 'automatique';
      * Reprend les données fiables de ProduitConfiguration,
      * puis calcule ou verrouille les dimensions.
      */
-        if ($this->isConfigurationAutomatique()) {
-            $this->appliquerConfiguration($clientB2B);
-        }
-
         if (
-            !$this->isConfigurationAutomatique()
-            && $this->modeCalcul === 'metre_carre'
-        ) {
-            $this->calculerSurface();
-        }
+    $this->typeLigne === self::TYPE_PRODUIT
+    && $this->isConfigurationAutomatique()
+) {
+    $this->appliquerConfiguration(
+        $clientB2B
+    );
+}
+
+       if (
+    $this->typeLigne === self::TYPE_PRODUIT
+    && !$this->isConfigurationAutomatique()
+    && $this->modeCalcul === 'metre_carre'
+) {
+    $this->calculerSurface();
+}
 
         $montantImpression = $this->calculerMontantImpression();
         $montantFinitions = 0;
@@ -1060,71 +1077,26 @@ private string $modeSaisie = 'automatique';
 }
 
 
-    #[Assert\Callback]
-    public function validerModeDevis(
-        ExecutionContextInterface $context
-    ): void {
-        if ($this->isConfigurationAutomatique()) {
-            if ($this->produitConfiguration === null) {
-                $context
-                    ->buildViolation(
-                        'Une configuration est obligatoire en mode automatique.'
-                    )
-                    ->atPath('produitConfiguration')
-                    ->addViolation();
-            }
-
-            if ($this->produit === null) {
-                $context
-                    ->buildViolation(
-                        'Le produit est obligatoire en mode automatique.'
-                    )
-                    ->atPath('produit')
-                    ->addViolation();
-            }
-        }
-
-        if ($this->isConfigurationManuelle()) {
-            if ($this->produit === null) {
-                $context
-                    ->buildViolation(
-                        'Le produit est obligatoire en mode manuel.'
-                    )
-                    ->atPath('produit')
-                    ->addViolation();
-            }
-
-            if ($this->produitConfiguration !== null) {
-                $context
-                    ->buildViolation(
-                        'Une ligne manuelle ne doit pas utiliser '
-                            . 'une configuration automatique.'
-                    )
-                    ->atPath('produitConfiguration')
-                    ->addViolation();
-            }
-        }
-
-        if ($this->isSaisieLibre()) {
-            if ($this->produit !== null) {
-                $context
-                    ->buildViolation(
-                        'Une prestation libre ne doit pas être liée '
-                            . 'à un produit du catalogue.'
-                    )
-                    ->atPath('produit')
-                    ->addViolation();
-            }
-
-            if ($this->produitConfiguration !== null) {
-                $context
-                    ->buildViolation(
-                        'Une prestation libre ne doit pas utiliser '
-                            . 'une configuration automatique.'
-                    )
-                    ->atPath('produitConfiguration')
-                    ->addViolation();
-            }
+   #[Assert\Callback]
+public function validerModeDevis(
+    ExecutionContextInterface $context
+): void {
+    /*
+     * ========================================================
+     * ARTICLE EN STOCK
+     * ========================================================
+     */
+    if (
+        $this->typeLigne
+        === self::TYPE_ARTICLE
+    ) {
+        if ($this->article === null) {
+            $context
+                ->buildViolation(
+                    'Veuillez sélectionner un article en stock.'
+                )
+                ->atPath('article')
+                ->addViolation();
         }
 
         if ($this->prixUnitaire <= 0) {
@@ -1136,39 +1108,164 @@ private string $modeSaisie = 'automatique';
                 ->addViolation();
         }
 
+        return;
+    }
+
+
+    /*
+     * ========================================================
+     * SAISIE LIBRE
+     * ========================================================
+     */
+    if (
+        $this->typeLigne
+        === self::TYPE_LIBRE
+    ) {
         if (
-            $this->modeCalcul === 'metre_carre'
-            && (
-                $this->largeur === null
-                || (float) $this->largeur <= 0
-                || $this->longueur === null
-                || (float) $this->longueur <= 0
-            )
+            trim(
+                (string) $this->designation
+            ) === ''
         ) {
             $context
                 ->buildViolation(
-                    'La largeur et la longueur sont obligatoires '
-                        . 'pour un calcul au mètre carré.'
+                    'La désignation est obligatoire.'
                 )
-                ->atPath('largeur')
+                ->atPath('designation')
+                ->addViolation();
+        }
+
+        if ($this->prixUnitaire <= 0) {
+            $context
+                ->buildViolation(
+                    'Le prix unitaire doit être supérieur à zéro.'
+                )
+                ->atPath('prixUnitaire')
+                ->addViolation();
+        }
+
+        return;
+    }
+
+
+    /*
+     * ========================================================
+     * PRODUIT
+     * ========================================================
+     */
+    if (
+        $this->typeLigne
+        !== self::TYPE_PRODUIT
+    ) {
+        $context
+            ->buildViolation(
+                'Le type de ligne est invalide.'
+            )
+            ->atPath('typeLigne')
+            ->addViolation();
+
+        return;
+    }
+
+
+    if ($this->isConfigurationAutomatique()) {
+        if (
+            $this->produitConfiguration
+            === null
+        ) {
+            $context
+                ->buildViolation(
+                    'Une configuration est obligatoire en mode automatique.'
+                )
+                ->atPath(
+                    'produitConfiguration'
+                )
+                ->addViolation();
+        }
+
+        if ($this->produit === null) {
+            $context
+                ->buildViolation(
+                    'Le produit est obligatoire en mode automatique.'
+                )
+                ->atPath('produit')
+                ->addViolation();
+        }
+    }
+
+
+    if ($this->isConfigurationManuelle()) {
+        if ($this->produit === null) {
+            $context
+                ->buildViolation(
+                    'Le produit est obligatoire en mode manuel.'
+                )
+                ->atPath('produit')
                 ->addViolation();
         }
 
         if (
-            $this->modeCalcul === 'metre'
-            && (
-                $this->longueur === null
-                || (float) $this->longueur <= 0
-            )
+            $this->produitConfiguration
+            !== null
         ) {
             $context
                 ->buildViolation(
-                    'La longueur est obligatoire pour un calcul au mètre.'
+                    'Une ligne manuelle ne doit pas utiliser '
+                    . 'une configuration automatique.'
                 )
-                ->atPath('longueur')
+                ->atPath(
+                    'produitConfiguration'
+                )
                 ->addViolation();
         }
     }
+
+
+    if ($this->prixUnitaire <= 0) {
+        $context
+            ->buildViolation(
+                'Le prix unitaire doit être supérieur à zéro.'
+            )
+            ->atPath('prixUnitaire')
+            ->addViolation();
+    }
+
+
+    if (
+        $this->modeCalcul
+        === 'metre_carre'
+        && (
+            $this->largeur === null
+            || (float) $this->largeur <= 0
+            || $this->longueur === null
+            || (float) $this->longueur <= 0
+        )
+    ) {
+        $context
+            ->buildViolation(
+                'La largeur et la longueur sont obligatoires '
+                . 'pour un calcul au mètre carré.'
+            )
+            ->atPath('largeur')
+            ->addViolation();
+    }
+
+
+    if (
+        $this->modeCalcul
+        === 'metre'
+        && (
+            $this->longueur === null
+            || (float) $this->longueur <= 0
+        )
+    ) {
+        $context
+            ->buildViolation(
+                'La longueur est obligatoire pour un calcul au mètre.'
+            )
+            ->atPath('longueur')
+            ->addViolation();
+    }
+}
     public function __toString(): string
     {
         return sprintf(
@@ -1284,9 +1381,28 @@ public function getTypeLigne(): string
     return $this->typeLigne;
 }
 
-public function setTypeLigne(?string $typeLigne): static
-{
-    $this->typeLigne = $typeLigne ?: 'produit';
+public function setTypeLigne(
+    ?string $typeLigne
+): static {
+    $typeLigne =
+        strtolower(
+            trim(
+                $typeLigne ?? ''
+            )
+        );
+
+    $this->typeLigne =
+        in_array(
+            $typeLigne,
+            [
+                self::TYPE_PRODUIT,
+                self::TYPE_ARTICLE,
+                self::TYPE_LIBRE,
+            ],
+            true
+        )
+            ? $typeLigne
+            : self::TYPE_PRODUIT;
 
     return $this;
 }
@@ -1299,6 +1415,19 @@ public function getModeSaisie(): string
 public function setModeSaisie(?string $modeSaisie): static
 {
     $this->modeSaisie = $modeSaisie ?: 'automatique';
+
+    return $this;
+}
+
+public function getArticle(): ?Articles
+{
+    return $this->article;
+}
+
+public function setArticle(
+    ?Articles $article
+): static {
+    $this->article = $article;
 
     return $this;
 }

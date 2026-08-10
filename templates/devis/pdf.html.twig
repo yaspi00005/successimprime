@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+	<head>
+		<meta charset="UTF-8">
+
+		<title>
+			Facture Pro-forma
+			{{ devis.numero|default('#' ~ devis.id) }}
+		</title>
+
+		<style>
+
+			/* ============================================================
+   IDENTITÉ VISUELLE
+   ============================================================ */
+
+			body {
+				font-family: DejaVu Sans, sans-serif;
+				color: #1e293b;
+				background: #ffffff;
+			}
+
+			/* Nom société */
+			.company-name {
+				margin-top: 6px;
+				font-size: 18px;
+				font-weight: bold;
+				color: #0f2f57;
+			}
+
+			/* Success Imprim */
+			.company-commercial {
+				margin-top: 2px;
+				font-size: 15px;
+				font-weight: bold;
+				color: #f97316;
+			}
+
+			.company-tagline {
+				margin-top: 3px;
+				font-size: 8.5px;
+				color: #0284c7;
+			}
+
+
+			/* ============================================================
+   TITRE DEVIS
+   ============================================================ */
+
+			.document-title-box {
+				display: inline-block;
+				min-width: 280px;
+
+				padding: 10px 14px;
+
+				border: 2px solid #0284c7;
+				border-radius: 8px;
+
+				background: #e0f2fe;
+
+				color: #0f2f57;
+
+				text-align: left;
+
+				font-size: 18px;
+				font-weight: bold;
+			}
+
+
+			/* ============================================================
+   DATE / CLIENT / PAGE
+   ============================================================ */
+
+			.meta-top-table {
+				margin-top: 10px;
+				margin-left: auto;
+				border-collapse: collapse;
+			}
+
+			.meta-top-table th {
+				padding: 6px 12px;
+
+				border: 1px solid #0284c7;
+
+				background: #0284c7;
+
+				color: #ffffff;
+
+				font-weight: bold;
+			}
+
+			.meta-top-table td {
+				padding: 6px 12px;
+
+				border: 1px solid #7dd3fc;
+
+				background: #f0f9ff;
+
+				color: #0f172a;
+
+				text-align: center;
+			}
+
+
+			/* ============================================================
+   CLIENT
+   ============================================================ */
+
+			.client-box {
+				margin-top: 14px;
+				margin-left: auto;
+
+				width: 58%;
+
+				padding: 10px 14px;
+
+				border: 1px solid #7dd3fc;
+				border-left: 5px solid #0284c7;
+
+				background: #f8fcff;
+			}
+
+			.client-title {
+				margin-bottom: 5px;
+
+				color: #0284c7;
+
+				text-align: left;
+
+				font-size: 8px;
+
+				font-weight: bold;
+
+				text-transform: uppercase;
+			}
+
+			.client-name {
+				font-size: 11px;
+				font-weight: bold;
+				color: #0f2f57;
+			}
+
+
+			/* ============================================================
+   OBJET
+   ============================================================ */
+
+			.objet-box {
+				margin-top: 16px;
+				margin-bottom: 10px;
+
+				padding: 7px 10px;
+
+				border-left: 5px solid #f97316;
+
+				background: #fff7ed;
+
+				color: #1e293b;
+			}
+
+			.objet-box strong {
+				color: #c2410c;
+			}
+
+
+			/* ============================================================
+   TABLEAU PRINCIPAL
+   ============================================================ */
+
+			.items-table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-top: 8px;
+			}
+
+			.items-table th {
+				padding: 7px 5px;
+
+				border: 1px solid #0369a1;
+
+				background: #0284c7;
+
+				color: #ffffff;
+
+				font-size: 9px;
+
+				font-weight: bold;
+			}
+
+			.items-table td {
+				padding: 8px 6px;
+
+				border-left: 1px solid #bae6fd;
+				border-right: 1px solid #bae6fd;
+
+				vertical-align: top;
+
+				color: #1e293b;
+			}
+
+			.items-table tbody tr:nth-child(even) td {
+				background: #f0f9ff;
+			}
+
+			.items-table tbody tr:last-child td {
+				border-bottom: 1px solid #7dd3fc;
+			}
+
+
+			/* ============================================================
+   DÉSIGNATION
+   ============================================================ */
+
+			.designation-main {
+				font-size: 10px;
+				font-weight: bold;
+				color: #0f2f57;
+			}
+
+			.designation-detail {
+				display: block;
+
+				margin-top: 3px;
+
+				font-size: 8px;
+
+				color: #475569;
+			}
+
+			.line-type {
+				display: inline-block;
+
+				margin-top: 5px;
+
+				padding: 3px 7px;
+
+				border: 1px solid #fdba74;
+				border-radius: 4px;
+
+				background: #fff7ed;
+
+				color: #c2410c;
+
+				font-size: 7px;
+				font-weight: bold;
+			}
+
+
+			/* ============================================================
+   COORDONNÉES BANCAIRES
+   ============================================================ */
+
+			.bank-box {
+				margin-top: 13px;
+
+				padding: 10px;
+
+				border-left: 5px solid #0ea5e9;
+
+				background: #f0f9ff;
+			}
+
+			.bank-title {
+				margin-bottom: 5px;
+
+				font-weight: bold;
+
+				color: #0369a1;
+			}
+
+			.bank-table th {
+				padding: 4px;
+
+				border: 1px solid #38bdf8;
+
+				background: #e0f2fe;
+
+				color: #075985;
+			}
+
+			.bank-table td {
+				padding: 4px;
+
+				border: 1px solid #bae6fd;
+
+				background: #ffffff;
+
+				color: #1e293b;
+			}
+
+
+			/* ============================================================
+   CONDITIONS
+   ============================================================ */
+
+			.conditions-box {
+				margin-top: 13px;
+
+				padding: 9px 10px;
+
+				border-left: 4px solid #f59e0b;
+
+				background: #fffbeb;
+
+				color: #44403c;
+
+				font-size: 8.5px;
+			}
+
+			.conditions-box strong {
+				color: #b45309;
+			}
+
+
+			/* ============================================================
+   TOTAUX
+   ============================================================ */
+
+			.totals-table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+
+			.totals-table td {
+				padding: 7px 9px;
+
+				border: 1px solid #bae6fd;
+
+				background: #ffffff;
+			}
+
+			.totals-label {
+				font-weight: bold;
+				color: #334155;
+			}
+
+			.totals-value {
+				text-align: right;
+
+				font-weight: bold;
+
+				color: #0f2f57;
+			}
+
+
+			/* TOTAL TTC */
+			.grand-total td {
+				padding-top: 9px;
+				padding-bottom: 9px;
+
+				border-color: #0f2f57;
+
+				background: #0f2f57;
+
+				color: #ffffff;
+
+				font-size: 13px;
+
+				font-weight: bold;
+			}
+
+			/* Montant à payer */
+			.totals-table tr:last-child td {
+				background: #fff7ed;
+
+				color: #c2410c;
+
+				font-weight: bold;
+			}
+
+
+			/* ============================================================
+   BON POUR ACCORD
+   ============================================================ */
+
+			.client-signature-cell .signature-box {
+				border: 2px solid #0284c7;
+
+				background: #f0f9ff;
+			}
+
+			.client-signature-cell .signature-title {
+				color: #0369a1;
+			}
+
+			/* ============================================================
+   VALIDATION
+   ============================================================ */
+
+			.validation-table {
+				width: 100%;
+				margin-top: 7px;
+				border-collapse: separate;
+				border-spacing: 4px 0;
+				table-layout: fixed;
+			}
+
+			.validation-table td {
+				padding: 0;
+				vertical-align: top;
+			}
+
+			.qr-cell {
+				width: 26%;
+			}
+
+			.client-signature-cell {
+				width: 48%;
+			}
+
+			.company-signature-cell {
+				width: 26%;
+			}
+
+
+			/* ============================================================
+   QR
+   ============================================================ */
+
+			.qr-box {
+				min-height: 108px;
+				padding: 6px;
+				border: 2px solid #10b981;
+				border-radius: 6px;
+				background: #ecfdf5;
+				text-align: center;
+			}
+
+			.qr-title {
+				margin-bottom: 3px;
+				color: #047857;
+				font-size: 7px;
+				font-weight: bold;
+			}
+
+			.qr-image {
+				width: 62px;
+				height: 62px;
+				padding: 2px;
+				background: #ffffff;
+			}
+
+			.qr-text {
+				margin-top: 3px;
+				color: #047857;
+				font-size: 5.5px;
+				line-height: 1.25;
+			}
+
+
+			/* ============================================================
+   SIGNATURES
+   ============================================================ */
+
+			.signature-box {
+				min-height: 108px;
+				padding: 6px;
+				border-radius: 5px;
+				text-align: center;
+			}
+
+			.client-signature-cell .signature-box {
+				border: 2px solid #0284c7;
+				background: #f0f9ff;
+			}
+
+			.client-signature-cell .signature-title {
+				color: #0369a1;
+			}
+
+			.company-signature-cell .signature-box {
+				border: 2px solid #f97316;
+				background: #fff7ed;
+			}
+
+			.company-signature-cell .signature-title {
+				color: #c2410c;
+			}
+
+			.signature-title {
+				margin-bottom: 2px;
+				font-size: 6px;
+				font-weight: bold;
+				line-height: 1.25;
+			}
+
+			/*
+ * Version ajustée validée visuellement
+ * On garde l'image complète du cachet/signature
+ * sans casser le rendu.
+ */
+			.signature-electronique {
+				display: block;
+				width: 135px !important;
+				max-width: 135px !important;
+				height: auto !important;
+				margin: 6px auto 2px;
+			}
+
+			.signature-caption {
+				margin-top: 1px;
+				color: #9a3412;
+				font-size: 5px;
+				font-weight: bold;
+				line-height: 1.15;
+			}
+
+			/* ============================================================
+   PIED DE PAGE
+   ============================================================ */
+
+			.legal-footer {
+				position: fixed;
+
+				bottom: -7mm;
+				left: 0;
+				right: 0;
+
+				padding-top: 5px;
+
+				border-top: 2px solid #0284c7;
+
+				text-align: center;
+
+				color: #475569;
+
+				font-size: 7px;
+			}
+			.logo-drepa {
+				width: 85px !important;
+				height: auto !important;
+				max-width: 85px !important;
+				max-height: 70px !important;
+			}
+
+			.logo-mdg {
+				width: 95px !important;
+				height: auto !important;
+				max-width: 100px !important;
+				max-height: 90px !important;
+			}
+
+			.logo-success {
+				width: 95px !important;
+				height: auto !important;
+				max-width: 95px !important;
+				max-height: 60px !important;
+			}
+
+			.signature-electronique {
+				width: 150px !important;
+				height: auto !important;
+				max-width: 150px !important;
+				max-height: 85px !important;
+			}
+			.header-table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-bottom: 5px;
+				page-break-inside: avoid;
+			}
+
+			.header-table tr,
+			.header-table td {
+				page-break-inside: avoid;
+			}
+
+			.header-left,
+			.header-right {
+				vertical-align: top;
+			}
+
+			.client-box {
+				margin-top: 8px;
+			}
+
+			.meta-top-table {
+				margin-top: 7px;
+			}
+			.objet-box,
+			.items-table,
+			.bottom-table,
+			.validation-table,
+			.qr-box,
+			.signature-box {
+				page-break-inside: avoid;
+			}
+			.signature-box {
+				min-height: 105px;
+				padding: 7px;
+			}
+
+			.signature-title {
+				margin-bottom: 3px;
+				font-size: 7.5px;
+				font-weight: bold;
+			}
+
+			.signature-electronique {
+				width: 135px !important;
+				max-width: 135px !important;
+				max-height: 70px !important;
+				height: auto !important;
+			}
+
+			.signature-caption {
+				margin-top: 0;
+				font-size: 6px;
+			}
+			.qr-image {
+				width: 72px;
+				height: 72px;
+			}
+			.qr-box {
+				padding: 6px;
+			}
+			.document-title-box {
+				margin-left: 10px;
+			}
+
+			.totals-table td {
+				font-size: 9px;
+			}
+
+			.grand-total td,
+			.totals-table tr:last-child td {
+				white-space: nowrap;
+			}
+
+			.client-signature-cell .signature-title {
+				font-size: 8px;
+				line-height: 1.4;
+			}
+
+			.company-signature-cell .signature-title {
+				font-size: 8px;
+			}
+
+			.signature-electronique {
+				width: 120px !important;
+				max-width: 120px !important;
+				max-height: 65px !important;
+			}
+
+			.logo-mdg {
+				width: 85px !important;
+				max-width: 85px !important;
+				height: auto !important;
+			}
+
+		</style>
+
+	</head>
+
+
+	<body>
+
+		{# ============================================================
+																																														   VARIABLES
+																																														   ============================================================ #}
+
+		{% set numero = devis.numero|default(
+    'DEV-' ~ '%05d'|format(devis.id)
+) %}
+
+		{% set details = devis.devisDetails|default([]) %}
+
+		{% set client = devis.clients|default(null) %}
+
+		{% set emetteur = devis.emetteur|default('mdg_success') %}
+
+
+		{# ============================================================
+																																														   HEADER
+																																														   ============================================================ #}
+
+		<table class="header-table">
+
+			<tr>
+
+				<td
+					class="header-left">
+
+					{# =================================================
+																																																																																																																			               DREPA
+																																																																																																																			               ================================================= #}
+
+					{% if emetteur == 'drepa' %}
+
+						{% if documents.drepa.logo is defined %}
+
+							<img src="{{ documents.drepa.logo }}" alt="Logo Drepa Technologie" class="logo-drepa">
+
+						{% endif %}
+
+
+						<div class="company-name">
+							DREPA TECHNOLOGIE
+						</div>
+
+
+						<div class="company-info">
+
+							Bamako, Sotuba ACI
+							<br>
+
+							Tél. :
+																																																																																																																																																																	                    +223 78 47 87 42
+							<br>
+
+							E-mail :
+																																																																																																																																																																	                    drepatechno@gmail.com
+							<br>
+
+							RCCM :
+																																																																																																																																																																	                    MA.BKO.2021.A.911
+							<br>
+
+							NIF :
+																																																																																																																																																																	                    081137682V
+
+						</div>
+
+
+					{% else %}
+
+						{# =============================================
+																																																																																																																																										                   MDG + SUCCESS IMPRIM
+																																																																																																																																										                   ============================================= #}
+
+						<table style="
+																																																																																																																																																								        width: 100%;
+																																																																																																																																																								        border-collapse: collapse;
+																																																																																																																																																								        table-layout: fixed;
+																																																																																																																																																								    ">
+							<tr>
+								<td style="
+																																																																																																																																																																																														                width: 45%;
+																																																																																																																																																																																														                vertical-align: middle;
+																																																																																																																																																																																														                text-align: left;
+																																																																																																																																																																																														            ">
+									{% if documents.mdg_success.logoMdg is defined %}
+										<img src="{{ documents.mdg_success.logoMdg }}" alt="MDG" width="80" style="
+																																																																																																																																																																																														                        width: 80px;
+																																																																																																																																																																																														                        height: auto;
+																																																																																																																																																																																														                    ">
+									{% endif %}
+								</td>
+
+								<td style="
+																																																																																																																																																																																														                width: 55%;
+																																																																																																																																																																																														                vertical-align: middle;
+																																																																																																																																																																																														                text-align: right;
+																																																																																																																																																																																														            ">
+									{% if documents.mdg_success.logoSuccess is defined %}
+										<img src="{{ documents.mdg_success.logoSuccess }}" alt="Success Imprim" width="95" style="
+																																																																																																																																																																																														                        width: 95px;
+																																																																																																																																																																																														                        height: auto;
+																																																																																																																																																																																														                    ">
+									{% endif %}
+								</td>
+							</tr>
+						</table>
+
+
+						<div class="company-name">
+							MADIAL GROUP SARL
+						</div>
+
+
+						<div class="company-commercial">
+							SUCCESS IMPRIM
+						</div>
+
+
+						<div class="company-tagline">
+							Impression • Communication visuelle • Services graphiques
+						</div>
+
+
+						<div class="company-info">
+
+							Bamako, Sotuba ACI
+							<br>
+
+							Tél. :
+																																																																																																																																																																	                    +223 78 47 87 42
+							<br>
+
+							RCCM :
+																																																																																																																																																																	                    MA.BKO.2026.B.1404
+							<br>
+
+							NIF :
+																																																																																																																																																																	                    081148957D
+
+						</div>
+
+					{% endif %}
+
+				</td>
+
+
+				<td class="header-right">
+
+					<div class="document-title-box">
+
+						PRO-FORMA :
+						{{ numero }}
+
+					</div>
+
+
+					<table class="meta-top-table">
+
+						<tr>
+
+							<th>
+								Date
+							</th>
+
+							<th>
+								Client
+							</th>
+
+							<th>
+								Page
+							</th>
+
+						</tr>
+
+
+						<tr>
+
+							<td>
+
+								{% if devis.dateDevis|default(null) %}
+
+									{{
+                                devis.dateDevis
+                                |date('d/m/Y')
+                            }}
+
+								{% else %}
+
+									{{ "now"|date('d/m/Y') }}
+
+								{% endif %}
+
+							</td>
+
+
+							<td>
+
+								{% if client %}
+
+									{{
+                                client.id
+                                |default('—')
+                            }}
+
+								{% else %}
+
+									—
+
+								{% endif %}
+
+							</td>
+
+
+							<td>
+								1
+							</td>
+
+						</tr>
+
+					</table>
+
+
+					<div class="client-box">
+
+						<div class="client-title">
+							Adresse du client
+						</div>
+
+
+						{% if client %}
+
+							<div class="client-name">
+
+								{{
+                            client.raisonSociale
+                            |default(
+                                client.nomComplet
+                                |default(
+                                    client.nom
+                                    |default(
+                                        'Client non renseigné'
+                                    )
+                                )
+                            )
+                        }}
+
+							</div>
+
+
+							{% if client.adresse|default('') %}
+
+								<div>
+									{{ client.adresse }}
+								</div>
+
+							{% endif %}
+
+
+							{% if client.telephone|default('') %}
+
+								<div>
+									Tél. :
+									{{ client.telephone }}
+								</div>
+
+							{% endif %}
+
+
+							{% if client.email|default('') %}
+
+								<div>
+									E-mail :
+									{{ client.email }}
+								</div>
+
+							{% endif %}
+
+						{% else %}
+
+							<div>
+								Client non renseigné
+							</div>
+
+						{% endif %}
+
+					</div>
+
+				</td>
+
+			</tr>
+
+		</table>
+
+
+		{# ============================================================
+																																														   OBJET
+																																														   ============================================================ #}
+
+		<div class="objet-box">
+
+			<strong>
+				Objet :
+			</strong>
+
+			{% if details|length == 1 %}
+
+				{{
+            details|first
+                .designation
+                |default(
+                    'Prestations selon devis'
+                )
+        }}
+
+			{% else %}
+
+				Prestations et fournitures selon devis
+
+			{% endif %}
+
+		</div>
+
+
+		{# ============================================================
+																																														   TABLEAU PRINCIPAL
+																																														   ============================================================ #}
+
+		<table class="items-table">
+
+			<thead>
+
+				<tr>
+
+					<th class="col-num">
+						N°
+					</th>
+
+					<th class="col-ref">
+						Réf.
+					</th>
+
+					<th class="col-designation">
+						Désignation
+					</th>
+
+					<th class="col-qty text-center">
+						Qté
+					</th>
+
+					<th class="col-pu text-right">
+						P.U. HT
+					</th>
+
+					<th class="col-remise text-right">
+						Remise
+					</th>
+
+					<th class="col-total text-right">
+						Montant HT
+					</th>
+
+				</tr>
+
+			</thead>
+
+
+			<tbody>
+
+				{% for detail in details %}
+
+					{% set typeLigne =
+                detail.typeLigne
+                |default('produit')
+            %}
+
+					{% set produit =
+                detail.produit
+                |default(null)
+            %}
+
+					{% set article =
+                detail.article
+                |default(null)
+            %}
+
+					{% set configuration =
+                detail.produitConfiguration
+                |default(null)
+            %}
+
+
+					<tr>
+
+						<td class="text-center">
+							{{ loop.index }}
+						</td>
+
+
+						<td>
+
+							{% if typeLigne == 'article' %}
+
+								{{
+                            article.reference
+                            |default('—')
+                        }}
+
+							{% elseif produit.code|default('') %}
+
+								{{ produit.code }}
+
+							{% else %}
+
+								—
+
+							{% endif %}
+
+						</td>
+
+
+						<td>
+
+							<div class="designation-main">
+
+								{{
+                            detail.designation
+                            |default(
+                                produit.nom
+                                |default(
+                                    article.designation
+                                    |default(
+                                        'Ligne sans désignation'
+                                    )
+                                )
+                            )
+                        }}
+
+							</div>
+
+
+							{% if typeLigne == 'article' %}
+
+								<span class="line-type">
+									Article en stock
+								</span>
+
+
+								{% if article.designation|default('') %}
+
+									<span class="designation-detail">
+
+										Article :
+										{{ article.designation }}
+
+									</span>
+
+								{% endif %}
+
+
+								{% if article.unite|default('') %}
+
+									<span class="designation-detail">
+
+										Unité :
+										{{ article.unite }}
+
+									</span>
+
+								{% endif %}
+
+
+							{% elseif typeLigne == 'libre' %}
+
+								<span class="line-type">
+									Saisie libre
+								</span>
+
+
+							{% else %}
+
+								<span class="line-type">
+									Produit / prestation
+								</span>
+
+
+								{% if produit.nom|default('') %}
+
+									<span class="designation-detail">
+
+										Produit :
+										{{ produit.nom }}
+
+									</span>
+
+								{% endif %}
+
+
+								{% set typeImpressionNom =
+                            detail.typeImpression.nom
+                            |default(
+                                configuration.typeImpression.nom
+                                |default('')
+                            )
+                        %}
+
+								{% set supportNom =
+                            detail.support.nom
+                            |default(
+                                configuration.support.nom
+                                |default('')
+                            )
+                        %}
+
+								{% set formatNom =
+                            detail.format.nom
+                            |default(
+                                configuration.format.nom
+                                |default('')
+                            )
+                        %}
+
+
+								{% if typeImpressionNom %}
+
+									<span class="designation-detail">
+
+										Impression :
+										{{ typeImpressionNom }}
+
+									</span>
+
+								{% endif %}
+
+
+								{% if supportNom %}
+
+									<span class="designation-detail">
+
+										Support :
+										{{ supportNom }}
+
+									</span>
+
+								{% endif %}
+
+
+								{% if formatNom %}
+
+									<span class="designation-detail">
+
+										Format :
+										{{ formatNom }}
+
+									</span>
+
+								{% endif %}
+
+
+								{% if
+                            detail.largeur|default(null)
+                            or detail.longueur|default(null)
+                        %}
+
+									<span class="designation-detail">
+
+										Dimensions :
+
+										{{ detail.largeur|default(0) }}
+										×
+										{{ detail.longueur|default(0) }}
+
+									</span>
+
+								{% endif %}
+
+
+								{% if
+                            detail.finitions
+                            |default([])
+                            is not empty
+                        %}
+
+									{% for finition in detail.finitions %}
+
+										<span class="designation-detail">
+
+											Finition :
+
+											{{
+                                        finition.nomFinition
+                                        |default(
+                                            finition.finition.nom
+                                            |default(
+                                                finition.configurationFinition.finition.nom
+                                                |default(
+                                                    'Finition'
+                                                )
+                                            )
+                                        )
+                                    }}
+
+										</span>
+
+									{% endfor %}
+
+								{% endif %}
+
+							{% endif %}
+
+
+							{% if detail.observation|default('') %}
+
+								<span class="designation-observation">
+
+									Observation :
+									{{ detail.observation }}
+
+								</span>
+
+							{% endif %}
+
+						</td>
+
+
+						<td class="text-center">
+
+							{{
+                        detail.quantite
+                        |default(1)
+                    }}
+
+						</td>
+
+
+						<td class="text-right nowrap">
+
+							{{
+                        detail.prixUnitaire
+                        |default(0)
+                        |number_format(
+                            0,
+                            ',',
+                            ' '
+                        )
+                    }}
+
+						</td>
+
+
+						<td class="text-right nowrap">
+
+							{{
+                        detail.remise
+                        |default(0)
+                    }}
+							%
+
+						</td>
+
+
+						<td class="text-right font-bold nowrap">
+
+							{{
+                        detail.totalHt
+                        |default(0)
+                        |number_format(
+                            0,
+                            ',',
+                            ' '
+                        )
+                    }}
+
+						</td>
+
+					</tr>
+
+				{% else %}
+
+					<tr>
+
+						<td colspan="7" class="text-center">
+							Aucun détail.
+						</td>
+
+					</tr>
+
+				{% endfor %}
+
+			</tbody>
+
+		</table>
+
+
+		{# ============================================================
+																																														   BAS : BANQUE / TOTALS
+																																														   ============================================================ #}
+
+		<table class="bottom-table">
+
+			<tr>
+
+				<td
+					class="bottom-left">
+
+					{# =============================================
+																																																																																																																			               BANQUE
+																																																																																																																			               ============================================= #}
+
+					<div class="bank-box">
+
+						<div class="bank-title">
+							Nos coordonnées bancaires :
+						</div>
+
+
+						{% if emetteur == 'drepa' %}
+
+							<strong>
+								UBA MALI
+							</strong>
+
+							<table class="bank-table">
+
+								<thead>
+
+									<tr>
+
+										<th>
+											Code banque
+										</th>
+
+										<th>
+											Code guichet
+										</th>
+
+										<th>
+											N° de compte
+										</th>
+
+										<th>
+											Clé RIB
+										</th>
+
+									</tr>
+
+								</thead>
+
+								<tbody>
+
+									<tr>
+
+										<td>
+											ML206
+										</td>
+
+										<td>
+											01004
+										</td>
+
+										<td>
+											704040002757
+										</td>
+
+										<td>
+											27
+										</td>
+
+									</tr>
+
+								</tbody>
+
+							</table>
+
+
+						{% else %}
+
+							<strong>
+								ECOBANK MALI
+							</strong>
+
+							<div style="margin-top:4px;">
+
+								Compte bancaire :
+								<strong>
+									152248617001
+								</strong>
+
+							</div>
+
+						{% endif %}
+
+					</div>
+
+
+					{# =============================================
+																																																																																																																			               CONDITIONS
+																																																																																																																			               ============================================= #}
+
+					<div class="conditions-box">
+
+						<strong>
+							Conditions :
+						</strong>
+
+						<br>
+
+						Le présent devis est établi sous réserve
+																																																																																																																																										                de disponibilité des matières,
+																																																																																																																																										                supports et articles au moment
+																																																																																																																																										                de la confirmation de la commande.
+
+						<br><br>
+
+						La validation du devis vaut acceptation
+																																																																																																																																										                des prestations, quantités,
+																																																																																																																																										                caractéristiques et tarifs indiqués.
+
+					</div>
+
+				</td>
+
+
+				<td class="bottom-right">
+
+					<table class="totals-table">
+
+						<tr>
+
+							<td class="totals-label">
+								Total HT
+							</td>
+
+							<td class="totals-value">
+
+								{{
+                            devis.totalHt
+                            |default(0)
+                            |number_format(
+                                0,
+                                ',',
+                                ' '
+                            )
+                        }}
+
+								F CFA
+
+							</td>
+
+						</tr>
+
+
+						<tr>
+
+							<td class="totals-label">
+								Remise
+							</td>
+
+							<td class="totals-value">
+
+								{{
+                            devis.remise
+                            |default(0)
+                            |number_format(
+                                0,
+                                ',',
+                                ' '
+                            )
+                        }}
+
+								F CFA
+
+							</td>
+
+						</tr>
+
+
+						<tr>
+
+							<td class="totals-label">
+
+								TVA
+								{{
+                            devis.tva
+                            |default(0)
+                        }}
+								%
+
+							</td>
+
+
+							<td class="totals-value">
+
+								{{
+                            (
+                                devis.totalTtc|default(0)
+                                -
+                                devis.totalHt|default(0)
+                            )
+                            |number_format(
+                                0,
+                                ',',
+                                ' '
+                            )
+                        }}
+
+								F CFA
+
+							</td>
+
+						</tr>
+
+
+						<tr class="grand-total">
+
+							<td>
+								TOTAL TTC
+							</td>
+
+							<td class="text-right">
+
+								{{
+                            devis.totalTtc
+                            |default(0)
+                            |number_format(
+                                0,
+                                ',',
+                                ' '
+                            )
+                        }}
+
+								F CFA
+
+							</td>
+
+						</tr>
+
+
+						{% if
+                    devis.montantApayer
+                    |default(null)
+                    is not null
+                %}
+
+							<tr>
+
+								<td class="totals-label">
+									Montant à payer
+								</td>
+
+								<td class="totals-value">
+
+									{{
+                                devis.montantApayer
+                                |default(0)
+                                |number_format(
+                                    0,
+                                    ',',
+                                    ' '
+                                )
+                            }}
+
+									F CFA
+
+								</td>
+
+							</tr>
+
+						{% endif %}
+
+					</table>
+
+				</td>
+
+			</tr>
+
+		</table>
+
+
+		{# ============================================================
+																																														   OBSERVATION GÉNÉRALE
+																																														   ============================================================ #}
+
+		{% if devis.observation|default('') %}
+
+			<div class="conditions-box">
+
+				<strong>
+					Observation :
+				</strong>
+
+				<br>
+
+				{{ devis.observation|nl2br }}
+
+			</div>
+
+		{% endif %}
+
+
+		{# ============================================================
+																																														   QR / BON POUR ACCORD / SIGNATURE ÉLECTRONIQUE
+																																														   ============================================================ #}
+
+		<table class="validation-table">
+
+			<tr>
+
+				{# ====================================================
+																								           QR AUTHENTICITÉ
+																								           ==================================================== #}
+				<td class="qr-cell">
+
+					<div class="qr-box">
+
+						<div class="qr-title">
+							AUTHENTICITÉ
+						</div>
+
+						{% if qrCodeDataUri|default('') %}
+							<img src="{{ qrCodeDataUri }}" alt="QR Code de vérification" width="62" height="62" class="qr-image">
+						{% endif %}
+
+						<div class="qr-text">
+							Scanner pour vérifier
+																																										                    l’authenticité de ce devis.
+						</div>
+
+					</div>
+
+				</td>
+
+
+				{# ====================================================
+																								           SIGNATURE CLIENT
+																								           ==================================================== #}
+				<td class="client-signature-cell">
+
+					<div class="signature-box">
+
+						<div class="signature-title">
+							Cachet et signature du client
+																																										                    précédés de la mention
+																																										                    « Bon pour accord »
+						</div>
+
+					</div>
+
+				</td>
+
+
+				{# ====================================================
+																								           SIGNATURE ÉLECTRONIQUE ENTREPRISE
+																								           ==================================================== #}
+				<td class="company-signature-cell">
+
+					<div class="signature-box">
+
+						<div class="signature-title">
+							Signature et cachet électronique
+						</div>
+
+						{% if emetteur == 'drepa' %}
+
+							{% if
+                        documents.drepa.signature
+                        is defined
+                        and documents.drepa.signature
+                    %}
+								<img src="{{ documents.drepa.signature }}" alt="Signature et cachet Drepa Technologie" class="signature-electronique">
+							{% endif %}
+
+							<div class="signature-caption">
+								DREPA TECHNOLOGIE
+							</div>
+
+						{% else %}
+
+							{% if
+                        documents.mdg_success.signature
+                        is defined
+                        and documents.mdg_success.signature
+                    %}
+								<img src="{{ documents.mdg_success.signature }}" alt="Signature et cachet MADIAL GROUP SARL" class="signature-electronique">
+							{% endif %}
+
+							<div class="signature-caption">
+								MADIAL GROUP SARL / SUCCESS IMPRIM
+							</div>
+
+						{% endif %}
+
+					</div>
+
+				</td>
+
+			</tr>
+
+		</table>
+
+
+		{# ============================================================
+																																														   FOOTER
+																																														   ============================================================ #}
+
+		<div class="legal-footer">
+
+			{% if emetteur == 'drepa' %}
+
+				DREPA TECHNOLOGIE —
+																																																																																												        ADRESSE : SOTUBA ACI —
+																																																																																												        RCCM : MA.BKO.2021.A.911 —
+																																																																																												        NIF : 081137682V —
+																																																																																												        Tél. : +223 78 47 87 42
+
+			{% else %}
+
+				MADIAL GROUP SARL —
+																																																																																												        SUCCESS IMPRIM —
+																																																																																												        ADRESSE : SOTUBA ACI —
+																																																																																												        RCCM : MA.BKO.2026.B.1404 —
+																																																																																												        NIF : 081148957D —
+																																																																																												        Compte ECOBANK : 152248617001
+
+			{% endif %}
+
+		</div>
+
+
+	</body>
+
+</html>

@@ -11,8 +11,8 @@
 		class="side-app">
 
 		{# ==========================================================
-		       PAGE HEADER
-		       ========================================================== #}
+										       PAGE HEADER
+										       ========================================================== #}
 		<div class="page-header">
 
 			<ol class="breadcrumb">
@@ -42,8 +42,8 @@
 
 
 		{# ==========================================================
-		       FLASH MESSAGES
-		       ========================================================== #}
+										       FLASH MESSAGES
+										       ========================================================== #}
 
 		{% for message in app.flashes('success') %}
 
@@ -65,8 +65,8 @@
 
 
 		{# ==========================================================
-		       VARIABLES
-		       ========================================================== #}
+										       VARIABLES
+										       ========================================================== #}
 
 		{% set commande = detail.commande %}
 
@@ -76,8 +76,8 @@
 
 
 		{# ==========================================================
-		       ENTETE / STATUT
-		       ========================================================== #}
+										       ENTETE / STATUT
+										       ========================================================== #}
 
 		<div class="row">
 
@@ -99,7 +99,7 @@
 
 								{% if commande %}
 									—
-									                                Commande #{{ commande.id }}
+																																													                                Commande #{{ commande.id }}
 								{% endif %}
 
 							</small>
@@ -201,8 +201,12 @@
 
 
 			{# ======================================================
-			           ACTIONS
-			           ====================================================== #}
+															           ACTIONS
+															           ====================================================== #}
+
+			{# ======================================================
+												   ACTIONS
+												   ====================================================== #}
 
 			<div class="col-lg-4">
 
@@ -214,40 +218,105 @@
 						</h3>
 					</div>
 
-					<div class="card-body">
+					<div
+						class="card-body">
 
+						{# ==================================================
+																								               LIGNE PRÊTE À LIVRER
+																								               ================================================== #}
 
 						{% if statut == 'prete_livraison' %}
 
-							<form method="post" action="{{ path( 'app_livraisons_demarrer', { id: detail.id } ) }}" onsubmit="return confirm('Démarrer cette livraison ?');">
+							{% if commande %}
 
-								<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_demarrer_' ~ detail.id ) }}">
+								<form method="post" action="{{ path( 'app_bons_livraison_creer_commande', { id: commande.id } ) }}" onsubmit="return confirm(
+																																								                            'Créer un bon de livraison pour cette commande ?'
+																																								                        );">
 
-								<button type="submit" class="btn btn-warning btn-block mb-2">
-									<i class="fa fa-truck mr-1"></i>
-									Démarrer la livraison
-								</button>
+									<input type="hidden" name="_token" value="{{ csrf_token( 'bon_livraison_creer_commande_' ~ commande.id ) }}">
 
-							</form>
+									<button type="submit" class="btn btn-primary btn-block mb-2">
+										<i class="fa fa-file-text-o mr-1"></i>
+
+										Créer un bon de livraison
+									</button>
+
+								</form>
+
+								<div class="alert alert-info mt-3 mb-0">
+
+									<i class="fa fa-info-circle mr-1"></i>
+
+									La livraison doit être effectuée
+																																				                        à partir d’un bon de livraison.
+
+								</div>
+
+							{% else %}
+
+								<div class="alert alert-danger mb-0">
+
+									<i class="fa fa-exclamation-circle mr-1"></i>
+
+									Impossible de créer un bon de livraison :
+																																				                        aucune commande n’est associée à cette ligne.
+
+								</div>
+
+							{% endif %}
 
 						{% endif %}
 
+
+						{# ==================================================
+																								               LIGNE DÉJÀ EN LIVRAISON
+																								               ================================================== #}
 
 						{% if statut == 'en_livraison' %}
 
-							<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" onsubmit="return confirm('Confirmer la livraison ?');">
+							{% if detail.typeLigne == 'article' %}
 
-								<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
+								<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="js-form-confirmer-livraison">
 
-								<button type="submit" class="btn btn-success btn-block mb-2">
-									<i class="fa fa-check-circle mr-1"></i>
-									Confirmer la livraison
-								</button>
+									<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
 
-							</form>
+									<button type="submit" class="btn btn-success btn-block">
+										<i class="fa fa-check-circle mr-1"></i>
+
+										Confirmer la livraison
+									</button>
+
+								</form>
+
+
+								<div class="alert alert-info mt-3 mb-0">
+
+									<i class="fa fa-info-circle mr-1"></i>
+
+									La confirmation enregistrera également
+																											            la sortie de stock de cet article.
+
+								</div>
+
+							{% else %}
+
+								<div class="alert alert-warning mb-0">
+
+									<i class="fa fa-truck mr-1"></i>
+
+									Cette ligne doit être livrée
+																											            depuis son bon de livraison.
+
+								</div>
+
+							{% endif %}
 
 						{% endif %}
 
+
+						{# ==================================================
+																								               LIGNE LIVRÉE
+																								               ================================================== #}
 
 						{% if statut == 'livree' %}
 
@@ -255,23 +324,9 @@
 
 								<i class="fa fa-check-circle mr-1"></i>
 
-								Cette livraison est terminée.
+								Cette ligne a été entièrement livrée.
 
 							</div>
-
-						{% endif %}
-
-
-						{# FUTUR BON DE LIVRAISON #}
-
-						{% if statut in ['prete_livraison', 'en_livraison', 'livree'] %}
-
-							<hr>
-
-							<button type="button" class="btn btn-primary-light btn-block" disabled title="Disponible après création du module Bon de livraison">
-								<i class="fa fa-file-text-o mr-1"></i>
-								Bon de livraison
-							</button>
 
 						{% endif %}
 
@@ -285,8 +340,8 @@
 
 
 		{# ==========================================================
-		       COMMANDE / CLIENT
-		       ========================================================== #}
+										       COMMANDE / CLIENT
+										       ========================================================== #}
 
 		<div class="row">
 
@@ -392,8 +447,8 @@
 
 
 			{# ======================================================
-			           CLIENT
-			           ====================================================== #}
+															           CLIENT
+															           ====================================================== #}
 
 			<div class="col-lg-6">
 
@@ -493,8 +548,8 @@
 
 
 		{# ==========================================================
-		       ARTICLE / INFORMATIONS TECHNIQUES
-		       ========================================================== #}
+										       ARTICLE / INFORMATIONS TECHNIQUES
+										       ========================================================== #}
 
 		<div class="card">
 
@@ -682,8 +737,8 @@
 
 
 		{# ==========================================================
-		       FINITIONS
-		       ========================================================== #}
+										       FINITIONS
+										       ========================================================== #}
 
 		{% if detail.finitions|length > 0 %}
 
@@ -763,8 +818,8 @@
 
 
 		{# ==========================================================
-		       MACHINE / PRODUCTION
-		       ========================================================== #}
+										       MACHINE / PRODUCTION
+										       ========================================================== #}
 
 		{% if detail.productionNecessaire %}
 
@@ -885,8 +940,8 @@
 
 						Cette ligne est une
 						<strong>vente directe</strong>.
-							
-							                    Elle ne nécessite aucune production avant livraison.
+																																			
+																																			                    Elle ne nécessite aucune production avant livraison.
 
 					</div>
 
@@ -898,8 +953,8 @@
 
 
 		{# ==========================================================
-		       ETIQUETTES
-		       ========================================================== #}
+										       ETIQUETTES
+										       ========================================================== #}
 
 		<div class="card">
 
@@ -1002,8 +1057,8 @@
 
 
 		{# ==========================================================
-		       OBSERVATIONS
-		       ========================================================== #}
+										       OBSERVATIONS
+										       ========================================================== #}
 
 		{% if detail.observation or detail.observationProduction %}
 
@@ -1061,5 +1116,44 @@
 		{% endif %}
 
 	</div>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+
+document.querySelectorAll('.js-form-confirmer-livraison').forEach(function (formulaire) {
+
+formulaire.addEventListener('submit', function (event) {
+
+event.preventDefault();
+
+Swal.fire({
+icon: 'question',
+
+title: 'Confirmer la livraison ?',
+
+html: 'Confirmer la livraison de ' + '<strong>  {{ detail.designation|e('js') }}</strong> ?' + '<br><br>' + 'Quantité : ' + '<strong>  {{ detail.quantite }}</strong>' + '<br>' + '<small>' + 'La sortie de stock sera enregistrée.' + '</small>',
+
+showCancelButton: true,
+
+confirmButtonText: 'Oui, confirmer',
+
+cancelButtonText: 'Annuler',
+
+reverseButtons: true
+
+}).then(function (resultat) {
+
+if (resultat.isConfirmed) {
+formulaire.submit();
+}
+
+});
+
+});
+
+});
+
+});
+	</script>
 {% endblock %}

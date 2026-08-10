@@ -5,7 +5,9 @@ namespace App\Controller;
 use App\Entity\BonLivraison;
 use App\Entity\BonLivraisonLigne;
 use App\Entity\Commandes;
+use App\Entity\StockSorties;
 use App\Entity\CommandesDetails;
+use App\Service\StockService;
 use App\Entity\User;
 use App\Repository\BonLivraisonRepository;
 use App\Repository\CommandesDetailsRepository;
@@ -657,9 +659,11 @@ final class BonLivraisonController extends AbstractController
     public function valider(
         BonLivraison $bon,
         Request $request,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        StockService $stockService
     ): Response {
-        $utilisateur = $this->utilisateurConnecte();
+        $utilisateur =
+            $this->utilisateurConnecte();
 
         $this->verifierJeton(
             $request,
@@ -667,16 +671,110 @@ final class BonLivraisonController extends AbstractController
         );
 
         try {
+            /*
+         * ========================================================
+         * CONTRÔLES AVANT VALIDATION
+         * ========================================================
+         */
+            if (!$bon->estBrouillon()) {
+                throw new \LogicException(
+                    'Seul un bon de livraison en brouillon peut être validé.'
+                );
+            }
+
+            if ($bon->getLignes()->isEmpty()) {
+                throw new \LogicException(
+                    'Le bon de livraison ne contient aucune ligne.'
+                );
+            }
+
+            /*
+         * ========================================================
+         * STOCK DES LIVRAISONS DIRECTES
+         * ========================================================
+         *
+         * IMPORTANT :
+         *
+         * Les produits passés par la production ont déjà
+         * consommé leur stock dans ProductionController::terminer().
+         *
+         * On ne déduit donc ici QUE les lignes qui ne nécessitent
+         * aucune production.
+         */
+            foreach (
+                $bon->getLignes()
+                as $ligne
+            ) {
+                $detail =
+                    $ligne->getCommandeDetail();
+
+                if ($detail === null) {
+                    throw new \LogicException(
+                        'Une ligne du bon de livraison n’est plus liée à son détail de commande.'
+                    );
+                }
+
+                $quantiteLivraison =
+                    (float)
+                    $ligne->getQuantiteLivree();
+
+                if ($quantiteLivraison <= 0) {
+                    throw new \LogicException(
+                        sprintf(
+                            'La quantité de « %s » doit être supérieure à zéro.',
+                            $ligne->getDesignation()
+                        )
+                    );
+                }
+
+                /*
+             * Ligne provenant d'une production :
+             * aucune deuxième sortie de stock.
+             */
+                if (
+                    $detail->isProductionNecessaire()
+                ) {
+                    continue;
+                }
+
+                /*
+             * Livraison directe.
+             *
+             * Exemple :
+             * commande = 10
+             * BL1      = 4
+             *
+             * On consomme uniquement 4.
+             */
+                $stockService
+                    ->consommerPourDetail(
+                        $detail,
+                        StockSorties::ORIGINE_LIVRAISON,
+                        (string) $bon->getNumero(),
+                        $quantiteLivraison
+                    );
+            }
+
+            /*
+         * ========================================================
+         * VALIDATION DU BON
+         * ========================================================
+         */
             $bon->valider(
                 $utilisateur
             );
 
             /*
-             * Une fois le BL validé,
-             * les lignes passent en livraison.
-             */
-            foreach ($bon->getLignes() as $ligne) {
-                $detail = $ligne->getCommandeDetail();
+         * ========================================================
+         * PASSAGE EN LIVRAISON
+         * ========================================================
+         */
+            foreach (
+                $bon->getLignes()
+                as $ligne
+            ) {
+                $detail =
+                    $ligne->getCommandeDetail();
 
                 if ($detail === null) {
                     continue;
@@ -684,12 +782,22 @@ final class BonLivraisonController extends AbstractController
 
                 if (
                     $detail->getStatutProduction()
-                    === CommandesDetails::PRODUCTION_PRETE_LIVRAISON
+                    ===
+                    CommandesDetails::PRODUCTION_PRETE_LIVRAISON
                 ) {
-                    $detail->marquerEnLivraison();
+                    $detail
+                        ->marquerEnLivraison();
                 }
             }
 
+            /*
+         * Un seul flush :
+         *
+         * - BL validé
+         * - détail EN_LIVRAISON
+         * - StockSorties
+         * - StockReservation consommée/réduite
+         */
             $em->flush();
 
             $this->addFlash(
@@ -699,7 +807,11 @@ final class BonLivraisonController extends AbstractController
                     $bon->getNumero()
                 )
             );
-        } catch (\LogicException $e) {
+        } catch (
+            \DomainException |
+            \LogicException |
+            \InvalidArgumentException $e
+        ) {
             $this->addFlash(
                 'error',
                 $e->getMessage()
@@ -719,69 +831,173 @@ final class BonLivraisonController extends AbstractController
      * CONFIRMER LA LIVRAISON
      * ============================================================
      */
-    #[Route(
-        '/{id}/livrer',
-        name: 'livrer',
-        requirements: [
-            'id' => '\d+',
-        ],
-        methods: ['POST']
-    )]
-    public function livrer(
-        BonLivraison $bon,
-        Request $request,
-        EntityManagerInterface $em
-    ): Response {
-        $utilisateur = $this->utilisateurConnecte();
+   #[Route(
+    '/{id}/livrer',
+    name: 'livrer',
+    requirements: [
+        'id' => '\d+',
+    ],
+    methods: ['POST']
+)]
+public function livrer(
+    CommandesDetails $detail,
+    Request $request,
+    EntityManagerInterface $em,
+    StockService $stockService
+): Response {
+    $this->verifierJeton(
+        $request,
+        'livraison_livrer_' . $detail->getId()
+    );
 
-        $this->verifierJeton(
-            $request,
-            'bon_livraison_livrer_' . $bon->getId()
-        );
+    try {
+        /*
+         * ========================================================
+         * 1. LA LIGNE DOIT ÊTRE EN LIVRAISON
+         * ========================================================
+         */
+        if (
+            $detail->getStatutProduction()
+            !== CommandesDetails::PRODUCTION_EN_LIVRAISON
+        ) {
+            throw new \LogicException(
+                'La ligne doit être en livraison avant d’être confirmée comme livrée.'
+            );
+        }
 
-        try {
-            if (
-                trim(
-                    (string) $bon->getNomReceptionnaire()
-                ) === ''
-            ) {
+
+        /*
+         * ========================================================
+         * 2. ARTICLE EN STOCK = LIVRAISON DIRECTE AUTORISÉE
+         * ========================================================
+         */
+        if (
+            $detail->getTypeLigne()
+            === CommandesDetails::TYPE_ARTICLE
+        ) {
+            $article =
+                $detail->getArticle();
+
+            if ($article === null) {
                 throw new \LogicException(
-                    'Le nom du réceptionnaire est obligatoire avant de confirmer la livraison.'
+                    'Aucun article en stock n’est associé à cette ligne.'
                 );
             }
 
+
             /*
-             * BonLivraison::marquerLivre()
-             * marque également les détails EN_LIVRAISON
-             * comme LIVRES.
+             * Quantité réellement livrée.
+             *
+             * Pour cette route simple, on considère
+             * que toute la ligne est livrée.
+             *
+             * Les livraisons partielles restent gérées
+             * par le module Bon de Livraison.
              */
-            $bon->marquerLivre(
-                $utilisateur
+            $quantite =
+                (float) $detail->getQuantite();
+
+            if ($quantite <= 0) {
+                throw new \LogicException(
+                    'La quantité à livrer est invalide.'
+                );
+            }
+
+
+            /*
+             * Référence unique de cette sortie.
+             *
+             * Cela permet aussi à StockService
+             * d’éviter une double consommation.
+             */
+            $reference =
+                sprintf(
+                    'LIV-DIRECT-%06d',
+                    (int) $detail->getId()
+                );
+
+
+            /*
+             * ====================================================
+             * SORTIE DU STOCK
+             * ====================================================
+             *
+             * calculerBesoinsDetail() sait maintenant
+             * que TYPE_ARTICLE consomme directement
+             * detail->article.
+             */
+            $stockService->consommerPourDetail(
+                $detail,
+                StockSorties::ORIGINE_LIVRAISON,
+                $reference,
+                $quantite
             );
 
+
+            /*
+             * ====================================================
+             * STATUT LIVRÉ
+             * ====================================================
+             */
+            $detail->marquerLivree();
+
+
             $em->flush();
+
 
             $this->addFlash(
                 'success',
                 sprintf(
-                    'La livraison du bon %s a été confirmée.',
-                    $bon->getNumero()
+                    'La livraison de « %s » a été confirmée. '
+                    . 'La sortie de stock a été enregistrée.',
+                    $detail->getDesignation()
                 )
             );
-        } catch (\LogicException $e) {
-            $this->addFlash(
-                'error',
-                $e->getMessage()
+
+
+            return $this->redirectToRoute(
+                'app_livraisons_show',
+                [
+                    'id' => $detail->getId(),
+                ]
             );
         }
 
-        return $this->redirectToRoute(
-            'app_bons_livraison_show',
-            [
-                'id' => $bon->getId(),
-            ]
+
+        /*
+         * ========================================================
+         * 3. AUTRES LIGNES
+         * ========================================================
+         *
+         * Pour les produits provenant de la production,
+         * on garde le circuit Bon de Livraison.
+         */
+        throw new \LogicException(
+            sprintf(
+                'La ligne « %s » doit être livrée à partir d’un bon de livraison.',
+                $detail->getDesignation()
+            )
+        );
+
+    } catch (
+        \LogicException |
+        \RuntimeException |
+        \DomainException $e
+    ) {
+        $this->addFlash(
+            'error',
+            $e->getMessage()
         );
     }
+
+
+    return $this->redirectToRoute(
+        'app_livraisons_show',
+        [
+            'id' => $detail->getId(),
+        ]
+    );
+}
 
     /*
      * ============================================================
@@ -807,6 +1023,34 @@ final class BonLivraisonController extends AbstractController
         );
 
         try {
+            $nombreSorties = (int) $em
+                ->getRepository(
+                    StockSorties::class
+                )
+                ->createQueryBuilder('s')
+                ->select('COUNT(s.id)')
+                ->andWhere(
+                    's.origine = :origine'
+                )
+                ->andWhere(
+                    's.referenceOrigine = :reference'
+                )
+                ->setParameter(
+                    'origine',
+                    StockSorties::ORIGINE_LIVRAISON
+                )
+                ->setParameter(
+                    'reference',
+                    $bon->getNumero()
+                )
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            if ($nombreSorties > 0) {
+                throw new \LogicException(
+                    'Ce bon de livraison a déjà généré une sortie physique de stock. Il ne peut pas être annulé directement. Une opération de retour de stock est nécessaire.'
+                );
+            }
             $bon->annuler();
 
             /*
@@ -840,7 +1084,11 @@ final class BonLivraisonController extends AbstractController
                     $bon->getNumero()
                 )
             );
-        } catch (\LogicException $e) {
+        } catch (
+            \DomainException |
+            \LogicException |
+            \InvalidArgumentException $e
+        ) {
             $this->addFlash(
                 'error',
                 $e->getMessage()
@@ -908,69 +1156,69 @@ final class BonLivraisonController extends AbstractController
  * - ANNULÉS : ne réservent plus rien.
  * ============================================================
  */
-  private function calculerQuantiteReserveeLivraison(
-    CommandesDetails $detail,
-    EntityManagerInterface $em,
-    ?BonLivraison $bonExclu = null
-): int {
-    $qb = $em
-        ->getRepository(BonLivraisonLigne::class)
-        ->createQueryBuilder('ligne');
+    private function calculerQuantiteReserveeLivraison(
+        CommandesDetails $detail,
+        EntityManagerInterface $em,
+        ?BonLivraison $bonExclu = null
+    ): int {
+        $qb = $em
+            ->getRepository(BonLivraisonLigne::class)
+            ->createQueryBuilder('ligne');
 
-    $qb
-        ->select(
-            'COALESCE(SUM(ligne.quantiteLivree), 0)'
-        )
-        ->innerJoin(
-            'ligne.bonLivraison',
-            'bl'
-        )
-        ->andWhere(
-            'ligne.commandeDetail = :detail'
-        )
-        ->andWhere(
-            'bl.statut IN (:statuts)'
-        )
-        ->setParameter(
-            'detail',
-            $detail
-        )
-        ->setParameter(
-            'statuts',
-            [
-                BonLivraison::STATUT_BROUILLON,
-                BonLivraison::STATUT_VALIDE,
-            ]
-        );
+        $qb
+            ->select(
+                'COALESCE(SUM(ligne.quantiteLivree), 0)'
+            )
+            ->innerJoin(
+                'ligne.bonLivraison',
+                'bl'
+            )
+            ->andWhere(
+                'ligne.commandeDetail = :detail'
+            )
+            ->andWhere(
+                'bl.statut IN (:statuts)'
+            )
+            ->setParameter(
+                'detail',
+                $detail
+            )
+            ->setParameter(
+                'statuts',
+                [
+                    BonLivraison::STATUT_BROUILLON,
+                    BonLivraison::STATUT_VALIDE,
+                ]
+            );
 
-    /*
+        /*
      * Lorsqu'on modifie un BL existant,
      * on ne doit pas compter ses propres lignes
      * comme réservées.
      */
-    if (
-        $bonExclu !== null
-        && $bonExclu->getId() !== null
-    ) {
-        $qb
-            ->andWhere(
-                'bl.id != :bonExclu'
-            )
-            ->setParameter(
-                'bonExclu',
-                $bonExclu->getId()
-            );
+        if (
+            $bonExclu !== null
+            && $bonExclu->getId() !== null
+        ) {
+            $qb
+                ->andWhere(
+                    'bl.id != :bonExclu'
+                )
+                ->setParameter(
+                    'bonExclu',
+                    $bonExclu->getId()
+                );
+        }
+
+        $resultat = $qb
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return max(
+            0,
+            (int) $resultat
+        );
     }
-
-    $resultat = $qb
-        ->getQuery()
-        ->getSingleScalarResult();
-
-    return max(
-        0,
-        (int) $resultat
-    );
-}
     private function genererNumero(
         EntityManagerInterface $em
     ): string {

@@ -32,10 +32,13 @@ use Symfony\Component\Validator\Constraints\Positive;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Form\FormError;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\Articles;
+use App\Repository\ArticlesRepository;
+
 
 class DevisDetailsType extends AbstractType
 {
-   public function __construct(
+    public function __construct(
         private readonly ProduitConfigurationRepository $configurationRepository,
         private readonly EntityManagerInterface $entityManager
     ) {}
@@ -45,6 +48,70 @@ class DevisDetailsType extends AbstractType
         array $options
     ): void {
         $builder
+            ->add('typeLigne', ChoiceType::class, [
+                'label' => 'Type de ligne',
+                'choices' => [
+                    'Produit / prestation' =>
+                    DevisDetails::TYPE_PRODUIT,
+
+                    'Article en stock' =>
+                    DevisDetails::TYPE_ARTICLE,
+
+                    'Saisie libre' =>
+                    DevisDetails::TYPE_LIBRE,
+                ],
+                'expanded' => true,
+                'multiple' => false,
+                'required' => true,
+                'empty_data' => DevisDetails::TYPE_PRODUIT,
+                'attr' => [
+                    'class' => 'js-type-ligne',
+                    'data-detail-field' => 'typeLigne',
+                ],
+            ])
+            ->add('article', EntityType::class, [
+                'class' => Articles::class,
+
+                'choice_label' => static function (
+                    Articles $article
+                ): string {
+                    return sprintf(
+                        '%s — %s',
+                        $article->getReference(),
+                        $article->getDesignation()
+                    );
+                },
+
+                'query_builder' => static function (
+                    ArticlesRepository $repository
+                ) {
+                    return $repository
+                        ->createQueryBuilder('a')
+                        ->andWhere('a.actif = :actif')
+                        ->andWhere('a.vendable = :vendable')
+                        ->setParameter('actif', true)
+                        ->setParameter('vendable', true)
+                        ->orderBy('a.designation', 'ASC');
+                },
+
+                'label' => 'Article en stock',
+
+                'placeholder' =>
+                'Rechercher un article en stock...',
+
+                'required' => false,
+
+                'attr' => [
+                    'class' =>
+                    'form-select js-select-search js-article-stock',
+
+                    'data-detail-field' =>
+                    'article',
+
+                    'data-placeholder' =>
+                    'Référence ou désignation...',
+                ],
+            ])
             ->add('modeConfiguration', ChoiceType::class, [
                 'label' => 'Mode de configuration',
                 'choices' => [
@@ -158,17 +225,7 @@ class DevisDetailsType extends AbstractType
                 ],
             ])
 
-            ->add('machine', EntityType::class, [
-                'class' => Machines::class,
-                'choice_label' => 'nom',
-                'label' => 'Machine',
-                'placeholder' => 'Sélectionnez une machine',
-                'required' => false,
-                'attr' => [
-                    'class' => 'form-select js-select-search js-machine',
-                    'data-detail-field' => 'machine',
-                ],
-            ])
+
 
             ->add('designation', TextType::class, [
                 'label' => 'Désignation',
@@ -569,68 +626,68 @@ class DevisDetailsType extends AbstractType
                 ],
             ])
             ->addEventListener(
-    FormEvents::PRE_SUBMIT,
-    function (FormEvent $event): void {
-        $data = $event->getData();
+                FormEvents::PRE_SUBMIT,
+                function (FormEvent $event): void {
+                    $data = $event->getData();
 
-        if (!is_array($data)) {
-            return;
-        }
+                    if (!is_array($data)) {
+                        return;
+                    }
 
-        $mode = $data['modeConfiguration'] ?? 'automatique';
+                    $mode = $data['modeConfiguration'] ?? 'automatique';
 
-        /*
+                    /*
          * En mode automatique, on ne doit pas envoyer
          * les lignes de finitions manuelles.
          */
-       if ($mode === 'automatique') {
-    /*
+                    if ($mode === 'automatique') {
+                        /*
      * Le champ manuel ne doit pas être soumis en automatique.
      * On le retire du formulaire afin de conserver les finitions
      * existantes pour que la synchronisation puisse les réutiliser.
      */
-    if ($event->getForm()->has('finitions')) {
-        $event->getForm()->remove('finitions');
-    }
+                        if ($event->getForm()->has('finitions')) {
+                            $event->getForm()->remove('finitions');
+                        }
 
-    unset($data['finitions']);
-} else {
-            /*
+                        unset($data['finitions']);
+                    } else {
+                        /*
              * En modes manuel et libre, on retire toute ligne
              * pour laquelle aucune finition n’a été choisie.
              */
-            $finitions = $data['finitions'] ?? [];
+                        $finitions = $data['finitions'] ?? [];
 
-            if (is_array($finitions)) {
-                $data['finitions'] = array_filter(
-                    $finitions,
-                    static function ($ligne): bool {
-                        if (!is_array($ligne)) {
-                            return false;
+                        if (is_array($finitions)) {
+                            $data['finitions'] = array_filter(
+                                $finitions,
+                                static function ($ligne): bool {
+                                    if (!is_array($ligne)) {
+                                        return false;
+                                    }
+
+                                    $finitionId = $ligne['finition'] ?? null;
+
+                                    return $finitionId !== null
+                                        && $finitionId !== '';
+                                }
+                            );
+
+                            $data['finitions'] = array_values(
+                                $data['finitions']
+                            );
                         }
 
-                        $finitionId = $ligne['finition'] ?? null;
-
-                        return $finitionId !== null
-                            && $finitionId !== '';
-                    }
-                );
-
-                $data['finitions'] = array_values(
-                    $data['finitions']
-                );
-            }
-
-            /*
+                        /*
              * Les cases de la configuration automatique
              * ne doivent pas être traitées ici.
              */
-            $data['finitionsSelectionnees'] = [];
-        }
+                        $data['finitionsSelectionnees'] = [];
+                    }
 
-        $event->setData($data);
-    }
-);
+                    $event->setData($data);
+                }
+            );
 
         /*
          * Chargement initial :
@@ -668,7 +725,7 @@ class DevisDetailsType extends AbstractType
          * Recharge les finitions autorisées pour la configuration
          * envoyée pendant la soumission.
          */
-       $builder->addEventListener(
+        $builder->addEventListener(
     FormEvents::PRE_SUBMIT,
     function (FormEvent $event): void {
         $data = $event->getData();
@@ -677,41 +734,146 @@ class DevisDetailsType extends AbstractType
             return;
         }
 
-        $mode = $data['modeConfiguration'] ?? 'automatique';
+        $typeLigne =
+            $data['typeLigne']
+            ?? DevisDetails::TYPE_PRODUIT;
 
-        if ($mode === 'automatique') {
+        $mode =
+            $data['modeConfiguration']
+            ?? 'automatique';
+
+
+        /*
+         * ====================================================
+         * ARTICLE
+         * ====================================================
+         */
+        if (
+            $typeLigne
+            === DevisDetails::TYPE_ARTICLE
+        ) {
+            $data['produit'] = null;
+            $data['produitConfiguration'] = null;
+            $data['typeImpression'] = null;
+            $data['support'] = null;
+            $data['format'] = null;
+            $data['finitionsSelectionnees'] = [];
+
             if ($event->getForm()->has('finitions')) {
-                $event->getForm()->remove('finitions');
-            }
-
-            unset($data['finitions']);
-        } else {
-            $finitions = $data['finitions'] ?? [];
-
-            if (is_array($finitions)) {
-                $data['finitions'] = array_values(
-                    array_filter(
-                        $finitions,
-                        static function ($ligne): bool {
-                            if (!is_array($ligne)) {
-                                return false;
-                            }
-
-                            $finitionId = $ligne['finition'] ?? null;
-
-                            return $finitionId !== null
-                                && $finitionId !== '';
-                        }
-                    )
+                $event->getForm()->remove(
+                    'finitions'
                 );
             }
 
-            $data['finitionsSelectionnees'] = [];
+            unset(
+                $data['finitions']
+            );
+
+            $event->setData(
+                $data
+            );
+
+            return;
         }
 
-        $event->setData($data);
+
+        /*
+         * ====================================================
+         * SAISIE LIBRE
+         * ====================================================
+         */
+        if (
+            $typeLigne
+            === DevisDetails::TYPE_LIBRE
+        ) {
+            $data['article'] = null;
+            $data['produit'] = null;
+            $data['produitConfiguration'] = null;
+            $data['typeImpression'] = null;
+            $data['support'] = null;
+            $data['format'] = null;
+            $data['finitionsSelectionnees'] = [];
+
+            $event->setData(
+                $data
+            );
+
+            return;
+        }
+
+
+        /*
+         * ====================================================
+         * PRODUIT
+         * ====================================================
+         */
+        $data['article'] = null;
+
+
+        if ($mode === 'automatique') {
+            if (
+                $event->getForm()->has(
+                    'finitions'
+                )
+            ) {
+                $event->getForm()->remove(
+                    'finitions'
+                );
+            }
+
+            unset(
+                $data['finitions']
+            );
+
+        } else {
+            $finitions =
+                $data['finitions']
+                ?? [];
+
+            if (is_array($finitions)) {
+                $data['finitions'] =
+                    array_values(
+                        array_filter(
+                            $finitions,
+                            static function (
+                                $ligne
+                            ): bool {
+                                if (
+                                    !is_array(
+                                        $ligne
+                                    )
+                                ) {
+                                    return false;
+                                }
+
+                                $finitionId =
+                                    $ligne[
+                                        'finition'
+                                    ]
+                                    ?? null;
+
+                                return
+                                    $finitionId
+                                    !== null
+                                    && $finitionId
+                                    !== '';
+                            }
+                        )
+                    );
+            }
+
+            $data[
+                'finitionsSelectionnees'
+            ] = [];
+        }
+
+
+        $event->setData(
+            $data
+        );
     }
-);
+
+        );
         $builder->addEventListener(
             FormEvents::POST_SUBMIT,
             function (FormEvent $event): void {
@@ -726,11 +888,84 @@ class DevisDetailsType extends AbstractType
                 }
 
                 /*
-         * Seul le mode automatique exige et applique
-         * ProduitConfiguration.
+         * ====================================================
+         * ARTICLE EN STOCK
+         * ====================================================
          */
-                if ($detail->isConfigurationAutomatique()) {
-                    if ($detail->getProduitConfiguration() === null) {
+                if (
+                    $detail->getTypeLigne()
+                    === DevisDetails::TYPE_ARTICLE
+                ) {
+                    if ($detail->getArticle() === null) {
+                        if ($form->has('article')) {
+                            $form
+                                ->get('article')
+                                ->addError(
+                                    new FormError(
+                                        'Veuillez sélectionner un article en stock.'
+                                    )
+                                );
+                        }
+
+                        return;
+                    }
+
+                    $article =
+                        $detail->getArticle();
+
+                    $detail->setProduit(null);
+                    $detail->setProduitConfiguration(null);
+                    $detail->setTypeImpression(null);
+                    $detail->setSupport(null);
+                    $detail->setFormat(null);
+
+                    $detail->setDesignation(
+                        $article->getDesignation()
+                    );
+
+                    $detail->setModeCalcul(
+                        'unite'
+                    );
+
+                    return;
+                }
+
+
+                /*
+         * ====================================================
+         * SAISIE LIBRE
+         * ====================================================
+         */
+                if (
+                    $detail->getTypeLigne()
+                    === DevisDetails::TYPE_LIBRE
+                ) {
+                    $detail->setArticle(null);
+                    $detail->setProduit(null);
+                    $detail->setProduitConfiguration(null);
+                    $detail->setTypeImpression(null);
+                    $detail->setSupport(null);
+                    $detail->setFormat(null);
+
+                    return;
+                }
+
+
+                /*
+         * ====================================================
+         * PRODUIT
+         * ====================================================
+         */
+                $detail->setArticle(null);
+
+
+                if (
+                    $detail->isConfigurationAutomatique()
+                ) {
+                    if (
+                        $detail->getProduitConfiguration()
+                        === null
+                    ) {
                         $form
                             ->get('produitConfiguration')
                             ->addError(
@@ -743,28 +978,34 @@ class DevisDetailsType extends AbstractType
                     }
 
                     try {
-                        $detail->appliquerConfiguration(false);
+                        $detail->appliquerConfiguration(
+                            false
+                        );
                     } catch (\DomainException $exception) {
                         $form->addError(
-                            new FormError($exception->getMessage())
+                            new FormError(
+                                $exception->getMessage()
+                            )
                         );
                     }
 
                     return;
                 }
 
+
                 /*
-         * Sécurité supplémentaire pour les modes manuel et libre.
+         * Manuel / ancien libre
          */
-                $detail->setProduitConfiguration(null);
+                $detail->setProduitConfiguration(
+                    null
+                );
 
                 if ($detail->isSaisieLibre()) {
                     $detail
                         ->setProduit(null)
                         ->setTypeImpression(null)
                         ->setSupport(null)
-                        ->setFormat(null)
-                        ->setMachine(null);
+                        ->setFormat(null);
                 }
             }
         );

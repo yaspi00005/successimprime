@@ -102,7 +102,10 @@ class Devis
     #[Assert\Valid]
     private Collection $devisDetails;
 
-   
+
+    #[ORM\Column(length: 64, unique: true, nullable: true)]
+    private ?string $tokenAuthenticite = null;
+
 
 
     public function __construct()
@@ -322,7 +325,7 @@ class Devis
         return $this;
     }
 
-   
+
 
     public function __toString(): string
     {
@@ -349,4 +352,23 @@ class Devis
     public const STATUT_EXPIRE = 'expire';
     public const STATUT_CONVERTI = 'converti';
     public const STATUT_ANNULE = 'annule';
+
+    public function getTokenAuthenticite(): ?string
+    {
+        return $this->tokenAuthenticite;
+    }
+
+    public function setTokenAuthenticite(?string $tokenAuthenticite): static
+    {
+        $this->tokenAuthenticite = $tokenAuthenticite;
+
+        return $this;
+    }
+
+    public function genererTokenAuthenticite(): static
+    {
+        $this->tokenAuthenticite = bin2hex(random_bytes(16));
+
+        return $this;
+    }
 }

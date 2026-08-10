@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\FacturesRepository;
-use BcMath\Number;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -48,12 +47,12 @@ class Factures
         return $this;
     }
 
-    public function getNumero(): ?Number
+    public function getNumero(): ?int
     {
         return $this->numero;
     }
 
-    public function setNumero(Number $numero): static
+    public function setNumero(int $numero): static
     {
         $this->numero = $numero;
 

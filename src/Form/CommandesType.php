@@ -17,6 +17,9 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
 use Symfony\Component\Validator\Constraints\NotNull;
 use Symfony\Component\Validator\Constraints\Valid;
+use App\Entity\CommandesDetails;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Doctrine\ORM\EntityRepository;
 
 class CommandesType extends AbstractType
 {
@@ -181,7 +184,10 @@ class CommandesType extends AbstractType
                 'constraints' => [
                     new Valid(),
                 ],
-            ]);
+            ])
+
+
+            ;
     }
 
     public function configureOptions(

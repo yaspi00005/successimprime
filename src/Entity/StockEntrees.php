@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\StockEntreesRepository;
-use BcMath\Number;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -25,7 +24,7 @@ class StockEntrees
     private ?int $prix = null;
 
     #[ORM\Column]
-    private ?\DateTime $date = null;
+    private ?\DateTimeImmutable $date = null;
 
     public function getId(): ?int
     {
@@ -44,36 +43,36 @@ class StockEntrees
         return $this;
     }
 
-    public function getQuantites(): ?Number
+    public function getQuantites(): ?int
     {
         return $this->quantites;
     }
 
-    public function setQuantites(Number $quantites): static
+    public function setQuantites(int $quantites): static
     {
         $this->quantites = $quantites;
 
         return $this;
     }
 
-    public function getPrix(): ?Number
+    public function getPrix(): ?int
     {
         return $this->prix;
     }
 
-    public function setPrix(Number $prix): static
+    public function setPrix(int $prix): static
     {
         $this->prix = $prix;
 
         return $this;
     }
 
-    public function getDate(): ?\DateTime
+    public function getDate(): ?\DateTimeImmutable
     {
         return $this->date;
     }
 
-    public function setDate(\DateTime $date): static
+    public function setDate(\DateTimeImmutable $date): static
     {
         $this->date = $date;
 

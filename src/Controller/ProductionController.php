@@ -19,6 +19,8 @@ use Endroid\QrCode\QrCode;
 use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use App\Service\StockService;
+use App\Entity\StockSorties;
 
 
 
@@ -611,94 +613,94 @@ final class ProductionController extends AbstractController
         return $this->redirigerVersOrdre($ordre);
     }
 
-  #[Route(
-    '/{id}/demarrer',
-    name: 'demarrer',
-    requirements: ['id' => '\d+'],
-    methods: ['POST']
-)]
-public function demarrer(
-    OrdreProduction $ordre,
-    Request $request,
-    MachinesRepository $machinesRepository,
-    EntityManagerInterface $em
-): Response {
-    $utilisateur = $this->utilisateurConnecte();
+    #[Route(
+        '/{id}/demarrer',
+        name: 'demarrer',
+        requirements: ['id' => '\d+'],
+        methods: ['POST']
+    )]
+    public function demarrer(
+        OrdreProduction $ordre,
+        Request $request,
+        MachinesRepository $machinesRepository,
+        EntityManagerInterface $em
+    ): Response {
+        $utilisateur = $this->utilisateurConnecte();
 
-    $this->verifierJeton(
-        $request,
-        'production_demarrer_' . $ordre->getId()
-    );
+        $this->verifierJeton(
+            $request,
+            'production_demarrer_' . $ordre->getId()
+        );
 
-    try {
-        if (!$ordre->estADemarrer()) {
-            throw new \LogicException(
-                'Seul un ordre en attente peut être démarré.'
-            );
-        }
+        try {
+            if (!$ordre->estADemarrer()) {
+                throw new \LogicException(
+                    'Seul un ordre en attente peut être démarré.'
+                );
+            }
 
-        $detail = $ordre->getCommandeDetail();
+            $detail = $ordre->getCommandeDetail();
 
-        if ($detail === null) {
-            throw new \LogicException(
-                'Aucun détail de commande n’est associé à cet ordre.'
-            );
-        }
+            if ($detail === null) {
+                throw new \LogicException(
+                    'Aucun détail de commande n’est associé à cet ordre.'
+                );
+            }
 
-        /*
+            /*
          * Le BAT est contrôlé AVANT toute modification
          * de l'ordre de production.
          */
-        
 
-        $machine = $this->recupererMachine(
-            $request,
-            $machinesRepository
-        );
 
-        /*
+            $machine = $this->recupererMachine(
+                $request,
+                $machinesRepository
+            );
+
+            /*
          * 1. Démarrage du détail de commande.
          *
          * C'est ici que son statutProduction passe
          * réellement à en_cours.
          */
-        $detail->demarrerProduction(
-            $utilisateur,
-            $machine
-        );
+            $detail->demarrerProduction(
+                $utilisateur,
+                $machine
+            );
 
-        /*
+            /*
          * 2. Démarrage de l'ordre de production.
          */
-        $ordre->demarrer(
-            $utilisateur,
-            $machine
-        );
+            $ordre->demarrer(
+                $utilisateur,
+                $machine
+            );
 
-        /*
+            /*
          * Une seule sauvegarde pour les deux objets.
          */
-        $em->flush();
+            $em->flush();
 
-        $this->addFlash(
-            'success',
-            sprintf(
-                'La production a démarré sur la machine %s.',
-                $machine->getNom()
-            )
-        );
-    } catch (
-        \LogicException |
-        \InvalidArgumentException $e
-    ) {
-        $this->addFlash(
-            'error',
-            $e->getMessage()
-        );
+            $this->addFlash(
+                'success',
+                sprintf(
+                    'La production a démarré sur la machine %s.',
+                    $machine->getNom()
+                )
+            );
+        } catch (
+            \LogicException |
+            \InvalidArgumentException $e
+        ) {
+            $this->addFlash(
+                'error',
+                $e->getMessage()
+            );
+        }
+
+        return $this->redirigerVersOrdre($ordre);
     }
-
-    return $this->redirigerVersOrdre($ordre);
-}
 
     /**
      * Met la production en pause.
@@ -804,7 +806,8 @@ public function demarrer(
 public function terminer(
     OrdreProduction $ordre,
     Request $request,
-    EntityManagerInterface $em
+    EntityManagerInterface $em,
+    StockService $stockService
 ): Response {
     $utilisateur = $this->utilisateurConnecte();
 
@@ -815,7 +818,9 @@ public function terminer(
 
     try {
         /*
-         * L'ordre doit déjà être en cours.
+         * ========================================================
+         * CONTRÔLE DE L'ÉTAT
+         * ========================================================
          */
         if (!$ordre->estEnCours()) {
             throw new \LogicException(
@@ -832,11 +837,7 @@ public function terminer(
         }
 
         /*
-         * IMPORTANT :
-         * on ne démarre RIEN ici.
-         *
-         * On vérifie simplement que le détail a bien été
-         * démarré au préalable.
+         * Le détail doit déjà avoir été démarré.
          */
         if (!$detail->estEnProduction()) {
             throw new \LogicException(
@@ -844,13 +845,34 @@ public function terminer(
             );
         }
 
-        $quantiteProduite = $request->request->getInt(
-            'quantite_produite'
+        /*
+         * ========================================================
+         * QUANTITÉS RÉELLES
+         * ========================================================
+         */
+        $quantiteProduite = max(
+            0,
+            $request->request->getInt(
+                'quantite_produite'
+            )
         );
 
-        $quantiteRebut = $request->request->getInt(
-            'quantite_rebut'
+        $quantiteRebut = max(
+            0,
+            $request->request->getInt(
+                'quantite_rebut'
+            )
         );
+
+        $quantiteTraitee =
+            $quantiteProduite
+            + $quantiteRebut;
+
+        if ($quantiteTraitee <= 0) {
+            throw new \InvalidArgumentException(
+                'La quantité produite ou rebut doit être supérieure à zéro.'
+            );
+        }
 
         $observation = trim(
             (string) $request->request->get(
@@ -859,7 +881,39 @@ public function terminer(
         );
 
         /*
-         * 1. On termine d'abord le détail.
+         * ========================================================
+         * SORTIE PHYSIQUE DU STOCK
+         * ========================================================
+         *
+         * IMPORTANT :
+         *
+         * On consomme selon la quantité réellement traitée :
+         *
+         * conforme + rebut.
+         *
+         * Exemple :
+         * commande = 100
+         * conforme = 95
+         * rebut = 5
+         *
+         * consommation matière = 100
+         */
+        $referenceStock = sprintf(
+            'PROD-%06d',
+            $ordre->getId()
+        );
+
+        $stockService->consommerPourDetail(
+            $detail,
+            StockSorties::ORIGINE_PRODUCTION,
+            $referenceStock,
+            (float) $quantiteTraitee
+        );
+
+        /*
+         * ========================================================
+         * TERMINAISON DU DÉTAIL
+         * ========================================================
          */
         $detail->terminerProduction(
             $utilisateur,
@@ -869,7 +923,9 @@ public function terminer(
         );
 
         /*
-         * 2. Puis on termine l'ordre.
+         * ========================================================
+         * TERMINAISON DE L'ORDRE
+         * ========================================================
          */
         $ordre->terminer(
             $utilisateur,
@@ -879,10 +935,24 @@ public function terminer(
         );
 
         /*
-         * Une seule sauvegarde.
+         * ========================================================
+         * SAUVEGARDE ATOMIQUE
+         * ========================================================
+         *
+         * Ce flush enregistre ensemble :
+         *
+         * - la sortie StockSorties ;
+         * - la consommation de StockReservation ;
+         * - le détail terminé ;
+         * - l'ordre terminé.
          */
         $em->flush();
 
+        /*
+         * ========================================================
+         * MESSAGE
+         * ========================================================
+         */
         $message = sprintf(
             'Production terminée : %d conforme(s), %d rebut(s).',
             $ordre->getQuantiteConforme(),
@@ -903,7 +973,9 @@ public function terminer(
             'success',
             $message
         );
+
     } catch (
+        \DomainException |
         \LogicException |
         \InvalidArgumentException $e
     ) {
@@ -913,7 +985,9 @@ public function terminer(
         );
     }
 
-    return $this->redirigerVersOrdre($ordre);
+    return $this->redirigerVersOrdre(
+        $ordre
+    );
 }
 
     /**
@@ -925,46 +999,7 @@ public function terminer(
         requirements: ['id' => '\d+'],
         methods: ['POST']
     )]
-    public function annuler(
-        OrdreProduction $ordre,
-        Request $request,
-        EntityManagerInterface $em
-    ): Response {
-        $this->utilisateurConnecte();
-
-        $this->verifierJeton(
-            $request,
-            'production_annuler_' . $ordre->getId()
-        );
-
-        try {
-            $motif = trim(
-                (string) $request->request->get('motif')
-            );
-
-            if ($motif === '') {
-                throw new \InvalidArgumentException(
-                    'Le motif d’annulation est obligatoire.'
-                );
-            }
-
-            $ordre->annuler($motif);
-
-            $em->flush();
-
-            $this->addFlash(
-                'success',
-                'L’ordre de production a été annulé.'
-            );
-        } catch (
-            \LogicException |
-            \InvalidArgumentException $e
-        ) {
-            $this->addFlash('error', $e->getMessage());
-        }
-
-        return $this->redirigerVersOrdre($ordre);
-    }
+    
 
     private function recupererMachine(
         Request $request,
@@ -1093,95 +1128,249 @@ public function terminer(
     }
 
     #[Route(
-    '/termines',
-    name: 'termines',
-    methods: ['GET']
-)]
-public function termines(
-    Request $request,
-    OrdreProductionRepository $ordreProductionRepository,
-    MachinesRepository $machinesRepository
-): Response {
-    $recherche = trim(
-        (string) $request->query->get('q', '')
-    );
-
-    $machineId = $request->query->getInt(
-        'machine'
-    );
-
-    $operateurId = $request->query->getInt(
-        'operateur'
-    );
-
-    $dateDebut = trim(
-        (string) $request->query->get(
-            'date_debut',
-            ''
-        )
-    );
-
-    $dateFin = trim(
-        (string) $request->query->get(
-            'date_fin',
-            ''
-        )
-    );
-
-    if ($machineId <= 0) {
-        $machineId = null;
-    }
-
-    if ($operateurId <= 0) {
-        $operateurId = null;
-    }
-
-    $ordres = $ordreProductionRepository
-        ->rechercherOrdresTermines(
-            $recherche,
-            $machineId,
-            $operateurId,
-            $dateDebut !== '' ? $dateDebut : null,
-            $dateFin !== '' ? $dateFin : null
+        '/termines',
+        name: 'termines',
+        methods: ['GET']
+    )]
+    public function termines(
+        Request $request,
+        OrdreProductionRepository $ordreProductionRepository,
+        MachinesRepository $machinesRepository
+    ): Response {
+        $recherche = trim(
+            (string) $request->query->get('q', '')
         );
 
-    $machines = $machinesRepository->findBy(
-        [],
-        [
-            'nom' => 'ASC',
-        ]
-    );
+        $machineId = $request->query->getInt(
+            'machine'
+        );
 
-    /*
+        $operateurId = $request->query->getInt(
+            'operateur'
+        );
+
+        $dateDebut = trim(
+            (string) $request->query->get(
+                'date_debut',
+                ''
+            )
+        );
+
+        $dateFin = trim(
+            (string) $request->query->get(
+                'date_fin',
+                ''
+            )
+        );
+
+        if ($machineId <= 0) {
+            $machineId = null;
+        }
+
+        if ($operateurId <= 0) {
+            $operateurId = null;
+        }
+
+        $ordres = $ordreProductionRepository
+            ->rechercherOrdresTermines(
+                $recherche,
+                $machineId,
+                $operateurId,
+                $dateDebut !== '' ? $dateDebut : null,
+                $dateFin !== '' ? $dateFin : null
+            );
+
+        $machines = $machinesRepository->findBy(
+            [],
+            [
+                'nom' => 'ASC',
+            ]
+        );
+
+        /*
      * On construit la liste des opérateurs présents
      * dans les productions terminées.
      */
-    $operateurs = [];
+        $operateurs = [];
 
-    foreach ($ordres as $ordre) {
-        $operateur = $ordre->getTerminePar();
+        foreach ($ordres as $ordre) {
+            $operateur = $ordre->getTerminePar();
 
-        if ($operateur !== null) {
-            $operateurs[$operateur->getId()] =
-                $operateur;
+            if ($operateur !== null) {
+                $operateurs[$operateur->getId()] =
+                    $operateur;
+            }
         }
+
+        return $this->render(
+            'production/termines.html.twig',
+            [
+                'ordres' => $ordres,
+                'machines' => $machines,
+                'operateurs' => $operateurs,
+
+                'filtres' => [
+                    'q' => $recherche,
+                    'machine' => $machineId,
+                    'operateur' => $operateurId,
+                    'date_debut' => $dateDebut,
+                    'date_fin' => $dateFin,
+                ],
+            ]
+        );
+    }
+    #[Route(
+    '/{id}/annuler',
+    name: 'annuler',
+    requirements: ['id' => '\d+'],
+    methods: ['POST']
+)]
+public function annuler(
+    OrdreProduction $ordre,
+    Request $request,
+    EntityManagerInterface $em,
+    StockService $stockService
+): Response {
+    $this->utilisateurConnecte();
+
+    $this->verifierJeton(
+        $request,
+        'production_annuler_' . $ordre->getId()
+    );
+
+    try {
+        $motif = trim(
+            (string) $request->request->get(
+                'motif'
+            )
+        );
+
+        if ($motif === '') {
+            throw new \InvalidArgumentException(
+                'Le motif d’annulation est obligatoire.'
+            );
+        }
+
+        if ($ordre->estTermine()) {
+            throw new \LogicException(
+                'Un ordre terminé ne peut pas être annulé.'
+            );
+        }
+
+        if ($ordre->estAnnule()) {
+            throw new \LogicException(
+                'Cet ordre est déjà annulé.'
+            );
+        }
+
+        $detail =
+            $ordre->getCommandeDetail();
+
+        if ($detail === null) {
+            throw new \LogicException(
+                'Aucun détail de commande n’est associé à cet ordre.'
+            );
+        }
+
+        /*
+         * ========================================================
+         * VÉRIFICATION D'UNE CONSOMMATION DÉJÀ EFFECTUÉE
+         * ========================================================
+         *
+         * Si aucune sortie de stock production n'existe,
+         * la matière n'a pas encore été consommée :
+         * on peut donc libérer la réservation.
+         */
+        $referenceStock = sprintf(
+            'PROD-%06d',
+            $ordre->getId()
+        );
+
+        $sortieExistante = $em
+            ->getRepository(
+                StockSorties::class
+            )
+            ->createQueryBuilder('s')
+            ->select('s.id')
+            ->andWhere(
+                's.commandeDetail = :detail'
+            )
+            ->andWhere(
+                's.origine = :origine'
+            )
+            ->andWhere(
+                's.referenceOrigine = :reference'
+            )
+            ->setParameter(
+                'detail',
+                $detail
+            )
+            ->setParameter(
+                'origine',
+                StockSorties::ORIGINE_PRODUCTION
+            )
+            ->setParameter(
+                'reference',
+                $referenceStock
+            )
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        /*
+         * ========================================================
+         * LIBÉRATION DES RÉSERVATIONS
+         * ========================================================
+         */
+        if ($sortieExistante === null) {
+            $stockService
+                ->libererReservationsDetail(
+                    $detail
+                );
+        }
+
+        /*
+         * ========================================================
+         * ANNULATION DE L'ORDRE
+         * ========================================================
+         */
+        $ordre->annuler(
+            $motif
+        );
+
+        /*
+         * Une seule sauvegarde :
+         *
+         * - ordre annulé
+         * - réservations libérées si nécessaire
+         */
+        $em->flush();
+
+        if ($sortieExistante === null) {
+            $this->addFlash(
+                'success',
+                'L’ordre de production a été annulé et les réservations de stock ont été libérées.'
+            );
+        } else {
+            $this->addFlash(
+                'success',
+                'L’ordre de production a été annulé. Une consommation de stock avait déjà été enregistrée et n’a pas été annulée automatiquement.'
+            );
+        }
+
+    } catch (
+        \DomainException |
+        \LogicException |
+        \InvalidArgumentException $e
+    ) {
+        $this->addFlash(
+            'error',
+            $e->getMessage()
+        );
     }
 
-    return $this->render(
-        'production/termines.html.twig',
-        [
-            'ordres' => $ordres,
-            'machines' => $machines,
-            'operateurs' => $operateurs,
-
-            'filtres' => [
-                'q' => $recherche,
-                'machine' => $machineId,
-                'operateur' => $operateurId,
-                'date_debut' => $dateDebut,
-                'date_fin' => $dateFin,
-            ],
-        ]
+    return $this->redirigerVersOrdre(
+        $ordre
     );
 }
 }

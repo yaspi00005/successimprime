@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\ProductionRepository;
-use BcMath\Number;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -131,19 +130,19 @@ private Collection $articlesStock;
         return $this->temps;
     }
 
-    public function setTemps(Number $temps): static
+    public function setTemps(int $temps): static
     {
         $this->temps = $temps;
 
         return $this;
     }
 
-    public function getM2Imprimes(): ?Number
+    public function getM2Imprimes(): ?int
     {
         return $this->m2Imprimes;
     }
 
-    public function setM2Imprimes(Number $m2Imprimes): static
+    public function setM2Imprimes(int $m2Imprimes): static
     {
         $this->m2Imprimes = $m2Imprimes;
 

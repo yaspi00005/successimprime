@@ -52,7 +52,7 @@ final class ProduitsController extends AbstractController
             'articles' => $articlesRepository->findBy(
                 [],
                 [
-                    'designation' => 'ASC',
+                    'designation' => 'ASC'
                 ]
             ),
             'produits' => $produitsRepository->findBy(

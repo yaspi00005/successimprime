@@ -263,20 +263,142 @@
 									</div>
 
 									<div class="{{ menuActif == 'stocks' ? 'resp-tab-content-active' : '' }}">
+
 										<div class="row">
+
 											<div class="col-md-12">
+
 												<h4 class="font-weight-normal">
+
 													<i class="typcn typcn-archive"></i>
+
 													Stocks et achats
+
 												</h4>
-												<a href="#" class="slide-item">Articles et matières</a>
-												<a href="#" class="slide-item">Mouvements de stock</a>
-												<a href="#" class="slide-item">Inventaires</a>
-												<a href="#" class="slide-item">Fournisseurs</a>
-												<a href="#" class="slide-item">Demandes d'achat</a>
-												<a href="#" class="slide-item">Achats</a>
+
+
+												{# ==================================================
+																																				               STOCK
+																																				               ================================================== #}
+
+												<h6 class="text-uppercase mt-4 mb-3">
+													Stock
+												</h6>
+
+
+												<a href="{{ path('app_stock_etat_index') }}" class="slide-item
+																																										                {{ routeCourante starts with 'app_stock_etat_'
+																																										                    ? 'active'
+																																										                    : ''
+																																										                }}">
+
+													<i class="fa fa-dashboard mr-2"></i>
+
+													État du stock
+
+												</a>
+
+
+												{# ==================================================
+																																				               ARTICLES
+																																				               ================================================== #}
+
+												{% if route_exists is not defined %}
+
+													{#
+																																							                    Remplacer le # lorsque nous aurons confirmé
+																																							                    la route actuelle du CRUD Articles.
+																																							                #}
+
+													<a href="{{ path('app_article_index') }}" class="slide-item
+															    {{ routeCourante starts with 'app_article_'
+															        ? 'active'
+															        : ''
+															    }}">
+														<i class="fa fa-cubes mr-2"></i>
+														Articles et matières
+													</a>
+
+												{% endif %}
+
+
+												{# ==================================================
+																																				               MOUVEMENTS
+																																				               ================================================== #}
+
+												<a href="{{ path('app_stock_etat_index') }}" class="slide-item
+																																										                {{ routeCourante == 'app_stock_etat_index'
+																																										                    ? 'active'
+																																										                    : ''
+																																										                }}">
+
+													<i class="fa fa-exchange mr-2"></i>
+
+													Mouvements de stock
+
+												</a>
+
+
+												{# ==================================================
+																																				               FUTURS MODULES
+																																				               ================================================== #}
+
+												<h6 class="text-uppercase mt-4 mb-3">
+													Gestion
+												</h6>
+
+
+												<a href="#" class="slide-item
+																																										                {{ routeCourante starts with 'app_inventaire_'
+																																										                    ? 'active'
+																																										                    : ''
+																																										                }}">
+
+													<i class="fa fa-list-alt mr-2"></i>
+
+													Inventaires
+
+												</a>
+
+
+												<a href="#" class="slide-item
+																																										                {{ routeCourante starts with 'app_fournisseur_'
+																																										                    ? 'active'
+																																										                    : ''
+																																										                }}">
+
+													<i class="fa fa-truck mr-2"></i>
+
+													Fournisseurs
+
+												</a>
+
+
+												<a href="#" class="slide-item">
+
+													<i class="fa fa-file-text-o mr-2"></i>
+
+													Demandes d'achat
+
+												</a>
+
+
+												<a href="#" class="slide-item
+																																										                {{ routeCourante starts with 'app_achat_'
+																																										                    ? 'active'
+																																										                    : ''
+																																										                }}">
+
+													<i class="fa fa-shopping-basket mr-2"></i>
+
+													Achats
+
+												</a>
+
 											</div>
+
 										</div>
+
 									</div>
 
 									<div class="{{ menuActif == 'gestion' ? 'resp-tab-content-active' : '' }}">
@@ -638,10 +760,10 @@ afficherNotifications();
 			</script>
 
 			{#
-																																																																																																										Les pages enfants ajoutent seulement leurs scripts spécifiques.
-																																																																																																										Ne jamais recharger jQuery, Bootstrap, PerfectScrollbar,
-																																																																																																										left-custom.js ou custom.js dans un template enfant.
-																																																																																																									#}
+																																																																																																																			Les pages enfants ajoutent seulement leurs scripts spécifiques.
+																																																																																																																			Ne jamais recharger jQuery, Bootstrap, PerfectScrollbar,
+																																																																																																																			left-custom.js ou custom.js dans un template enfant.
+																																																																																																																		#}
 			{% block javascripts %}{% endblock %}
 		</body>
 	</html>

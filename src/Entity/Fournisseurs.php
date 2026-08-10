@@ -3,7 +3,6 @@
 namespace App\Entity;
 
 use App\Repository\FournisseursRepository;
-use BcMath\Number;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -44,12 +43,12 @@ class Fournisseurs
         return $this;
     }
 
-    public function getTelephone(): ?Number
+    public function getTelephone(): ?int
     {
         return $this->telephone;
     }
 
-    public function setTelephone(Number $telephone): static
+    public function setTelephone(int $telephone): static
     {
         $this->telephone = $telephone;
 
