@@ -7,9 +7,15 @@ use App\Entity\CommandesDetails;
 use App\Entity\ControlePrePresse;
 use App\Entity\OrdreProduction;
 use App\Entity\User;
+
 use App\Repository\CommandesDetailsRepository;
 use App\Repository\OrdreProductionRepository;
+
+use App\Service\ControleCreditClientService;
+use App\Service\BonusPlafondClientService;
+
 use Doctrine\ORM\EntityManagerInterface;
+
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,6 +24,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\String\Slugger\SluggerInterface;
+
+
 
 #[Route('/pre-presse', name: 'app_controle_pre_presse_')]
 final class ControlePrePresseController extends AbstractController
@@ -48,321 +56,950 @@ final class ControlePrePresseController extends AbstractController
         ]);
     }
 
-    #[Route(
-        '/travail/{id}',
-        name: 'controler',
-        requirements: ['id' => '\d+'],
-        methods: ['GET', 'POST']
-    )]
-    public function controler(
+  #[Route(
+    '/travail/{id}',
+    name: 'controler',
+    requirements: ['id' => '\d+'],
+    methods: ['GET', 'POST']
+)]
+public function controler(
     CommandesDetails $detail,
     Request $request,
     EntityManagerInterface $entityManager,
-    OrdreProductionRepository $ordreProductionRepository
+    OrdreProductionRepository $ordreProductionRepository,
+    ControleCreditClientService $controleCreditClientService,
+    BonusPlafondClientService $bonusPlafondClientService
 ): Response {
-        $utilisateur = $this->getUser();
-
-        if (!$utilisateur instanceof User) {
-            throw $this->createAccessDeniedException(
-                'Vous devez être connecté pour effectuer un contrôle prépresse.'
-            );
-        }
-
-        if ($detail->getFichiers()->isEmpty()) {
-            $this->addFlash(
-                'warning',
-                'Cette ligne de commande ne contient aucun fichier.'
-            );
-
-            return $this->redirectToRoute('app_controle_pre_presse_index');
-        }
-
-        if ($request->isMethod('POST')) {
-            $jeton = (string) $request->request->get('_token');
-
-            if (
-                !$this->isCsrfTokenValid(
-                    'controle_pre_presse_' . $detail->getId(),
-                    $jeton
-                )
-            ) {
-                throw $this->createAccessDeniedException(
-                    'Le jeton de sécurité est invalide.'
-                );
-            }
-
-            $controle = new ControlePrePresse();
-            $controle->setCommandeDetail($detail);
-
-            $fichiersSelectionnes = $request->request->all('fichiers');
-
-            foreach ($fichiersSelectionnes as $fichierId) {
-                foreach ($detail->getFichiers() as $fichier) {
-                    if (
-                        $fichier->getId() === (int) $fichierId
-                        && $fichier->isActif()
-                    ) {
-                        $controle->addFichier($fichier);
-                    }
-                }
-            }
-
-            if ($controle->getFichiers()->isEmpty()) {
-                $this->addFlash(
-                    'error',
-                    'Sélectionnez au moins un fichier à contrôler.'
-                );
-
-                return $this->redirectToRoute(
-                    'app_controle_pre_presse_controler',
-                    ['id' => $detail->getId()]
-                );
-            }
-
-            $controle
-                ->setFormatConforme(
-                    $request->request->getBoolean('formatConforme')
-                )
-                ->setDimensionsConformes(
-                    $request->request->getBoolean('dimensionsConformes')
-                )
-                ->setResolutionConforme(
-                    $request->request->getBoolean('resolutionConforme')
-                )
-                ->setProfilCouleursConforme(
-                    $request->request->getBoolean('profilCouleursConforme')
-                )
-                ->setFondsPerdusConformes(
-                    $request->request->getBoolean('fondsPerdusConformes')
-                )
-                ->setMargesSecuriteConformes(
-                    $request->request->getBoolean(
-                        'margesSecuriteConformes'
-                    )
-                )
-                ->setPolicesConformes(
-                    $request->request->getBoolean('policesConformes')
-                )
-                ->setOrthographeVerifiee(
-                    $request->request->getBoolean('orthographeVerifiee')
-                )
-                ->setOrientationConforme(
-                    $request->request->getBoolean('orientationConforme')
-                )
-                ->setNombrePagesConforme(
-                    $request->request->getBoolean('nombrePagesConforme')
-                )
-                ->setRectoVersoConforme(
-                    $request->request->getBoolean('rectoVersoConforme')
-                )
-                ->setSupportConforme(
-                    $request->request->getBoolean('supportConforme')
-                )
-                ->setQuantiteConforme(
-                    $request->request->getBoolean('quantiteConforme')
-                )
-                ->setFichierDejaTraite(
-                    $request->request->getBoolean('fichierDejaTraite')
-                )
-                ->setBatNecessaire(
-                    $request->request->getBoolean('batNecessaire')
-                )
-                ->setAnomalies(
-                    $request->request->get('anomalies')
-                )
-                ->setCorrectionsEffectuees(
-                    $request->request->get('correctionsEffectuees')
-                )
-                ->setObservation(
-                    $request->request->get('observation')
-                );
-
-            $batValide = $request->request->getBoolean('batValide');
-
-            if ($controle->isBatNecessaire()) {
-                $controle->setBatValide($batValide);
-            }
-
-            $controle->commencerControle($utilisateur);
-
-            $correctionNecessaire = $request->request->getBoolean(
-                'correctionNecessaire'
-            );
-
-            $controle->setCorrectionNecessaire(
-                $correctionNecessaire
-            );
-
-            $action = (string) $request->request->get(
-                'action',
-                'enregistrer'
-            );
-
-           try {
-    $envoyerProduction = in_array(
-        $action,
-        ['valider', 'valider_production'],
-        true
-    );
-
     /*
-     * Dans ton fonctionnement :
-     * toute validation prépresse transmet automatiquement
-     * le travail à la production.
+     * ============================================================
+     * UTILISATEUR CONNECTÉ
+     * ============================================================
      */
-    if ($envoyerProduction) {
-        $controle
-            ->valider($utilisateur)
-            ->envoyerEnProduction($utilisateur);
+
+    $utilisateur = $this->getUser();
+
+    if (!$utilisateur instanceof User) {
+        throw $this->createAccessDeniedException(
+            'Vous devez être connecté pour effectuer un contrôle prépresse.'
+        );
     }
 
-    $detail->addControlePrePresse($controle);
-    $entityManager->persist($controle);
 
     /*
-     * Création de l’ordre seulement après validation
-     * et transmission prépresse.
+     * ============================================================
+     * COMMANDE
+     * ============================================================
      */
-    if ($envoyerProduction) {
+
+    $commande = $detail->getCommande();
+
+    if ($commande === null) {
+        throw $this->createNotFoundException(
+            'Aucune commande n’est associée à ce travail.'
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * VÉRIFICATION DES FICHIERS
+     * ============================================================
+     */
+
+    if ($detail->getFichiers()->isEmpty()) {
+        $this->addFlash(
+            'warning',
+            'Cette ligne de commande ne contient aucun fichier.'
+        );
+
+        return $this->redirectToRoute(
+            'app_controle_pre_presse_index'
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * CONTRÔLE FINANCIER POUR AFFICHAGE
+     * ============================================================
+     *
+     * Permet d'afficher dans le Twig :
+     *
+     * - ancienneté du client ;
+     * - plafond ;
+     * - encours antérieur ;
+     * - avance sur la commande actuelle ;
+     * - autorisation ou blocage.
+     *
+     * La commande actuelle reste neutre dans le calcul
+     * du plafond.
+     * ============================================================
+     */
+
+    $controleCredit =
+        $controleCreditClientService
+            ->analyser(
+                $commande
+            );
+
+
+    /*
+     * ============================================================
+     * TRAITEMENT POST
+     * ============================================================
+     */
+
+    if ($request->isMethod('POST')) {
+
         /*
-         * Empêche la création de plusieurs ordres
-         * pour la même ligne de commande.
+         * ========================================================
+         * CSRF
+         * ========================================================
          */
-        $ordre = $ordreProductionRepository->findOneBy([
-            'commandeDetail' => $detail,
-        ]);
 
-        if ($ordre === null) {
-            $ordre = new OrdreProduction();
+        $jeton =
+            (string) $request
+                ->request
+                ->get('_token');
 
-            $ordre
-                ->setCommandeDetail($detail)
-                ->setControlePrePresse($controle)
-                ->setCreePar($utilisateur)
-                ->setPriorite($detail->getPriorite())
-                ->setQuantite($detail->getQuantite());
 
-            /*
-             * Affectation automatique de la machine
-             * définie sur la ligne de commande.
-             */
-            if ($detail->getMachine() !== null) {
-                $ordre->setMachine($detail->getMachine());
-            }
+        if (
+            !$this->isCsrfTokenValid(
+                'controle_pre_presse_' . $detail->getId(),
+                $jeton
+            )
+        ) {
+            throw $this->createAccessDeniedException(
+                'Le jeton de sécurité est invalide.'
+            );
+        }
 
-            /*
-             * Les observations de commande deviennent
-             * les instructions de production.
-             */
-            if ($detail->getObservation() !== null) {
-                $ordre->setInstructions(
-                    $detail->getObservation()
-                );
-            }
 
-            /*
-             * Date de livraison de la commande utilisée
-             * comme date limite de production.
-             */
-            $commande = $detail->getCommande();
+        /*
+         * ========================================================
+         * NOUVEAU CONTRÔLE PRÉPRESSE
+         * ========================================================
+         */
 
-            if (
-                $commande !== null
-                && $commande->getDateLivraison() !== null
+        $controle =
+            new ControlePrePresse();
+
+
+        $controle->setCommandeDetail(
+            $detail
+        );
+
+
+        /*
+         * ========================================================
+         * FICHIERS SÉLECTIONNÉS
+         * ========================================================
+         */
+
+        $fichiersSelectionnes =
+            $request
+                ->request
+                ->all('fichiers');
+
+
+        foreach (
+            $fichiersSelectionnes
+            as $fichierId
+        ) {
+            foreach (
+                $detail->getFichiers()
+                as $fichier
             ) {
-                $dateLivraison = $commande->getDateLivraison();
+                if (
+                    $fichier->getId()
+                    ===
+                    (int) $fichierId
+                    &&
+                    $fichier->isActif()
+                ) {
+                    $controle->addFichier(
+                        $fichier
+                    );
+                }
+            }
+        }
 
-                /*
-                 * Sécurise le type si getDateLivraison()
-                 * retourne un DateTime mutable.
-                 */
-                if ($dateLivraison instanceof \DateTimeImmutable) {
-                    $ordre->setDateLimite($dateLivraison);
-                } else {
-                    $ordre->setDateLimite(
-                        \DateTimeImmutable::createFromMutable(
-                            $dateLivraison
-                        )
+
+        /*
+         * ========================================================
+         * AU MOINS UN FICHIER
+         * ========================================================
+         */
+
+        if (
+            $controle
+                ->getFichiers()
+                ->isEmpty()
+        ) {
+            $this->addFlash(
+                'error',
+                'Sélectionnez au moins un fichier à contrôler.'
+            );
+
+            return $this->redirectToRoute(
+                'app_controle_pre_presse_controler',
+                [
+                    'id' =>
+                        $detail->getId(),
+                ]
+            );
+        }
+
+
+        /*
+         * ========================================================
+         * CONTRÔLES TECHNIQUES
+         * ========================================================
+         */
+
+        $controle
+            ->setFormatConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'formatConforme'
+                    )
+            )
+            ->setDimensionsConformes(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'dimensionsConformes'
+                    )
+            )
+            ->setResolutionConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'resolutionConforme'
+                    )
+            )
+            ->setProfilCouleursConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'profilCouleursConforme'
+                    )
+            )
+            ->setFondsPerdusConformes(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'fondsPerdusConformes'
+                    )
+            )
+            ->setMargesSecuriteConformes(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'margesSecuriteConformes'
+                    )
+            )
+            ->setPolicesConformes(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'policesConformes'
+                    )
+            )
+            ->setOrthographeVerifiee(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'orthographeVerifiee'
+                    )
+            )
+            ->setOrientationConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'orientationConforme'
+                    )
+            )
+            ->setNombrePagesConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'nombrePagesConforme'
+                    )
+            )
+            ->setRectoVersoConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'rectoVersoConforme'
+                    )
+            )
+            ->setSupportConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'supportConforme'
+                    )
+            )
+            ->setQuantiteConforme(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'quantiteConforme'
+                    )
+            )
+            ->setFichierDejaTraite(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'fichierDejaTraite'
+                    )
+            )
+            ->setBatNecessaire(
+                $request
+                    ->request
+                    ->getBoolean(
+                        'batNecessaire'
+                    )
+            )
+            ->setAnomalies(
+                $request
+                    ->request
+                    ->get(
+                        'anomalies'
+                    )
+            )
+            ->setCorrectionsEffectuees(
+                $request
+                    ->request
+                    ->get(
+                        'correctionsEffectuees'
+                    )
+            )
+            ->setObservation(
+                $request
+                    ->request
+                    ->get(
+                        'observation'
+                    )
+            );
+
+
+        /*
+         * ========================================================
+         * BAT
+         * ========================================================
+         */
+
+        $batValide =
+            $request
+                ->request
+                ->getBoolean(
+                    'batValide'
+                );
+
+
+        if (
+            $controle
+                ->isBatNecessaire()
+        ) {
+            $controle->setBatValide(
+                $batValide
+            );
+        }
+
+
+        /*
+         * ========================================================
+         * DÉBUT DU CONTRÔLE
+         * ========================================================
+         */
+
+        $controle->commencerControle(
+            $utilisateur
+        );
+
+
+        /*
+         * ========================================================
+         * CORRECTION NÉCESSAIRE
+         * ========================================================
+         */
+
+        $correctionNecessaire =
+            $request
+                ->request
+                ->getBoolean(
+                    'correctionNecessaire'
+                );
+
+
+        $controle->setCorrectionNecessaire(
+            $correctionNecessaire
+        );
+
+
+        /*
+         * ========================================================
+         * ACTION
+         * ========================================================
+         */
+
+        $action =
+            (string) $request
+                ->request
+                ->get(
+                    'action',
+                    'enregistrer'
+                );
+
+
+        /*
+         * ========================================================
+         * VALIDATION DE L'ACTION
+         * ========================================================
+         */
+
+        if (
+            !in_array(
+                $action,
+                [
+                    'enregistrer',
+                    'valider',
+                    'valider_production',
+                ],
+                true
+            )
+        ) {
+            $this->addFlash(
+                'error',
+                'Action prépresse invalide.'
+            );
+
+            return $this->redirectToRoute(
+                'app_controle_pre_presse_controler',
+                [
+                    'id' =>
+                        $detail->getId(),
+                ]
+            );
+        }
+
+
+        /*
+         * ========================================================
+         * DÉTERMINATION DU CIRCUIT
+         * ========================================================
+         */
+
+        $validerControle =
+            in_array(
+                $action,
+                [
+                    'valider',
+                    'valider_production',
+                ],
+                true
+            );
+
+
+        $envoyerProduction =
+            $action
+            ===
+            'valider_production';
+
+
+        /*
+         * Valeur par défaut :
+         * aucun bonus appliqué.
+         */
+        $bonusPlafond =
+            0;
+
+
+        try {
+
+            /*
+             * ====================================================
+             * 1. CONTRÔLE FINANCIER AVANT PRODUCTION
+             * ====================================================
+             *
+             * IMPORTANT :
+             *
+             * Le contrôle doit être fait AVANT d'ajouter le bonus
+             * de 1 % de la commande actuelle.
+             *
+             * Ainsi :
+             *
+             * - la commande actuelle reste neutre ;
+             * - son propre bonus ne peut pas l'aider à passer ;
+             * - seules les anciennes dettes sont prises en compte.
+             * ====================================================
+             */
+
+            if ($envoyerProduction) {
+
+                $controleCredit =
+                    $controleCreditClientService
+                        ->analyser(
+                            $commande
+                        );
+
+
+                if (
+                    $controleCredit['autorise']
+                    !==
+                    true
+                ) {
+                    throw new \DomainException(
+                        $controleCredit[
+                            'motif'
+                        ]
                     );
                 }
             }
 
+
             /*
-             * Copie dans l’ordre tous les fichiers
-             * validés par le prépresse.
+             * ====================================================
+             * 2. VALIDATION PRÉPRESSE
+             * ====================================================
              */
-            foreach ($controle->getFichiers() as $fichier) {
-                $ordre->addFichier($fichier);
+
+            if ($validerControle) {
+
+                $controle->valider(
+                    $utilisateur
+                );
+
+
+                /*
+                 * =================================================
+                 * BONUS PLAFOND CLIENT : +1 %
+                 * =================================================
+                 *
+                 * Appliqué après validation réussie.
+                 *
+                 * Bonus une seule fois par commande.
+                 * =================================================
+                 */
+
+                $bonusPlafond =
+                    $bonusPlafondClientService
+                        ->appliquer(
+                            $commande
+                        );
             }
 
-            /*
-             * Marque l’ordre comme réellement transmis.
-             */
-            $ordre->transmettre();
 
             /*
-             * Synchronisation avec le statut conservé
-             * dans CommandesDetails.
+             * ====================================================
+             * 3. ENVOI EN PRODUCTION
+             * ====================================================
              */
-            $detail->setStatutProduction(
-                CommandesDetails::PRODUCTION_A_PRODUIRE
+
+            if ($envoyerProduction) {
+                $controle
+                    ->envoyerEnProduction(
+                        $utilisateur
+                    );
+            }
+
+
+            /*
+             * ====================================================
+             * 4. RATTACHEMENT DU CONTRÔLE
+             * ====================================================
+             */
+
+            $detail
+                ->addControlePrePresse(
+                    $controle
+                );
+
+
+            $entityManager->persist(
+                $controle
             );
 
-            $entityManager->persist($ordre);
 
-            $message = sprintf(
-                'Prépresse validé. L’ordre %s a été transmis à la production.',
-                $ordre->getNumero()
+            /*
+             * ====================================================
+             * 5. CRÉATION ORDRE DE PRODUCTION
+             * ====================================================
+             */
+
+            $ordre = null;
+
+
+            if ($envoyerProduction) {
+
+                /*
+                 * Recherche ordre existant.
+                 */
+                $ordre =
+                    $ordreProductionRepository
+                        ->findOneBy([
+                            'commandeDetail' =>
+                                $detail,
+                        ]);
+
+
+                /*
+                 * =================================================
+                 * CRÉATION SI AUCUN ORDRE
+                 * =================================================
+                 */
+
+                if ($ordre === null) {
+
+                    $ordre =
+                        new OrdreProduction();
+
+
+                    $ordre
+                        ->setCommandeDetail(
+                            $detail
+                        )
+                        ->setControlePrePresse(
+                            $controle
+                        )
+                        ->setCreePar(
+                            $utilisateur
+                        )
+                        ->setPriorite(
+                            $detail
+                                ->getPriorite()
+                        )
+                        ->setQuantite(
+                            $detail
+                                ->getQuantite()
+                        );
+
+
+                    /*
+                     * =============================================
+                     * MACHINE
+                     * =============================================
+                     */
+
+                    if (
+                        $detail->getMachine()
+                        !==
+                        null
+                    ) {
+                        $ordre->setMachine(
+                            $detail
+                                ->getMachine()
+                        );
+                    }
+
+
+                    /*
+                     * =============================================
+                     * INSTRUCTIONS
+                     * =============================================
+                     */
+
+                    if (
+                        $detail
+                            ->getObservation()
+                        !==
+                        null
+                    ) {
+                        $ordre
+                            ->setInstructions(
+                                $detail
+                                    ->getObservation()
+                            );
+                    }
+
+
+                    /*
+                     * =============================================
+                     * DATE LIMITE
+                     * =============================================
+                     */
+
+                    if (
+                        $commande
+                            ->getDateLivraison()
+                        !==
+                        null
+                    ) {
+                        $dateLivraison =
+                            $commande
+                                ->getDateLivraison();
+
+
+                        if (
+                            $dateLivraison
+                            instanceof
+                            \DateTimeImmutable
+                        ) {
+                            $ordre->setDateLimite(
+                                $dateLivraison
+                            );
+                        } else {
+                            $ordre->setDateLimite(
+                                \DateTimeImmutable
+                                    ::createFromMutable(
+                                        $dateLivraison
+                                    )
+                            );
+                        }
+                    }
+
+
+                    /*
+                     * =============================================
+                     * FICHIERS VALIDÉS
+                     * =============================================
+                     */
+
+                    foreach (
+                        $controle->getFichiers()
+                        as $fichier
+                    ) {
+                        $ordre->addFichier(
+                            $fichier
+                        );
+                    }
+
+
+                    /*
+                     * =============================================
+                     * TRANSMISSION
+                     * =============================================
+                     */
+
+                    $ordre->transmettre();
+
+
+                    /*
+                     * =============================================
+                     * STATUT PRODUCTION DU DÉTAIL
+                     * =============================================
+                     */
+
+                    $detail
+                        ->setStatutProduction(
+                            CommandesDetails
+                                ::PRODUCTION_A_PRODUIRE
+                        );
+
+
+                    $entityManager->persist(
+                        $ordre
+                    );
+
+
+                    /*
+                     * =============================================
+                     * MESSAGE
+                     * =============================================
+                     */
+
+                    if ($bonusPlafond > 0) {
+
+                        $message =
+                            sprintf(
+                                'Prépresse validé. L’ordre %s a été transmis à la production. Le plafond du client a augmenté de %s FCFA.',
+                                $ordre->getNumero(),
+                                number_format(
+                                    $bonusPlafond,
+                                    0,
+                                    ',',
+                                    ' '
+                                )
+                            );
+
+                    } else {
+
+                        $message =
+                            sprintf(
+                                'Prépresse validé. L’ordre %s a été transmis à la production.',
+                                $ordre->getNumero()
+                            );
+                    }
+
+                } else {
+
+                    /*
+                     * =================================================
+                     * ORDRE DÉJÀ EXISTANT
+                     * =================================================
+                     */
+
+                    $message =
+                        sprintf(
+                            'Le prépresse est validé. L’ordre %s existe déjà en production.',
+                            $ordre->getNumero()
+                        );
+                }
+
+            } elseif (
+                $action ===
+                'valider'
+            ) {
+
+                /*
+                 * =================================================
+                 * VALIDATION SANS PRODUCTION
+                 * =================================================
+                 */
+
+                if ($bonusPlafond > 0) {
+
+                    $message =
+                        sprintf(
+                            'Le contrôle prépresse a été validé. Le plafond du client a augmenté de %s FCFA. Le travail n’a pas encore été envoyé en production.',
+                            number_format(
+                                $bonusPlafond,
+                                0,
+                                ',',
+                                ' '
+                            )
+                        );
+
+                } else {
+
+                    $message =
+                        'Le contrôle prépresse a été validé. Le travail n’a pas encore été envoyé en production.';
+                }
+
+            } else {
+
+                /*
+                 * =================================================
+                 * SIMPLE ENREGISTREMENT
+                 * =================================================
+                 */
+
+                $message =
+                    'Le contrôle prépresse a été enregistré.';
+            }
+
+
+            /*
+             * ====================================================
+             * 6. ENREGISTREMENT GLOBAL
+             * ====================================================
+             *
+             * Doctrine sauvegarde dans le même flush :
+             *
+             * - contrôle prépresse ;
+             * - détail ;
+             * - ordre ;
+             * - nouveau plafond client ;
+             * - marqueur bonus de la commande.
+             * ====================================================
+             */
+
+            $entityManager->flush();
+
+
+            /*
+             * ====================================================
+             * MESSAGE SUCCÈS
+             * ====================================================
+             */
+
+            $this->addFlash(
+                'success',
+                $message
             );
-        } else {
-            $message = sprintf(
-                'Le prépresse est validé. L’ordre %s existe déjà en production.',
-                $ordre->getNumero()
+
+
+            /*
+             * ====================================================
+             * REDIRECTION VERS PRODUCTION
+             * ====================================================
+             */
+
+            if (
+                $envoyerProduction
+                &&
+                $ordre !== null
+            ) {
+                return $this->redirectToRoute(
+                    'app_production_show',
+                    [
+                        'id' =>
+                            $ordre->getId(),
+                    ]
+                );
+            }
+
+
+            /*
+             * ====================================================
+             * RETOUR PRÉPRESSE
+             * ====================================================
+             */
+
+            return $this->redirectToRoute(
+                'app_controle_pre_presse_controler',
+                [
+                    'id' =>
+                        $detail->getId(),
+                ]
+            );
+
+        } catch (
+            \LogicException |
+            \DomainException |
+            \InvalidArgumentException $exception
+        ) {
+
+            /*
+             * ====================================================
+             * ERREUR MÉTIER
+             * ====================================================
+             */
+
+            $this->addFlash(
+                'error',
+                $exception->getMessage()
             );
         }
-    } else {
-        $message = 'Le contrôle prépresse a été enregistré.';
     }
+
 
     /*
-     * Le contrôle et l’ordre sont enregistrés
-     * dans la même transaction Doctrine.
+     * ============================================================
+     * RECALCUL APRÈS POST / POUR AFFICHAGE GET
+     * ============================================================
      */
-    $entityManager->flush();
 
-    $this->addFlash('success', $message);
+    $controleCredit =
+        $controleCreditClientService
+            ->analyser(
+                $commande
+            );
 
-    if ($envoyerProduction && isset($ordre)) {
-        return $this->redirectToRoute(
-            'app_production_show',
-            ['id' => $ordre->getId()]
-        );
-    }
 
-    return $this->redirectToRoute(
-        'app_controle_pre_presse_controler',
-        ['id' => $detail->getId()]
-    );
-} catch (
-    \LogicException |
-    \DomainException |
-    \InvalidArgumentException $exception
-) {
-    $this->addFlash(
-        'error',
-        $exception->getMessage()
+    /*
+     * ============================================================
+     * AFFICHAGE
+     * ============================================================
+     */
+
+    return $this->render(
+        'controle_pre_presse/controler.html.twig',
+        [
+            'detail' =>
+                $detail,
+
+            'commande' =>
+                $commande,
+
+            'controleCredit' =>
+                $controleCredit,
+        ]
     );
 }
-        }
-
-        return $this->render(
-            'controle_pre_presse/controler.html.twig',
-            [
-                'detail' => $detail,
-                'commande' => $detail->getCommande(),
-            ]
-        );
-    }
     #[Route(
         '/travail/{id}/fichier-traite',
         name: 'ajouter_fichier_traite',

@@ -154,7 +154,7 @@ class DevisController extends AbstractController
                 $maintenant->format('m-Y')
             ));
 $this->initialiserTokenAuthenticiteDevis(
-    $devis
+    $devi
 );
             $entityManager->flush();
 
@@ -779,65 +779,73 @@ public function edit(
         }
     }
    
-     #[Route(
-        '/devis/{id}/convertir-commande',
-        name: 'convertir_commande',
-        methods: ['POST']
-    )]
-    public function convertirCommande(
-        Devis $devis,
-        Request $request,
-        DevisCommandeConverter $converter
-    ): Response {
-        if (!$this->isCsrfTokenValid(
-            'convertir-devis-' . $devis->getId(),
-            (string) $request->request->get('_token')
-        )) {
-            throw $this->createAccessDeniedException(
-                'Jeton de sécurité invalide.'
-            );
-        }
-
-        try {
-            $commande = $converter->convertir($devis);
-
-            $this->addFlash(
-                'success',
-                sprintf(
-                    'Le devis %s a été validé et transféré dans la commande %s.',
-                    $devis->getNumero(),
-                    $commande->getNumero()
-                        ?? '#' . $commande->getId()
-                )
-            );
-
-            return $this->redirectToRoute(
-                'app_commandes_show',
-                [
-                    'id' => $commande->getId(),
-                ]
-            );
-        } catch (\LogicException $exception) {
-            $this->addFlash(
-                'warning',
-                $exception->getMessage()
-            );
-        } catch (\Throwable $exception) {
-    dd(
-        $exception::class,
-        $exception->getMessage(),
-        $exception->getFile(),
-        $exception->getLine()
-    );
-}
-
-        return $this->redirectToRoute(
-            'app_devis_show',
-            [
-                'id' => $devis->getId(),
-            ]
+   
+    #[Route(
+    '/{id}/convertir-commande',
+    name: 'convertir_commande',
+    requirements: [
+        'id' => '\d+',
+    ],
+    methods: ['POST']
+)]
+public function convertirCommande(
+    Devis $devis,
+    Request $request,
+    DevisCommandeConverter $converter
+): Response {
+    if (!$this->isCsrfTokenValid(
+        'convertir-devis-' . $devis->getId(),
+        (string) $request->request->get('_token')
+    )) {
+        throw $this->createAccessDeniedException(
+            'Jeton de sécurité invalide.'
         );
     }
+
+    try {
+        $commande = $converter->convertir(
+            $devis
+        );
+
+        $this->addFlash(
+            'success',
+            sprintf(
+                'Le devis %s a été validé et transféré dans la commande %s.',
+                $devis->getNumero(),
+                $commande->getNumero()
+                    ?? '#' . $commande->getId()
+            )
+        );
+
+        return $this->redirectToRoute(
+            'app_commandes_show',
+            [
+                'id' => $commande->getId(),
+            ]
+        );
+
+    } catch (\LogicException $exception) {
+        $this->addFlash(
+            'warning',
+            $exception->getMessage()
+        );
+
+    } catch (\Throwable $exception) {
+        dd(
+            $exception::class,
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine()
+        );
+    }
+
+    return $this->redirectToRoute(
+        'app_devis_show',
+        [
+            'id' => $devis->getId(),
+        ]
+    );
+}
     
 #[Route(
     '/{id}/pdf',

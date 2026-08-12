@@ -11,8 +11,8 @@
 		<div
 			class="container-fluid py-4">
 			{# ==========================================================
-																					   MENU DES TYPES D’IMPRESSION
-																					========================================================== #}
+																																				   MENU DES TYPES D’IMPRESSION
+																																				========================================================== #}
 			<div class="card mb-4">
 				<div class="card-body p-0">
 					<div class="production-type-scroll">
@@ -21,7 +21,7 @@
 
 							{# Tous les travaux #}
 							<a href="{{ path('app_production_index') }}" class="production-type-link
-																																																															                    {{ typeSelectionne is null ? 'active' : '' }}">
+																																																																																																												                    {{ typeSelectionne is null ? 'active' : '' }}">
 								<i class="fa fa-th-large"></i>
 
 								<span>Tous</span>
@@ -36,12 +36,12 @@
 							{# Types d’impression dynamiques #}
 							{% for type in typesImpression %}
 								<a href="{{ path( 'app_production_index', {typeImpression: type.id} ) }}" class="production-type-link
-																				    {{
-																				        typeSelectionne
-																				        and typeSelectionne.id == type.id
-																				            ? 'active'
-																				            : ''
-																				    }}">
+																																																																						    {{
+																																																																						        typeSelectionne
+																																																																						        and typeSelectionne.id == type.id
+																																																																						            ? 'active'
+																																																																						            : ''
+																																																																						    }}">
 									<span class="production-type-counter">
 										{% if type.nombre > 0 %}
 											{{ type.nombre }}
@@ -63,7 +63,7 @@
 
 			{% if typeSelectionne %}
 				<div class="alert alert-info d-flex
-																																										                justify-content-between align-items-center">
+																																																																								                justify-content-between align-items-center">
 					<div>
 						<i class="fa fa-filter mr-1"></i>
 
@@ -189,8 +189,8 @@
 				}
 			</style>
 			{# ==========================================================
-																																					           EN-TÊTE
-																																					        ========================================================== #}
+																																																				           EN-TÊTE
+																																																				        ========================================================== #}
 			<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
 				<div>
 					<h2 class="mb-1">
@@ -210,9 +210,9 @@
 
 
 			{# ==========================================================
-																																					           MESSAGES FLASH
-																																					           Supprimer cette partie si base.html.twig les affiche déjà.
-																																					        ========================================================== #}
+																																																				           MESSAGES FLASH
+																																																				           Supprimer cette partie si base.html.twig les affiche déjà.
+																																																				        ========================================================== #}
 			{% for message in app.flashes('success') %}
 				<div class="alert alert-success alert-dismissible fade show">
 					<i class="fa fa-check-circle mr-1"></i>
@@ -236,8 +236,8 @@
 			{% endfor %}
 
 			{# ==========================================================
-																																					           STATISTIQUES
-																																					        ========================================================== #}
+																																																				           STATISTIQUES
+																																																				        ========================================================== #}
 			<div class="row">
 
 				<div class="col-sm-6 col-xl mb-3">
@@ -332,8 +332,8 @@
 			</div>
 
 			{# ==========================================================
-																																					           FILTRES
-																																					        ========================================================== #}
+																																																				           FILTRES
+																																																				        ========================================================== #}
 			<div class="card mb-3">
 				<div class="card-body">
 					<div class="row align-items-end">
@@ -370,8 +370,8 @@
 			</div>
 
 			{# ==========================================================
-																																					           TABLEAU DES ORDRES
-																																					        ========================================================== #}
+																																																				           TABLEAU DES ORDRES
+																																																				        ========================================================== #}
 			<div class="card">
 				<div class="card-header d-flex justify-content-between align-items-center">
 					<h5 class="card-title mb-0">
@@ -407,15 +407,37 @@
 
 						<tbody id="tableOrdres">
 							{% for ordre in ordres %}
+
+								{% set creeParTexte = '' %}
+
+								{% if ordre.creePar %}
+									{% set creeParTexte =
+            ordre.creePar.employe.nom
+            |default(
+                ordre.creePar.username
+                |default(
+                    ordre.creePar.email
+                    |default('')
+                )
+            )
+        %}
+								{% endif %}
+
 								{% set recherche = (
-                                ordre.numero ~ ' ' ~
-                                (ordre.commandeDetail and ordre.commandeDetail.commande
-                                    ? ordre.commandeDetail.commande.id
-                                    : ''
-                                ) ~ ' ' ~
-                                (ordre.machine ? ordre.machine.nom : '') ~ ' ' ~
-                                (ordre.operateur ? ordre.operateur : '')
-                            )|lower %}
+        ordre.numero ~ ' ' ~
+        (
+            ordre.commandeDetail
+            and ordre.commandeDetail.commande
+                ? ordre.commandeDetail.commande.id
+                : ''
+        ) ~ ' ' ~
+        (
+            ordre.machine
+                ? ordre.machine.nom
+                : ''
+        ) ~ ' ' ~
+        creeParTexte
+    )|lower %}
 
 								<tr class="js-ordre-row" data-statut="{{ ordre.statut }}" data-recherche="{{ recherche|e('html_attr') }}">
 
@@ -483,7 +505,7 @@
 											{% if ordre.operateur %}
 												<div>
 													<small class="text-muted">
-														{{ ordre.operateur }}
+														{{ ordre.creePar.employe.nom }}
 													</small>
 												</div>
 											{% endif %}

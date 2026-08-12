@@ -116,14 +116,21 @@ class Articles
 )]
 private bool $vendable = false;
 
-    /**
-     * @var Collection<int, ProduitArticleStock>
-     */
-    #[ORM\OneToMany(
-        targetEntity: ProduitArticleStock::class,
-        mappedBy: 'article'
-    )]
-    private Collection $produitsStock;
+
+
+/**
+ * @var Collection<int, ProduitArticleStock>
+ */
+#[ORM\OneToMany(
+    mappedBy: 'article',
+    targetEntity: ProduitArticleStock::class,
+    cascade: ['persist', 'remove'],
+    orphanRemoval: true
+)]
+private Collection $produitsStock;
+
+  
+    
 
 
     public function __construct()
@@ -134,8 +141,7 @@ private bool $vendable = false;
         $this->stockSorties =
             new ArrayCollection();
 
-        $this->produitsStock =
-            new ArrayCollection();
+        
     }
 
 
@@ -493,16 +499,6 @@ private bool $vendable = false;
         return $this;
     }
 
-
-    /**
-     * @return Collection<int, ProduitArticleStock>
-     */
-    public function getProduitsStock(): Collection
-    {
-        return $this->produitsStock;
-    }
-
-
     public function addProduitStock(
         ProduitArticleStock $liaison
     ): static {
@@ -562,4 +558,39 @@ public function setVendable(
             )
         );
     }
+   
+
+
+/**
+ * @return Collection<int, ProduitArticleStock>
+ */
+public function getProduitsStock(): Collection
+{
+    return $this->produitsStock;
+}
+
+public function addProduitsStock(
+    ProduitArticleStock $produitStock
+): static {
+    if (!$this->produitsStock->contains($produitStock)) {
+        $this->produitsStock->add($produitStock);
+        $produitStock->setArticle($this);
+    }
+
+    return $this;
+}
+
+public function removeProduitsStock(
+    ProduitArticleStock $produitStock
+): static {
+    if ($this->produitsStock->removeElement($produitStock)) {
+        if ($produitStock->getArticle() === $this) {
+            $produitStock->setArticle(null);
+        }
+    }
+
+    return $this;
+}
+
+
 }

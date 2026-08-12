@@ -11,6 +11,7 @@ use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\MoneyType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 
 class EmployesType extends AbstractType
 {
@@ -38,6 +39,21 @@ class EmployesType extends AbstractType
             'placeholder' => 'Date de naissance'
         ]
     ])
+      ->add('dateEmbauches', DateType::class, [
+        'widget' => 'single_text',
+        'attr' => [
+            'class' => 'form-control',
+            'placeholder' => 'Date de naissance'
+        ]
+    ])
+    ->add('adresses', TextareaType::class, [
+    'required' => false,
+    'attr' => [
+        'class' => 'form-control',
+        'placeholder' => 'Adresse complète de l’employé',
+        'rows' => 4,
+    ],
+])
 
     ->add('telephone', TextType::class, [
         'attr' => [

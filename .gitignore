@@ -18,3 +18,12 @@
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
+
+# Fichiers temporaires Google Drive
+.tmp.driveupload/
+
+# Fichiers privés uploadés par les utilisateurs
+/public/uploads/employes/
+
+# Copies locales des migrations
+/migrations copy/

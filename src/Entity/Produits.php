@@ -141,6 +141,17 @@ private bool $gestionStock = false;
 )]
 private ?Articles $articleStock = null;
 
+/**
+ * @var Collection<int, ProduitArticleStock>
+ */
+#[ORM\OneToMany(
+    mappedBy: 'produit',
+    targetEntity: ProduitArticleStock::class,
+    cascade: ['persist', 'remove'],
+    orphanRemoval: true
+)]
+private Collection $articlesStock;
+
     public function __construct()
     {
         $this->typesImpressions = new ArrayCollection();
@@ -149,6 +160,7 @@ private ?Articles $articleStock = null;
         $this->finitions = new ArrayCollection();
         $this->commandesDetails = new ArrayCollection();
         $this->configurations = new ArrayCollection();
+        $this->articlesStock = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -526,4 +538,36 @@ public function setArticleStock(
 
     return $this;
 }
+
+/**
+ * @return Collection<int, ProduitArticleStock>
+ */
+public function getArticlesStock(): Collection
+{
+    return $this->articlesStock;
+}
+
+public function addArticlesStock(
+    ProduitArticleStock $articleStock
+): static {
+    if (!$this->articlesStock->contains($articleStock)) {
+        $this->articlesStock->add($articleStock);
+        $articleStock->setProduit($this);
+    }
+
+    return $this;
+}
+
+public function removeArticlesStock(
+    ProduitArticleStock $articleStock
+): static {
+    if ($this->articlesStock->removeElement($articleStock)) {
+        if ($articleStock->getProduit() === $this) {
+            $articleStock->setProduit(null);
+        }
+    }
+
+    return $this;
+}
+
 }

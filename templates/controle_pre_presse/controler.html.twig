@@ -8,8 +8,8 @@
 		class="side-app">
 
 		{# ============================================================
-																																																       EN-TÊTE
-																																																       ============================================================ #}
+																																																						       EN-TÊTE
+																																																						       ============================================================ #}
 		<div class="page-header">
 			<div>
 				<h1 class="page-title">Contrôle prépresse</h1>
@@ -28,12 +28,12 @@
 		</div>
 
 		{# ============================================================
-																																																       MESSAGES FLASH
-																																																       ============================================================ #}
+																																																						       MESSAGES FLASH
+																																																						       ============================================================ #}
 		{% for type, messages in app.flashes %}
 			{% for message in messages %}
 				<div class="alert alert-{{ type == 'error' ? 'danger' : type }}
-																																																																																																																																																                        alert-dismissible fade show">
+																																																																																																																																																																		                        alert-dismissible fade show">
 					{{ message }}
 
 					<button type="button" class="close" data-dismiss="alert">
@@ -44,8 +44,8 @@
 		{% endfor %}
 
 		{# ============================================================
-																																																       INFORMATIONS DE LA COMMANDE
-																																																       ============================================================ #}
+																																																						       INFORMATIONS DE LA COMMANDE
+																																																						       ============================================================ #}
 		<div class="row">
 
 			<div class="col-xl-4 col-lg-4">
@@ -98,8 +98,8 @@
 			</div>
 
 			{# ========================================================
-																																																																								           INFORMATIONS DU TRAVAIL
-																																																																								           ======================================================== #}
+																																																																																	           INFORMATIONS DU TRAVAIL
+																																																																																	           ======================================================== #}
 			<div class="col-xl-8 col-lg-8">
 				<div class="card">
 					<div class="card-header">
@@ -235,23 +235,23 @@
 		</div>
 
 		{# Formulaire autonome d'ajout d'un fichier traité.
-																																		   Il est déclaré ici pour éviter d'imbriquer deux formulaires HTML. #}
+																																								   Il est déclaré ici pour éviter d'imbriquer deux formulaires HTML. #}
 		<form id="form-fichier-traite" method="post" enctype="multipart/form-data" action="{{ path('app_controle_pre_presse_ajouter_fichier_traite', {id: detail.id}) }}"></form>
 
 		{# ============================================================
-																																																		       FORMULAIRE DU CONTRÔLE
-																																																		       ============================================================ #}
+																																																								       FORMULAIRE DU CONTRÔLE
+																																																								       ============================================================ #}
 		<form method="post" id="form-controle-pre-presse">
 
 			<input
 			type="hidden" name="_token" value="{{ csrf_token( 'controle_pre_presse_' ~ detail.id ) }}">
 
 			{# ========================================================
-																																																																								           SÉLECTION DES FICHIERS
-																																																																								           ======================================================== #}
+																																																																																	           SÉLECTION DES FICHIERS
+																																																																																	           ======================================================== #}
 			<div class="card">
 				<div class="card-header d-flex justify-content-between
-																																																																																																																																																                        align-items-center">
+																																																																																																																																																																		                        align-items-center">
 
 					<h3 class="card-title">
 						<i class="fe fe-paperclip mr-2"></i>
@@ -284,10 +284,10 @@
 											<div class="card-body">
 
 												<div class="custom-control
-																																																																																																																																																																																																																																																																																																																																																                                                        custom-checkbox mb-3">
+																																																																																																																																																																																																																																																																																																																																																																																										                                                        custom-checkbox mb-3">
 
 													<input type="checkbox" class="custom-control-input
-																																																																																																																																																																																																																																																																																																																																																                                                           fichier-checkbox" id="fichier-{{ fichier.id }}" name="fichiers[]" value="{{ fichier.id }}">
+																																																																																																																																																																																																																																																																																																																																																																																										                                                           fichier-checkbox" id="fichier-{{ fichier.id }}" name="fichiers[]" value="{{ fichier.id }}">
 
 													<label class="custom-control-label" for="fichier-{{ fichier.id }}">
 														Sélectionner ce fichier
@@ -295,19 +295,19 @@
 												</div>
 
 												<div class="d-flex
-																																																																																																																																																																																																																																																																																																																																																                                                        align-items-center">
+																																																																																																																																																																																																																																																																																																																																																																																										                                                        align-items-center">
 
 													<div class="avatar
-																																																																																																																																																																																																																																																																																																																																																																								                                                            avatar-lg
-																																																																																																																																																																																																																																																																																																																																																																								                                                            bg-primary
-																																																																																																																																																																																																																																																																																																																																																																								                                                            text-white mr-3">
+																																																																																																																																																																																																																																																																																																																																																																																																																					                                                            avatar-lg
+																																																																																																																																																																																																																																																																																																																																																																																																																					                                                            bg-primary
+																																																																																																																																																																																																																																																																																																																																																																																																																					                                                            text-white mr-3">
 														<i class="fe fe-file"></i>
 													</div>
 
 													<div class="flex-fill" style="min-width: 0;">
 
 														<strong class="d-block
-																																																																																																																																																																																																																																																																																																																																																																																																                                                                   text-truncate">
+																																																																																																																																																																																																																																																																																																																																																																																																																																																                                                                   text-truncate">
 															{{ fichier.nomOriginal }}
 														</strong>
 
@@ -358,17 +358,17 @@
 
 													{% if fichier.estPretPourImpression %}
 														<span class="badge
-																																																																																																																																																																																																																																																																																																																																																																																																                                                                 badge-success">
+																																																																																																																																																																																																																																																																																																																																																																																																																																																                                                                 badge-success">
 															Prêt pour impression
 														</span>
 													{% elseif fichier.estUploadTermine %}
 														<span class="badge
-																																																																																																																																																																																																																																																																																																																																																																																																                                                                 badge-info">
+																																																																																																																																																																																																																																																																																																																																																																																																																																																                                                                 badge-info">
 															Upload terminé
 														</span>
 													{% else %}
 														<span class="badge
-																																																																																																																																																																																																																																																																																																																																																																																																                                                                 badge-warning">
+																																																																																																																																																																																																																																																																																																																																																																																																																																																                                                                 badge-warning">
 															Upload en cours
 														</span>
 													{% endif %}
@@ -403,8 +403,8 @@
 			</div>
 
 			{# ========================================================
-																																																																								           ÉTAT INITIAL DU FICHIER
-																																																																								           ======================================================== #}
+																																																																																	           ÉTAT INITIAL DU FICHIER
+																																																																																	           ======================================================== #}
 			<div class="card">
 				<div class="card-header">
 					<h3 class="card-title">
@@ -418,7 +418,7 @@
 
 						<div class="col-md-6">
 							<label class="custom-control
-																																																																																																																																																																																																																								                                      custom-checkbox mb-3">
+																																																																																																																																																																																																																																																			                                      custom-checkbox mb-3">
 
 								<input type="checkbox" class="custom-control-input" id="fichierDejaTraite" name="fichierDejaTraite" value="1">
 
@@ -429,13 +429,13 @@
 
 							<small class="text-muted d-block">
 								Le fichier est prêt et nécessite seulement
-																																																																																																																																																																																																                            un contrôle rapide.
+																																																																																																																																																																																																																								                            un contrôle rapide.
 							</small>
 						</div>
 
 						<div class="col-md-6">
 							<label class="custom-control
-																																																																																																																																																																																																																								                                      custom-checkbox mb-3">
+																																																																																																																																																																																																																																																			                                      custom-checkbox mb-3">
 
 								<input type="checkbox" class="custom-control-input" id="correctionNecessaire" name="correctionNecessaire" value="1">
 
@@ -446,7 +446,7 @@
 
 							<small class="text-muted d-block">
 								Des anomalies doivent être corrigées avant
-																																																																																																																																																																																																                            la validation.
+																																																																																																																																																																																																																								                            la validation.
 							</small>
 						</div>
 
@@ -579,7 +579,7 @@
 										<div class="card-body">
 											<div class="d-flex align-items-center mb-3">
 												<div class="avatar avatar-lg
-																																																																																																																																																																																																																																																																										                                                bg-success text-white mr-3">
+																																																																																																																																																																																																																																																																																																																				                                                bg-success text-white mr-3">
 													<i class="fe fe-file"></i>
 												</div>
 
@@ -625,7 +625,7 @@
 											</p>
 
 											<a href="{{ path('app_controle_pre_presse_visualiser_fichier', { id: fichier.id }) }}" target="_blank" rel="noopener" class="btn btn-sm
-																																																																																																																																																																																																																																																							                                           btn-outline-primary btn-block">
+																																																																																																																																																																																																																																																																																														                                           btn-outline-primary btn-block">
 												<i class="fe fe-eye mr-1"></i>
 												Visualiser
 											</a>
@@ -644,11 +644,11 @@
 				</div>
 			</div>
 			{# ========================================================
-																																																																								           VÉRIFICATIONS TECHNIQUES
-																																																																								           ======================================================== #}
+																																																																																	           VÉRIFICATIONS TECHNIQUES
+																																																																																	           ======================================================== #}
 			<div class="card">
 				<div class="card-header d-flex justify-content-between
-																																																																																																																																																                        align-items-center">
+																																																																																																																																																																		                        align-items-center">
 
 					<h3 class="card-title">
 						<i class="fe fe-check-square mr-2"></i>
@@ -698,10 +698,10 @@
 								<div class="border rounded p-3 h-100">
 
 									<label class="custom-control
-																																																																																																																																																																																																																																																																								                                              custom-checkbox mb-0">
+																																																																																																																																																																																																																																																																																																									                                              custom-checkbox mb-0">
 
 										<input type="checkbox" class="custom-control-input
-																																																																																																																																																																																																																																																																								                                               controle-technique" id="{{ champ }}" name="{{ champ }}" value="1">
+																																																																																																																																																																																																																																																																																																									                                               controle-technique" id="{{ champ }}" name="{{ champ }}" value="1">
 
 										<span class="custom-control-label">
 											{{ libelle }}
@@ -717,8 +717,8 @@
 			</div>
 
 			{# ========================================================
-																																																																								           ANOMALIES ET CORRECTIONS
-																																																																								           ======================================================== #}
+																																																																																	           ANOMALIES ET CORRECTIONS
+																																																																																	           ======================================================== #}
 			<div class="card">
 				<div class="card-header">
 					<h3 class="card-title">
@@ -759,8 +759,8 @@
 			</div>
 
 			{# ========================================================
-																																																																								           BAT
-																																																																								           ======================================================== #}
+																																																																																	           BAT
+																																																																																	           ======================================================== #}
 			<div class="card">
 				<div class="card-header">
 					<h3 class="card-title">
@@ -795,44 +795,285 @@
 					</div>
 				</div>
 			</div>
-
 			{# ========================================================
-																																																																								           BOUTONS D’ACTION
-																																																																								           ======================================================== #}
+									   CONTRÔLE FINANCIER CLIENT
+									   ======================================================== #}
+
+			{% if controleCredit is defined and controleCredit %}
+
+				<div class="card">
+
+					<div class="card-header">
+						<h3 class="card-title">
+							<i class="fe fe-credit-card mr-2"></i>
+							Contrôle financier du client
+						</h3>
+					</div>
+
+					<div class="card-body">
+
+						<div class="row">
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Ancienneté client
+								</small>
+
+								<strong>
+									{{ controleCredit.ancienneteMois|default(0) }}
+									mois
+								</strong>
+							</div>
+
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Plafond de crédit
+								</small>
+
+								<strong>
+									{{
+							controleCredit.plafondCredit
+								|default(0)
+								|number_format(0, ',', ' ')
+						}}
+									F CFA
+								</strong>
+							</div>
+
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Encours antérieur
+								</small>
+
+								<strong class="{{ controleCredit.encoursAnterieur|default(0) > controleCredit.plafondCredit|default(0) ? 'text-danger' : 'text-success' }}">
+									{{
+							controleCredit.encoursAnterieur
+								|default(0)
+								|number_format(0, ',', ' ')
+						}}
+									F CFA
+								</strong>
+							</div>
+
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Crédit disponible
+								</small>
+
+								<strong>
+									{{
+							controleCredit.creditDisponible
+								|default(0)
+								|number_format(0, ',', ' ')
+						}}
+									F CFA
+								</strong>
+							</div>
+
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Montant commande actuelle
+								</small>
+
+								<strong>
+									{{
+							controleCredit.totalCommande
+								|default(0)
+								|number_format(0, ',', ' ')
+						}}
+									F CFA
+								</strong>
+
+								<small class="text-muted d-block">
+									Ne participe pas au calcul du plafond.
+								</small>
+							</div>
+
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Avance validée
+								</small>
+
+								<strong class="text-success">
+									{{
+							controleCredit.avanceCommande
+								|default(0)
+								|number_format(0, ',', ' ')
+						}}
+									F CFA
+								</strong>
+							</div>
+
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Reste commande actuelle
+								</small>
+
+								<strong>
+									{{
+							controleCredit.resteCommande
+								|default(0)
+								|number_format(0, ',', ' ')
+						}}
+									F CFA
+								</strong>
+
+								<small class="text-muted d-block">
+									Ne participe pas à l’encours antérieur.
+								</small>
+							</div>
+
+
+							<div class="col-md-3 mb-3">
+								<small class="text-muted d-block">
+									Commandes antérieures impayées
+								</small>
+
+								<strong>
+									{{
+							controleCredit
+								.nombreCommandesAnterieuresImpayees
+								|default(0)
+						}}
+								</strong>
+							</div>
+
+						</div>
+
+
+						{% if controleCredit.autorise|default(false) %}
+
+							<div class="alert alert-success mb-0">
+								<i class="fe fe-check-circle mr-1"></i>
+
+								<strong>
+									Production autorisée.
+								</strong>
+
+								{{ controleCredit.motif|default('') }}
+							</div>
+
+						{% else %}
+
+							<div class="alert alert-danger mb-0">
+								<i class="fe fe-lock mr-1"></i>
+
+								<strong>
+									Production bloquée.
+								</strong>
+
+								{{ controleCredit.motif|default(
+						'La situation financière du client ne permet pas l’envoi en production.'
+					) }}
+							</div>
+
+						{% endif %}
+
+					</div>
+				</div>
+
+			{% endif %}
+			{# ========================================================
+																																																																																	           BOUTONS D’ACTION
+																																																																																	           ======================================================== #}
+			{# ========================================================
+						   BOUTONS D’ACTION
+						   ======================================================== #}
+
 			<div class="card">
 				<div class="card-body">
-					<div class="d-flex flex-wrap justify-content-end">
 
-						<button type="submit" name="action" value="enregistrer" class="btn btn-secondary mr-2 mb-2
-																																																																																																																																																																								                                   bouton-controle" data-message="Enregistrer ce contrôle prépresse ?">
+					<div
+						class="d-flex flex-wrap justify-content-end">
 
+						{# ====================================================
+															   ENREGISTRER
+															   ==================================================== #}
+
+						<button type="submit" name="action" value="enregistrer" class="btn btn-secondary mr-2 mb-2 bouton-controle" data-message="Enregistrer ce contrôle prépresse ?">
 							<i class="fe fe-save mr-1"></i>
 							Enregistrer
 						</button>
 
-						<button type="submit" name="action" value="valider" class="btn btn-info mr-2 mb-2
-																																																																																																																																																																								                                   bouton-controle" data-message="Valider définitivement ce contrôle ?">
 
+						{# ====================================================
+															   VALIDER LE PRÉPRESSE
+															   ====================================================
+															   Cette action ne crée pas l'ordre de production.
+															   ==================================================== #}
+
+						<button type="submit" name="action" value="valider" class="btn btn-info mr-2 mb-2 bouton-controle" data-message="Valider définitivement ce contrôle prépresse ?">
 							<i class="fe fe-check-circle mr-1"></i>
 							Valider
 						</button>
 
-						<button type="submit" name="action" value="valider_production" class="btn btn-success mb-2
-																																																																																																																																																																								                                   bouton-controle" data-message="Valider et envoyer les fichiers en production ?">
 
-							<i class="fe fe-printer mr-1"></i>
-							Valider et envoyer en production
-						</button>
+						{# ====================================================
+															   VALIDER + PRODUCTION
+															   ==================================================== #}
+
+						{% set productionAutorisee =
+				controleCredit is not defined
+				or controleCredit is null
+				or controleCredit.autorise|default(false)
+			%}
+
+
+						{% if productionAutorisee %}
+
+							<button type="submit" name="action" value="valider_production" class="btn btn-success mb-2 bouton-controle" data-message="Valider et envoyer les fichiers en production ?">
+								<i class="fe fe-printer mr-1"></i>
+								Valider et envoyer en production
+							</button>
+
+						{% else %}
+
+							<button type="button" class="btn btn-danger mb-2" disabled title="{{ controleCredit.motif|default( 'Production bloquée pour ce client.' ) }}">
+								<i class="fe fe-lock mr-1"></i>
+								Production bloquée
+							</button>
+
+						{% endif %}
 
 					</div>
+
+
+					{% if
+			controleCredit is defined
+			and controleCredit
+			and not controleCredit.autorise|default(false)
+		%}
+
+						<div class="alert alert-danger mt-3 mb-0">
+
+							<i class="fe fe-alert-triangle mr-1"></i>
+
+							<strong>
+								Impossible d’envoyer ce travail en production :
+							</strong>
+
+							{{ controleCredit.motif|default(
+					'le contrôle financier du client bloque cette opération.'
+				) }}
+
+						</div>
+
+					{% endif %}
+
 				</div>
 			</div>
 
 		</form>
 
 		{# ============================================================
-																																																       HISTORIQUE DES CONTRÔLES
-																																																       ============================================================ #}
+																																																						       HISTORIQUE DES CONTRÔLES
+																																																						       ============================================================ #}
 		<div class="card">
 			<div class="card-header">
 				<h3 class="card-title">
@@ -852,7 +1093,7 @@
 
 					<div class="table-responsive">
 						<table class="table table-bordered table-hover">
-							<thead class="bg-light">
+							<thead class="bg-light text-primary">
 								<tr>
 									<th>Date</th>
 									<th>Fichiers</th>

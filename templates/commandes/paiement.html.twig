@@ -166,15 +166,21 @@
 							{{ form_label(form.montant) }}
 
 							<div class="input-group">
-								{{ form_widget(form.montant, {
-                                        attr: {
-                                            class: 'form-control',
-                                            min: 1,
-                                            max: montantRestant,
-                                            placeholder: 'Montant du versement',
-                                            autofocus: 'autofocus'
-                                        }
-                                    }) }}
+								{{
+    form_widget(
+        form.montant,
+        {
+            attr: {
+                class: 'form-control paiement-montant-input',
+                min: 1,
+                max: montantRestant,
+                placeholder: 'Ex. 25 000',
+                autocomplete: 'off',
+                inputmode: 'numeric'
+            }
+        }
+    )
+}}
 
 								<div class="input-group-append">
 									<span class="input-group-text">
@@ -209,7 +215,32 @@
 
 							{{ form_errors(form.mode) }}
 						</div>
+						<div class="form-group">
 
+							{{ form_label(
+        form.compteTresorerie,
+        'Compte de trésorerie'
+    ) }}
+
+							{{ form_widget(
+        form.compteTresorerie,
+        {
+            attr: {
+                class: 'form-control custom-select'
+            }
+        }
+    ) }}
+
+							{{ form_errors(
+        form.compteTresorerie
+    ) }}
+
+							<small class="form-text text-muted">
+								Le compte doit correspondre
+								        au mode de paiement choisi.
+							</small>
+
+						</div>
 						<div class="form-group">
 							{{ form_label(form.reference) }}
 
@@ -224,7 +255,7 @@
 
 							<small class="form-text text-muted">
 								La référence est facultative pour un paiement
-																																																																																																																                                    en espèces.
+																																																																																																																																																																								                                    en espèces.
 							</small>
 						</div>
 
@@ -366,55 +397,147 @@
 {% endblock %}
 
 {% block javascripts %}
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 	{{ parent() }}
 
 	<script>
 		document.addEventListener('DOMContentLoaded', function () {
+
 const form = document.getElementById('paiement-form');
+
 const button = document.getElementById('btn-enregistrer-paiement');
+
 const montantInput = document.getElementById('{{ form.montant.vars.id|default('') }}');
+
 const resteAPayer = {{ montantRestant|default(0)|json_encode|raw }};
 
-if (! form || ! button) {
+if (! form || ! button || ! montantInput) {
 return;
 }
 
-form.addEventListener('submit', function (event) {
-const montant = montantInput ? parseInt(montantInput.value || '0', 10) : 0;
 
-const resteAPayer = {{ montantRestant }};
+function nettoyerMontant(value) {
+return String(value || '').replace(/\s/g, '').replace(/[^\d]/g, '');
+}
+
+
+function formatMontant(value) {
+const nombre = parseInt(nettoyerMontant(value), 10);
+
+if (! nombre || nombre <= 0) {
+return '';
+}
+
+return new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 0}).format(nombre);
+}
+
+
+function getMontantNumerique() {
+return parseInt(nettoyerMontant(montantInput.value) || '0', 10);
+}
+
+
+montantInput.addEventListener('input', function () {
+
+this.value = formatMontant(this.value);
+});
+
+
+form.addEventListener('submit', function (event) {
+
+const montant = getMontantNumerique();
+
 
 if (montant <= 0) {
 event.preventDefault();
 
-if (typeof Swal !== 'undefined') {
-Swal.fire({icon: 'error', title: 'Montant incorrect', text: 'Le montant doit être supérieur à zéro.'});
-} else {
-alert('Le montant doit être supérieur à zéro.');
-}
+Swal.fire({
+icon: 'error',
+title: 'Montant incorrect',
+text: 'Le montant doit être ' + 'supérieur à zéro.',
+confirmButtonText: 'OK'
+});
 
 return;
 }
+
 
 if (montant > resteAPayer) {
 event.preventDefault();
 
-if (typeof Swal !== 'undefined') {
+const resteFormate = new Intl.NumberFormat('fr-FR').format(resteAPayer);
+
 Swal.fire({
 icon: 'error',
 title: 'Montant trop élevé',
-text: 'Le montant ne peut pas dépasser le reste ' + 'à payer.'
+html: 'Le montant ne peut pas ' + 'dépasser le reste à payer de ' + '<strong>' + resteFormate + ' FCFA' + '</strong>.',
+confirmButtonText: 'OK'
 });
-} else {
-alert('Le montant dépasse le reste à payer.');
-}
 
 return;
 }
 
+
+/*
+                         * Confirmation une seule fois.
+                         */
+if (! form.dataset.confirmed) {
+event.preventDefault();
+
+const montantFormate = new Intl.NumberFormat('fr-FR').format(montant);
+
+Swal.fire({
+icon: 'question',
+
+title: 'Confirmer le paiement',
+
+html: 'Voulez-vous enregistrer ' + 'un paiement de ' + '<strong>' + montantFormate + ' FCFA' + '</strong> ?',
+
+showCancelButton: true,
+
+confirmButtonText: 'Oui, enregistrer',
+
+cancelButtonText: 'Annuler',
+
+reverseButtons: true
+}).then(function (result) {
+
+if (result.isConfirmed) { /*
+                                         * Symfony doit recevoir
+                                         * un entier sans espaces.
+                                         */
+montantInput.value = montant;
+
+form.dataset.confirmed = '1';
+
 button.disabled = true;
-button.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>' + ' Enregistrement...';
+
+button.innerHTML = '<i class="fa ' + 'fa-spinner ' + 'fa-spin mr-1"></i>' + ' Enregistrement...';
+
+form.requestSubmit();
+}
 });
+
+return;
+}
+
+
+/*
+                         * Nettoyage final avant envoi.
+                         */
+montantInput.value = montant;
+});
+
+
+/*
+                 * Formatage initial.
+                 */
+if (montantInput.value) {
+montantInput.value = formatMontant(montantInput.value);
+}
+
 });
 	</script>
+
 {% endblock %}

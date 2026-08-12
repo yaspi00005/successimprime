@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Commandes;
 use App\Entity\Paiements;
 use App\Entity\User;
+use App\Entity\MouvementTresorerie;
 use App\Form\CommandesType;
 use App\Form\PaiementsType;
 use App\Repository\CommandesRepository;
@@ -21,6 +22,8 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use App\Entity\CommandesDetails;
 use App\Service\StockService;
+use App\Repository\FacturesRepository;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 
 #[Route('/commandes')]
@@ -61,11 +64,21 @@ final class CommandesController extends AbstractController
 
         foreach ($commandes as $commande) {
             $total = (int) ($commande->getTotalTtc() ?? 0);
-            $paye = (int) ($commande->getMontantApayer() ?? 0);
+
+            $paye = 0;
+
+            foreach ($commande->getPaiements() as $paiement) {
+                $paye += (int) $paiement->getMontant();
+            }
+
+            $reste = max(
+                0,
+                $total - $paye
+            );
 
             $totalCommandes += $total;
             $totalPaye += $paye;
-            $totalReste += max(0, $total - $paye);
+            $totalReste += $reste;
         }
 
         return $this->render('commandes/index.html.twig', [
@@ -310,118 +323,187 @@ final class CommandesController extends AbstractController
         CommandeDetailFichierRepository $fichierRepository,
         StockService $stockService
     ): Response {
+
         /*
-     * État AVANT modification du formulaire.
+     * ============================================================
+     * UTILISATEUR
+     * ============================================================
+     */
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException(
+                'Vous devez être connecté pour modifier une commande.'
+            );
+        }
+
+
+        /*
+     * ============================================================
+     * ÉTAT AVANT MODIFICATION
+     * ============================================================
      */
         $commandeEtaitValidee =
             $this->commandeEstValidee(
                 $commande
             );
 
-        $circuitDejaCommence =
-            $this->commandeACommenceSonCircuit(
-                $commande
-            );
-        $commandeEtaitValidee =
-            $this->commandeEstValidee(
-                $commande
-            );
 
         $circuitDejaCommence =
             $this->commandeACommenceSonCircuit(
                 $commande
             );
 
+
+        /*
+     * ============================================================
+     * VERROUILLAGE APRÈS DÉMARRAGE PRODUCTION / LIVRAISON
+     * ============================================================
+     *
+     * RÈGLE :
+     *
+     * dès que la commande a commencé son circuit,
+     * seul ROLE_ADMIN peut encore accéder à l'édition.
+     */
+        if (
+            $circuitDejaCommence
+            && !$this->isGranted('ROLE_ADMIN')
+        ) {
+
+            $this->addFlash(
+                'warning',
+                'Cette commande est verrouillée car la production ou la livraison a déjà commencé. Seul un administrateur peut encore la modifier.'
+            );
+
+            return $this->redirectToRoute(
+                'app_commandes_show',
+                [
+                    'id' =>
+                    $commande->getId(),
+                ],
+                Response::HTTP_SEE_OTHER
+            );
+        }
+
+
+        /*
+     * ============================================================
+     * EMPREINTE DES LIGNES AVANT MODIFICATION
+     * ============================================================
+     */
         $empreinteDetailsAvant =
             $this->creerEmpreinteDetails(
                 $commande
             );
-        $form = $this->createForm(
-            CommandesType::class,
-            $commande
-        );
+
+
+        /*
+     * ============================================================
+     * FORMULAIRE
+     * ============================================================
+     */
+        $form =
+            $this->createForm(
+                CommandesType::class,
+                $commande
+            );
+
 
         $form->handleRequest(
             $request
         );
 
-        if (
-            $form->isSubmitted()
-            && $circuitDejaCommence
-        ) {
-            $detailsSoumis = $request->request->all(
-                $form->getName()
-            )['commandesDetails'] ?? null;
 
-            if ($detailsSoumis !== null) {
-                $form->addError(
-                    new FormError(
-                        'Les lignes de cette commande ne peuvent plus être modifiées car la production ou la livraison a déjà commencé.'
-                    )
-                );
-            }
-        }
         /*
      * ============================================================
      * PREMIÈRE PHASE :
-     * SYNCHRONISATION / CONTRÔLE
+     * SYNCHRONISATION / CONTRÔLES
      * ============================================================
      */
         if (
             $form->isSubmitted()
             && $form->isValid()
         ) {
+
             try {
-                if ($circuitDejaCommence) {
-                    $this->verifierModificationStructurelleAutorisee(
-                        $commande
-                    );
-                }
+
+                /*
+             * ========================================================
+             * EMPREINTE APRÈS SAISIE
+             * ========================================================
+             */
                 $empreinteDetailsApres =
                     $this->creerEmpreinteDetails(
                         $commande
                     );
 
-                if (
-                    $circuitDejaCommence
-                    && $empreinteDetailsAvant
-                    !== $empreinteDetailsApres
-                ) {
-                    throw new \DomainException(
-                        'Impossible de modifier les lignes de cette commande : '
-                            . 'la production ou la livraison a déjà commencé.'
+
+                /*
+             * ========================================================
+             * ADMIN + CIRCUIT DÉJÀ COMMENCÉ
+             * ========================================================
+             *
+             * Même pour l'admin, on conserve les contrôles métier
+             * existants si nécessaire.
+             */
+                if ($circuitDejaCommence) {
+
+                    $this
+                        ->verifierModificationStructurelleAutorisee(
+                            $commande
+                        );
+
+
+                    if (
+                        $empreinteDetailsAvant
+                        !== $empreinteDetailsApres
+                    ) {
+
+                        /*
+                     * Si tu veux que l'admin puisse modifier AUSSI
+                     * les lignes après démarrage production,
+                     * supprime ce bloc.
+                     *
+                     * Dans la version actuelle :
+                     * l'admin peut entrer dans l'édition,
+                     * mais les changements structurels restent protégés.
+                     */
+                        throw new \DomainException(
+                            'Les lignes de cette commande ne peuvent plus être modifiées car la production ou la livraison a déjà commencé.'
+                        );
+                    }
+                }
+
+
+                /*
+             * ========================================================
+             * SYNCHRONISATION DES DÉTAILS / FINITIONS
+             * ========================================================
+             */
+                $this
+                    ->synchroniserDetailsEtFinitions(
+                        $commande,
+                        $form,
+                        $entityManager
                     );
-                }
-                $this->synchroniserDetailsEtFinitions(
-                    $commande,
-                    $form,
-                    $entityManager
-                );
 
-                $this->rattacherFichiers(
-                    $commande,
-                    $fichierRepository
-                );
 
-                if (
-                    $this->commandeEstValidee(
-                        $commande
-                    )
-                ) {
-                    /*
-                 * Attention :
-                 * verifierStockCommande() utilise actuellement
-                 * le stock physique.
-                 *
-                 * La vraie vérification tenant compte des
-                 * réservations est également faite ensuite par
-                 * reserverPourCommande().
-                 */
-                }
+                /*
+             * ========================================================
+             * FICHIERS
+             * ========================================================
+             */
+                $this
+                    ->rattacherFichiers(
+                        $commande,
+                        $fichierRepository
+                    );
             } catch (
-                \DomainException |
-                \RuntimeException $exception
+                \DomainException
+                | \RuntimeException
+                | \LogicException $exception
             ) {
+
                 $form->addError(
                     new FormError(
                         $exception->getMessage()
@@ -430,63 +512,72 @@ final class CommandesController extends AbstractController
             }
         }
 
+
         /*
- * ============================================================
- * DEUXIÈME PHASE :
- * ENREGISTREMENT
- * ============================================================
- */
+     * ============================================================
+     * DEUXIÈME PHASE :
+     * ENREGISTREMENT
+     * ============================================================
+     */
         if (
             $form->isSubmitted()
             && $form->isValid()
         ) {
+
             try {
+
                 $commandeEstValideeMaintenant =
                     $this->commandeEstValidee(
                         $commande
                     );
 
+
                 /*
-         * ========================================================
-         * CAS 1 :
-         * BROUILLON → VALIDÉE
-         * ========================================================
-         */
+             * ========================================================
+             * CAS 1 :
+             * BROUILLON -> VALIDÉE
+             * ========================================================
+             */
                 if (
                     !$commandeEtaitValidee
                     && $commandeEstValideeMaintenant
                 ) {
-                    /*
-             * Entrée initiale dans le circuit.
-             */
-                    $this->preparerCircuitCommande(
-                        $commande
-                    );
 
                     /*
-             * Réservation du stock.
-             */
+                 * Préparation initiale du circuit.
+                 */
+                    $this
+                        ->preparerCircuitCommande(
+                            $commande
+                        );
+
+
+                    /*
+                 * Réservation du stock.
+                 */
                     $stockService
                         ->reserverPourCommande(
                             $commande
                         );
                 }
 
+
                 /*
-         * ========================================================
-         * CAS 2 :
-         * VALIDÉE → VALIDÉE
-         * ========================================================
-         */ elseif (
+             * ========================================================
+             * CAS 2 :
+             * VALIDÉE -> VALIDÉE
+             * ========================================================
+             */ elseif (
                     $commandeEtaitValidee
                     && $commandeEstValideeMaintenant
                 ) {
+
                     /*
-             * Tant que le circuit métier n'a pas commencé,
-             * on autorise encore la modification et le
-             * recalcul des réservations.
-             */
+                 * Tant que le circuit n'a pas commencé,
+                 * les réservations peuvent être recalculées.
+                 */
                     if (!$circuitDejaCommence) {
+
                         $stockService
                             ->reserverPourCommande(
                                 $commande
@@ -494,54 +585,66 @@ final class CommandesController extends AbstractController
                     }
 
                     /*
-             * Si production/livraison a commencé,
-             * on NE réinitialise surtout pas les statuts
-             * avec preparerCircuitCommande().
-             *
-             * Et on ne recrée pas non plus les réservations.
-             */
+                 * Si le circuit a déjà commencé :
+                 *
+                 * - pas de preparerCircuitCommande()
+                 * - pas de recréation des réservations
+                 * - pas de réinitialisation des statuts
+                 */
                 }
 
+
                 /*
-         * ========================================================
-         * CAS 3 :
-         * VALIDÉE → BROUILLON
-         * ========================================================
-         */ elseif (
+             * ========================================================
+             * CAS 3 :
+             * VALIDÉE -> BROUILLON
+             * ========================================================
+             */ elseif (
                     $commandeEtaitValidee
                     && !$commandeEstValideeMaintenant
                 ) {
+
                     if ($circuitDejaCommence) {
+
                         throw new \DomainException(
                             'Cette commande a déjà commencé son circuit de production ou de livraison. Elle ne peut plus être repassée en brouillon.'
                         );
                     }
 
+
                     /*
-             * Aucune production/livraison n'a commencé :
-             * les réservations peuvent être libérées.
-             */
+                 * Libération des réservations.
+                 */
                     $stockService
                         ->libererReservationsCommande(
                             $commande
                         );
                 }
 
-                /*
-         * ========================================================
-         * CAS 4 :
-         * BROUILLON → BROUILLON
-         * ========================================================
-         *
-         * Rien à faire concernant le stock ou le circuit.
-         */
 
+                /*
+             * ========================================================
+             * CAS 4 :
+             * BROUILLON -> BROUILLON
+             * ========================================================
+             *
+             * Aucun traitement particulier.
+             */
+
+
+                /*
+             * ========================================================
+             * ENREGISTREMENT
+             * ========================================================
+             */
                 $entityManager->flush();
+
 
                 $this->addFlash(
                     'success',
                     'La commande a été modifiée avec succès.'
                 );
+
 
                 return $this->redirectToRoute(
                     'app_commandes_show',
@@ -552,10 +655,11 @@ final class CommandesController extends AbstractController
                     Response::HTTP_SEE_OTHER
                 );
             } catch (
-                \DomainException |
-                \RuntimeException |
-                \LogicException $exception
+                \DomainException
+                | \RuntimeException
+                | \LogicException $exception
             ) {
+
                 $form->addError(
                     new FormError(
                         $exception->getMessage()
@@ -564,6 +668,12 @@ final class CommandesController extends AbstractController
             }
         }
 
+
+        /*
+     * ============================================================
+     * AFFICHAGE
+     * ============================================================
+     */
         return $this->render(
             'commandes/edit.html.twig',
             [
@@ -700,24 +810,24 @@ final class CommandesController extends AbstractController
     }
 
     private function synchroniserDetailsEtFinitions(
-    Commandes $commande,
-    FormInterface $form,
-    EntityManagerInterface $entityManager
-): void {
-    $detailsForm =
-        $form->get('commandesDetails');
+        Commandes $commande,
+        FormInterface $form,
+        EntityManagerInterface $entityManager
+    ): void {
+        $detailsForm =
+            $form->get('commandesDetails');
 
-    foreach ($detailsForm as $detailForm) {
-        $detail =
-            $detailForm->getData();
+        foreach ($detailsForm as $detailForm) {
+            $detail =
+                $detailForm->getData();
 
-        if (
-            !$detail instanceof CommandesDetails
-        ) {
-            continue;
-        }
+            if (
+                !$detail instanceof CommandesDetails
+            ) {
+                continue;
+            }
 
-        /*
+            /*
          * ====================================================
          * TYPE : ARTICLE EN STOCK
          * ====================================================
@@ -726,243 +836,243 @@ final class CommandesController extends AbstractController
          * Aucun produit, aucune configuration,
          * aucun prépresse, aucune production.
          */
-        if (
-            $detail->getTypeLigne()
-            === CommandesDetails::TYPE_ARTICLE
-        ) {
-            $article =
-                $detail->getArticle();
-
-            if ($article === null) {
-                throw new \DomainException(
-                    sprintf(
-                        'Veuillez sélectionner un article pour la ligne « %s ».',
-                        $detail->getDesignation()
-                        ?: 'Article en stock'
-                    )
-                );
-            }
-
             if (
-                method_exists(
-                    $article,
-                    'isActif'
-                )
-                && !$article->isActif()
+                $detail->getTypeLigne()
+                === CommandesDetails::TYPE_ARTICLE
             ) {
-                throw new \DomainException(
-                    sprintf(
-                        'L’article « %s » est désactivé.',
-                        $article->getDesignation()
-                    )
-                );
-            }
+                $article =
+                    $detail->getArticle();
 
-            if (
-                method_exists(
-                    $article,
-                    'isVendable'
-                )
-                && !$article->isVendable()
-            ) {
-                throw new \DomainException(
-                    sprintf(
-                        'L’article « %s » n’est pas autorisé à la vente directe.',
-                        $article->getDesignation()
-                    )
-                );
-            }
+                if ($article === null) {
+                    throw new \DomainException(
+                        sprintf(
+                            'Veuillez sélectionner un article pour la ligne « %s ».',
+                            $detail->getDesignation()
+                                ?: 'Article en stock'
+                        )
+                    );
+                }
 
-            /*
+                if (
+                    method_exists(
+                        $article,
+                        'isActif'
+                    )
+                    && !$article->isActif()
+                ) {
+                    throw new \DomainException(
+                        sprintf(
+                            'L’article « %s » est désactivé.',
+                            $article->getDesignation()
+                        )
+                    );
+                }
+
+                if (
+                    method_exists(
+                        $article,
+                        'isVendable'
+                    )
+                    && !$article->isVendable()
+                ) {
+                    throw new \DomainException(
+                        sprintf(
+                            'L’article « %s » n’est pas autorisé à la vente directe.',
+                            $article->getDesignation()
+                        )
+                    );
+                }
+
+                /*
              * Nettoyage de toutes les informations
              * propres à une ligne Produit.
              */
-            $detail->setProduit(null);
+                $detail->setProduit(null);
 
-            $detail->setProduitConfiguration(
-                null
-            );
+                $detail->setProduitConfiguration(
+                    null
+                );
 
-            $detail->setTypeImpression(null);
+                $detail->setTypeImpression(null);
 
-            $detail->setSupport(null);
+                $detail->setSupport(null);
 
-            $detail->setFormat(null);
+                $detail->setFormat(null);
 
-            /*
+                /*
              * Pas de traitement technique.
              */
-            $detail->setPrePresseNecessaire(
-                false
-            );
+                $detail->setPrePresseNecessaire(
+                    false
+                );
 
-            $detail->setProductionNecessaire(
-                false
-            );
+                $detail->setProductionNecessaire(
+                    false
+                );
 
-            /*
+                /*
              * Vente directe = calcul par quantité/unité.
              *
              * Garde cette ligne seulement si ton setter existe.
              */
-            if (
-                method_exists(
-                    $detail,
-                    'setModeCalcul'
-                )
-            ) {
-                $detail->setModeCalcul(
-                    'unite'
-                );
-            }
+                if (
+                    method_exists(
+                        $detail,
+                        'setModeCalcul'
+                    )
+                ) {
+                    $detail->setModeCalcul(
+                        'unite'
+                    );
+                }
 
-            /*
+                /*
              * Si aucune désignation n'est saisie,
              * on utilise celle de l'article.
              */
-            if (
-                trim(
-                    (string)
-                    $detail->getDesignation()
-                ) === ''
-            ) {
-                $detail->setDesignation(
-                    $article->getDesignation()
-                );
-            }
+                if (
+                    trim(
+                        (string)
+                        $detail->getDesignation()
+                    ) === ''
+                ) {
+                    $detail->setDesignation(
+                        $article->getDesignation()
+                    );
+                }
 
-            /*
+                /*
              * Pas de synchronisation ProduitConfiguration
              * pour une vente directe d'article.
              */
 
-            $detail->calculerTotaux(
-                false
-            );
+                $detail->calculerTotaux(
+                    false
+                );
 
-            continue;
-        }
+                continue;
+            }
 
 
-        /*
+            /*
          * ====================================================
          * TYPE : SAISIE LIBRE
          * ====================================================
          */
-        if (
-            $detail->getTypeLigne()
-            === CommandesDetails::TYPE_LIBRE
-        ) {
-            /*
+            if (
+                $detail->getTypeLigne()
+                === CommandesDetails::TYPE_LIBRE
+            ) {
+                /*
              * Une ligne libre ne doit être reliée
              * ni à un article, ni à un produit.
              */
-            $detail->setArticle(null);
+                $detail->setArticle(null);
 
-            $detail->setProduit(null);
+                $detail->setProduit(null);
 
-            $detail->setProduitConfiguration(
-                null
-            );
+                $detail->setProduitConfiguration(
+                    null
+                );
 
-            $detail->setTypeImpression(null);
+                $detail->setTypeImpression(null);
 
-            $detail->setSupport(null);
+                $detail->setSupport(null);
 
-            $detail->setFormat(null);
+                $detail->setFormat(null);
 
-            /*
+                /*
              * Par défaut :
              * livraison directe.
              */
-            $detail->setPrePresseNecessaire(
-                false
-            );
+                $detail->setPrePresseNecessaire(
+                    false
+                );
 
-            $detail->setProductionNecessaire(
-                false
-            );
+                $detail->setProductionNecessaire(
+                    false
+                );
 
-            $this->synchroniserDetailLibre(
-                $detail,
-                $entityManager
-            );
+                $this->synchroniserDetailLibre(
+                    $detail,
+                    $entityManager
+                );
 
-            $detail->calculerTotaux(
-                false
-            );
+                $detail->calculerTotaux(
+                    false
+                );
 
-            continue;
-        }
+                continue;
+            }
 
 
-        /*
+            /*
          * ====================================================
          * TYPE : PRODUIT / PRESTATION
          * ====================================================
          */
-        if (
-            $detail->getTypeLigne()
-            !== CommandesDetails::TYPE_PRODUIT
-        ) {
-            throw new \DomainException(
-                'Le type de ligne du travail est invalide.'
-            );
-        }
+            if (
+                $detail->getTypeLigne()
+                !== CommandesDetails::TYPE_PRODUIT
+            ) {
+                throw new \DomainException(
+                    'Le type de ligne du travail est invalide.'
+                );
+            }
 
-        /*
+            /*
          * Une ligne Produit ne doit pas conserver
          * un Article de vente directe.
          */
-        $detail->setArticle(null);
+            $detail->setArticle(null);
 
 
-        /*
+            /*
          * ====================================================
          * MODE DE CONFIGURATION DU PRODUIT
          * ====================================================
          */
-        if (
-            $detail->isConfigurationAutomatique()
-        ) {
-            $this->synchroniserDetailAutomatique(
-                $detail,
-                $detailForm,
-                $entityManager
-            );
-        } elseif (
-            $detail->isConfigurationManuelle()
-        ) {
-            $this->synchroniserDetailManuel(
-                $detail,
-                $detailForm,
-                $entityManager
-            );
-        } elseif (
-            $detail->isSaisieLibre()
-        ) {
-            /*
+            if (
+                $detail->isConfigurationAutomatique()
+            ) {
+                $this->synchroniserDetailAutomatique(
+                    $detail,
+                    $detailForm,
+                    $entityManager
+                );
+            } elseif (
+                $detail->isConfigurationManuelle()
+            ) {
+                $this->synchroniserDetailManuel(
+                    $detail,
+                    $detailForm,
+                    $entityManager
+                );
+            } elseif (
+                $detail->isSaisieLibre()
+            ) {
+                /*
              * Compatibilité temporaire avec ton ancien
              * modeConfiguration = libre.
              *
              * À terme, TYPE_LIBRE suffit et cette branche
              * pourra être retirée.
              */
-            $this->synchroniserDetailLibre(
-                $detail,
-                $entityManager
-            );
-        } else {
-            throw new \DomainException(
-                'Le mode de saisie du travail est invalide.'
+                $this->synchroniserDetailLibre(
+                    $detail,
+                    $entityManager
+                );
+            } else {
+                throw new \DomainException(
+                    'Le mode de saisie du travail est invalide.'
+                );
+            }
+
+            $detail->calculerTotaux(
+                false
             );
         }
-
-        $detail->calculerTotaux(
-            false
-        );
     }
-}
 
 
     private function synchroniserDetailAutomatique(
@@ -1244,16 +1354,25 @@ final class CommandesController extends AbstractController
             'id' => $commande->getId(),
         ]);
     }
+
     #[Route(
         '/{id}/paiement',
         name: 'app_commandes_paiement',
         methods: ['GET', 'POST']
     )]
+    #[IsGranted('ROLE_PAIEMENT_ENCAISSER')]
     public function paiement(
         Commandes $commande,
         Request $request,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
+        FacturesRepository $facturesRepository
     ): Response {
+        /*
+     * ============================================================
+     * UTILISATEUR CONNECTÉ
+     * ============================================================
+     */
+
         $user = $this->getUser();
 
         if (!$user instanceof User) {
@@ -1262,110 +1381,912 @@ final class CommandesController extends AbstractController
             );
         }
 
-        $resteAPayer = $commande->getResteAPayer();
 
-        if ($resteAPayer <= 0) {
+        /*
+     * ============================================================
+     * TOTAL DE LA COMMANDE
+     * ============================================================
+     */
+
+        $totalCommande = (int) (
+            $commande->getTotalTtc()
+            ?? 0
+        );
+
+
+        /*
+     * ============================================================
+     * TOTAL DÉJÀ PAYÉ
+     * ============================================================
+     *
+     * Seuls les paiements VALIDÉS sont pris en compte.
+     * ============================================================
+     */
+
+        $totalPaye = 0;
+
+        foreach (
+            $commande->getPaiements()
+            as $paiementExistant
+        ) {
+            if (
+                !$paiementExistant->estValide()
+            ) {
+                continue;
+            }
+
+            $totalPaye += (int) (
+                $paiementExistant->getMontant()
+                ?? 0
+            );
+        }
+
+
+        /*
+     * ============================================================
+     * RESTE À PAYER
+     * ============================================================
+     */
+
+        $resteAPayer = max(
+            0,
+            $totalCommande
+                - $totalPaye
+        );
+
+
+        /*
+     * ============================================================
+     * COMMANDE DÉJÀ SOLDÉE
+     * ============================================================
+     */
+
+        if (
+            $resteAPayer <= 0
+            &&
+            $totalCommande > 0
+        ) {
             $this->addFlash(
                 'warning',
                 'Cette commande est déjà entièrement payée.'
             );
 
-            return $this->redirectToRoute('app_commandes_show', [
-                'id' => $commande->getId(),
-            ]);
+            return $this->redirectToRoute(
+                'app_commandes_show',
+                [
+                    'id' => $commande->getId(),
+                ]
+            );
         }
 
+
+        /*
+     * ============================================================
+     * NOUVEAU PAIEMENT
+     * ============================================================
+     */
+
         $paiement = new Paiements();
-        $paiement->setCommande($commande);
-        $paiement->setEncaissePar($user);
-        $paiement->setDate(new \DateTimeImmutable());
 
-        $form = $this->createForm(PaiementsType::class, $paiement);
-        $form->handleRequest($request);
+        $paiement->setCommande(
+            $commande
+        );
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $montant = (int) $paiement->getMontant();
+        /*
+     * Très important :
+     *
+     * le paiement appartient automatiquement
+     * à la session connectée.
+     */
+        $paiement->setEncaissePar(
+            $user
+        );
 
-            // Recalcul effectué avant l’ajout du nouveau paiement.
-            $resteAvantPaiement = $commande->getResteAPayer();
+        $paiement->setDate(
+            new \DateTimeImmutable()
+        );
+
+
+        /*
+     * ============================================================
+     * FORMULAIRE
+     * ============================================================
+     */
+
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException(
+                'Utilisateur non authentifié.'
+            );
+        }
+
+        $form = $this->createForm(
+            PaiementsType::class,
+            $paiement,
+            [
+                'est_admin' =>
+                $this->isGranted('ROLE_ADMIN'),
+
+                'utilisateur' =>
+                $user,
+            ]
+        );
+
+        $form->handleRequest(
+            $request
+        );
+
+
+        /*
+     * ============================================================
+     * TRAITEMENT
+     * ============================================================
+     */
+
+        if (
+            $form->isSubmitted()
+            &&
+            $form->isValid()
+        ) {
+            /*
+         * ========================================================
+         * MONTANT SAISI
+         * ========================================================
+         */
+
+            $montant = (int) (
+                $paiement->getMontant()
+                ?? 0
+            );
+
+
+            /*
+         * ========================================================
+         * RECALCUL DU TOTAL PAYÉ
+         * ========================================================
+         *
+         * On recalcule juste avant l'enregistrement.
+         * ========================================================
+         */
+
+            $totalPayeAvant = 0;
+
+            foreach (
+                $commande->getPaiements()
+                as $paiementExistant
+            ) {
+                if (
+                    !$paiementExistant->estValide()
+                ) {
+                    continue;
+                }
+
+                $totalPayeAvant += (int) (
+                    $paiementExistant->getMontant()
+                    ?? 0
+                );
+            }
+
+
+            $resteAvantPaiement = max(
+                0,
+                $totalCommande
+                    - $totalPayeAvant
+            );
+
+
+            /*
+         * ========================================================
+         * CONTRÔLE DU MONTANT
+         * ========================================================
+         */
 
             if ($montant <= 0) {
-                $form->get('montant')->addError(
-                    new FormError(
-                        'Le montant doit être supérieur à zéro.'
-                    )
-                );
-            } elseif ($montant > $resteAvantPaiement) {
-                $form->get('montant')->addError(
-                    new FormError(
-                        'Le montant dépasse le reste à payer.'
-                    )
-                );
+                $form
+                    ->get('montant')
+                    ->addError(
+                        new FormError(
+                            'Le montant doit être supérieur à zéro.'
+                        )
+                    );
+            } elseif (
+                $montant
+                >
+                $resteAvantPaiement
+            ) {
+                $form
+                    ->get('montant')
+                    ->addError(
+                        new FormError(
+                            sprintf(
+                                'Le montant saisi dépasse le reste à payer de %s FCFA.',
+                                number_format(
+                                    $resteAvantPaiement,
+                                    0,
+                                    ',',
+                                    ' '
+                                )
+                            )
+                        )
+                    );
             } else {
                 /*
-             * addPaiement() établit également la relation
-             * Paiement -> Commande.
+             * ====================================================
+             * RELATION COMMANDE <-> PAIEMENT
+             * ====================================================
              */
-                $commande->addPaiement($paiement);
 
-                $entityManager->persist($paiement);
+                $commande->addPaiement(
+                    $paiement
+                );
 
-                $commande = $paiement->getCommande();
 
-                if ($commande === null) {
-                    throw new \LogicException(
-                        'Aucune commande n’est associée à ce paiement.'
+                /*
+             * ====================================================
+             * VALIDATION DU PAIEMENT
+             * ====================================================
+             *
+             * Validation automatique :
+             *
+             * - espèces
+             * - Orange Money
+             * - Wave
+             *
+             * Validation manuelle :
+             *
+             * - virement bancaire
+             * - chèque
+             * - carte bancaire
+             * ====================================================
+             */
+
+                try {
+                    if (
+                        !$paiement->necessiteValidationManuelle()
+                    ) {
+                        $paiement->validerPar(
+                            $user
+                        );
+                    }
+                } catch (
+                    \InvalidArgumentException
+                    | \LogicException
+                    | \DomainException
+                    | \RuntimeException $exception
+                ) {
+                    $this->addFlash(
+                        'warning',
+                        $exception->getMessage()
+                    );
+
+                    return $this->redirectToRoute(
+                        'app_commandes_paiement',
+                        [
+                            'id' => $commande->getId(),
+                        ]
                     );
                 }
 
-                $totalPaye = 0;
 
-                foreach ($commande->getPaiements() as $paiementCommande) {
-                    // Adapte le nom du getter si ton champ s’appelle autrement.
-                    $totalPaye += (int) $paiementCommande->getMontant();
+                /*
+             * ====================================================
+             * PAIEMENT VALIDÉ
+             * ====================================================
+             *
+             * Un mouvement de trésorerie est créé uniquement
+             * lorsque le paiement devient réellement validé.
+             * ====================================================
+             */
+
+                if (
+                    $paiement->estValide()
+                ) {
+                    $compte =
+                        $paiement->getCompteTresorerie();
+
+
+                    /*
+                 * =================================================
+                 * COMPTE DE TRÉSORERIE OBLIGATOIRE
+                 * =================================================
+                 */
+
+                    if ($compte === null) {
+                        $this->addFlash(
+                            'warning',
+                            'Veuillez sélectionner un compte de trésorerie.'
+                        );
+
+                        return $this->redirectToRoute(
+                            'app_commandes_paiement',
+                            [
+                                'id' => $commande->getId(),
+                            ]
+                        );
+                    }
+
+
+                    /*
+                 * =================================================
+                 * ANTI-DOUBLON
+                 * =================================================
+                 *
+                 * Un paiement ne doit générer
+                 * qu'un seul mouvement de trésorerie.
+                 * =================================================
+                 */
+
+                    if (
+                        $paiement->getMouvementTresorerie()
+                        === null
+                    ) {
+                        $mouvement =
+                            new MouvementTresorerie();
+
+
+                        /*
+                     * =============================================
+                     * RÉFÉRENCE DU MOUVEMENT
+                     * =============================================
+                     */
+
+                        $mouvement->setReference(
+                            sprintf(
+                                'MVT-PAY-%s-%s',
+                                (
+                                    new \DateTimeImmutable()
+                                )->format(
+                                    'YmdHis'
+                                ),
+                                strtoupper(
+                                    substr(
+                                        bin2hex(
+                                            random_bytes(
+                                                3
+                                            )
+                                        ),
+                                        0,
+                                        6
+                                    )
+                                )
+                            )
+                        );
+
+
+                        /*
+                     * =============================================
+                     * TYPE
+                     * =============================================
+                     *
+                     * Un paiement client est une entrée d'argent.
+                     * =============================================
+                     */
+
+                        $mouvement->setType(
+                            MouvementTresorerie::TYPE_ENCAISSEMENT
+                        );
+
+
+                        /*
+                     * =============================================
+                     * CATÉGORIE FINANCIÈRE
+                     * =============================================
+                     *
+                     * TRÈS IMPORTANT :
+                     *
+                     * Le paiement d'une commande est classé
+                     * automatiquement comme VENTE.
+                     *
+                     * CATEGORIE_VENTE entraîne :
+                     *
+                     * impactResultat = true
+                     *
+                     * grâce à MouvementTresorerie::setCategorie().
+                     * =============================================
+                     */
+
+                        $mouvement->setCategorie(
+                            MouvementTresorerie::CATEGORIE_VENTE
+                        );
+
+
+                        /*
+                     * =============================================
+                     * CONFIDENTIALITÉ
+                     * =============================================
+                     *
+                     * Un encaissement client normal
+                     * n'est jamais confidentiel.
+                     * =============================================
+                     */
+
+                        $mouvement->setConfidentiel(
+                            false
+                        );
+
+
+                        /*
+                     * =============================================
+                     * COMPTE DESTINATION
+                     * =============================================
+                     *
+                     * Exemple :
+                     *
+                     * - Caisse Vente
+                     * - Orange Money
+                     * - Wave
+                     * =============================================
+                     */
+
+                        $mouvement->setCompteDestination(
+                            $compte
+                        );
+
+
+                        /*
+                     * Encaissement :
+                     * aucun compte source.
+                     */
+
+                        $mouvement->setCompteSource(
+                            null
+                        );
+
+
+                        /*
+                     * =============================================
+                     * MONTANT
+                     * =============================================
+                     */
+
+                        $mouvement->setMontant(
+                            $montant
+                        );
+
+
+                        /*
+                     * =============================================
+                     * DEVISE
+                     * =============================================
+                     */
+
+                        $mouvement->setDevise(
+                            'XOF'
+                        );
+
+
+                        /*
+                     * =============================================
+                     * MODE DE PAIEMENT
+                     * =============================================
+                     */
+
+                        $mouvement->setModePaiement(
+                            $paiement->getMode()
+                        );
+
+
+                        /*
+                     * =============================================
+                     * RÉFÉRENCE EXTERNE
+                     * =============================================
+                     *
+                     * Exemple :
+                     *
+                     * référence Orange Money
+                     * référence Wave
+                     * reçu
+                     * transaction
+                     * =============================================
+                     */
+
+                        $mouvement->setReferenceExterne(
+                            $paiement->getReference()
+                        );
+
+
+                        /*
+                     * =============================================
+                     * LIBELLÉ
+                     * =============================================
+                     */
+
+                        $mouvement->setLibelle(
+                            sprintf(
+                                'Paiement commande %s',
+                                $commande->getNumero()
+                                    ??
+                                    '#'
+                                    . $commande->getId()
+                            )
+                        );
+
+
+                        /*
+                     * =============================================
+                     * DESCRIPTION
+                     * =============================================
+                     */
+
+                        $mouvement->setDescription(
+                            sprintf(
+                                'Encaissement de %s FCFA pour la commande %s.',
+                                number_format(
+                                    $montant,
+                                    0,
+                                    ',',
+                                    ' '
+                                ),
+                                $commande->getNumero()
+                                    ??
+                                    '#'
+                                    . $commande->getId()
+                            )
+                        );
+
+
+                        /*
+                     * =============================================
+                     * AGENT
+                     * =============================================
+                     *
+                     * Utilisateur connecté.
+                     *
+                     * Cette information permettra notamment :
+                     *
+                     * - statistiques personnelles ;
+                     * - historique des encaissements ;
+                     * - audit de caisse.
+                     * =============================================
+                     */
+
+                        $mouvement->setAgent(
+                            $user
+                        );
+
+
+                        /*
+                     * =============================================
+                     * DATE OPÉRATION
+                     * =============================================
+                     */
+
+                        $mouvement->setDateOperation(
+                            $paiement->getDate()
+                                ??
+                                new \DateTimeImmutable()
+                        );
+
+
+                        /*
+                     * =============================================
+                     * STATUT
+                     * =============================================
+                     */
+
+                        $mouvement->setStatut(
+                            MouvementTresorerie::STATUT_VALIDE
+                        );
+
+
+                        /*
+                     * =============================================
+                     * DATE DE VALIDATION
+                     * =============================================
+                     */
+
+                        $mouvement->setDateValidation(
+                            new \DateTimeImmutable()
+                        );
+
+
+                        /*
+                     * =============================================
+                     * RELATION
+                     * PAIEMENT <-> MOUVEMENT
+                     * =============================================
+                     */
+
+                        $mouvement->setPaiement(
+                            $paiement
+                        );
+
+                        $paiement->setMouvementTresorerie(
+                            $mouvement
+                        );
+
+
+                        /*
+                     * =============================================
+                     * MISE À JOUR DU SOLDE DU COMPTE
+                     * =============================================
+                     */
+
+                        $ancienSolde = (int) (
+                            $compte->getSoldeActuel()
+                            ?? 0
+                        );
+
+
+                        $compte->setSoldeActuel(
+                            $ancienSolde
+                                +
+                                $montant
+                        );
+
+
+                        /*
+                     * =============================================
+                     * PERSISTENCE
+                     * =============================================
+                     */
+
+                        $entityManager->persist(
+                            $mouvement
+                        );
+
+                        $entityManager->persist(
+                            $compte
+                        );
+                    }
                 }
 
-                $totalCommande = (int) $commande->getTotalTtc();
-                $resteAPayer = max(0, $totalCommande - $totalPaye);
 
-                $commande->setTotalPaye($totalPaye);
-                $commande->setResteAPayer($resteAPayer);
+                /*
+             * ====================================================
+             * PERSISTENCE DU PAIEMENT
+             * ====================================================
+             */
 
-                $commande->setStatutPaiement(
-                    $resteAPayer <= 0
-                        ? Commandes::PAIEMENT_PAYE
-                        : (
-                            $totalPaye > 0
-                            ? Commandes::PAIEMENT_PARTIEL
-                            : Commandes::PAIEMENT_IMPAYE
+                $entityManager->persist(
+                    $paiement
+                );
+
+
+                /*
+             * ====================================================
+             * RECALCUL DU TOTAL PAYÉ DE LA COMMANDE
+             * ====================================================
+             */
+
+                $nouveauTotalPaye = 0;
+
+                foreach (
+                    $commande->getPaiements()
+                    as $paiementCommande
+                ) {
+                    if (
+                        !$paiementCommande->estValide()
+                    ) {
+                        continue;
+                    }
+
+                    $nouveauTotalPaye += (int) (
+                        $paiementCommande->getMontant()
+                        ?? 0
+                    );
+                }
+
+
+                /*
+             * ====================================================
+             * RESTE À PAYER
+             * ====================================================
+             */
+
+                $nouveauReste = max(
+                    0,
+                    $totalCommande
+                        -
+                        $nouveauTotalPaye
+                );
+
+
+                /*
+             * ====================================================
+             * COMMANDE
+             * ====================================================
+             */
+
+                $commande->setTotalPaye(
+                    $nouveauTotalPaye
+                );
+
+                $commande->setResteAPayer(
+                    $nouveauReste
+                );
+
+
+                /*
+             * ====================================================
+             * STATUT PAIEMENT COMMANDE
+             * ====================================================
+             */
+
+                if (
+                    $nouveauReste <= 0
+                    &&
+                    $totalCommande > 0
+                ) {
+                    $commande->setStatutPaiement(
+                        Commandes::PAIEMENT_PAYE
+                    );
+                } elseif (
+                    $nouveauTotalPaye > 0
+                ) {
+                    $commande->setStatutPaiement(
+                        Commandes::PAIEMENT_PARTIEL
+                    );
+                } else {
+                    $commande->setStatutPaiement(
+                        Commandes::PAIEMENT_IMPAYE
+                    );
+                }
+
+
+                /*
+             * ====================================================
+             * FACTURE OFFICIELLE
+             * ====================================================
+             */
+
+                $facture =
+                    $facturesRepository->findOneBy(
+                        [
+                            'commande' =>
+                            $commande,
+
+                            'comptabilisee' =>
+                            true,
+                        ]
+                    );
+
+
+                if (
+                    $facture !== null
+                ) {
+                    /*
+                 * Synchronise :
+                 *
+                 * - montant payé ;
+                 * - reste à payer ;
+                 * - statut paiement.
+                 */
+
+                    $facture
+                        ->synchroniserPaiementsDepuisCommande();
+
+
+                    /*
+                 * Rattachement du paiement à la facture.
+                 */
+
+                    if (
+                        $paiement->estValide()
+                        &&
+                        $paiement->getFacture()
+                        === null
+                    ) {
+                        $paiement->setFacture(
+                            $facture
+                        );
+                    }
+
+
+                    $entityManager->persist(
+                        $facture
+                    );
+                }
+
+
+                /*
+             * ====================================================
+             * COMMANDE
+             * ====================================================
+             */
+
+                $entityManager->persist(
+                    $commande
+                );
+
+
+                /*
+             * ====================================================
+             * FLUSH UNIQUE
+             * ====================================================
+             *
+             * Enregistre ensemble :
+             *
+             * - paiement ;
+             * - mouvement trésorerie ;
+             * - compte trésorerie ;
+             * - commande ;
+             * - facture.
+             * ====================================================
+             */
+
+                $entityManager->flush();
+
+
+                /*
+             * ====================================================
+             * MESSAGE
+             * ====================================================
+             */
+
+                if (
+                    $paiement->estValide()
+                ) {
+                    $this->addFlash(
+                        'success',
+                        sprintf(
+                            'Paiement de %s FCFA enregistré avec succès. L’encaissement a été intégré à la trésorerie et classé dans les ventes.',
+                            number_format(
+                                $montant,
+                                0,
+                                ',',
+                                ' '
+                            )
                         )
-                );
+                    );
+                } else {
+                    $this->addFlash(
+                        'warning',
+                        sprintf(
+                            'Paiement de %s FCFA enregistré en attente de validation. Aucun mouvement de trésorerie n’a encore été créé.',
+                            number_format(
+                                $montant,
+                                0,
+                                ',',
+                                ' '
+                            )
+                        )
+                    );
+                }
 
-                $entityManager->persist($commande);
-                $entityManager->flush();
-                $entityManager->flush();
 
-                $this->addFlash(
-                    'success',
-                    sprintf(
-                        'Paiement de %s FCFA enregistré avec succès.',
-                        number_format($montant, 0, ',', ' ')
-                    )
-                );
+                /*
+             * ====================================================
+             * REDIRECTION
+             * ====================================================
+             */
 
                 return $this->redirectToRoute(
                     'app_commandes_show',
-                    ['id' => $commande->getId()]
+                    [
+                        'id' => $commande->getId(),
+                    ]
                 );
             }
         }
 
-        return $this->render('commandes/paiement.html.twig', [
-            'commande' => $commande,
-            'form' => $form->createView(),
-            'totalPaye' => $commande->getTotalPaye(),
-            'resteAPayer' => $commande->getResteAPayer(),
-        ]);
+
+        /*
+     * ============================================================
+     * AFFICHAGE
+     * ============================================================
+     */
+
+        return $this->render(
+            'commandes/paiement.html.twig',
+            [
+                'commande' =>
+                $commande,
+
+                'form' =>
+                $form->createView(),
+
+                'totalCommande' =>
+                $totalCommande,
+
+                'totalPaye' =>
+                $totalPaye,
+
+                'resteAPayer' =>
+                $resteAPayer,
+            ]
+        );
     }
 
 

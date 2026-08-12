@@ -28,33 +28,29 @@ class ProduitArticleStock
     #[ORM\Column]
     private ?int $id = null;
 
+
     #[ORM\ManyToOne(
         inversedBy: 'articlesStock'
     )]
     #[ORM\JoinColumn(
+        name: 'produit_id',
         nullable: false,
         onDelete: 'CASCADE'
     )]
     private ?Produits $produit = null;
 
-    #[ORM\ManyToOne]
+
+    #[ORM\ManyToOne(
+        inversedBy: 'produitsStock'
+    )]
     #[ORM\JoinColumn(
+        name: 'article_id',
         nullable: false,
-        onDelete: 'RESTRICT'
+        onDelete: 'CASCADE'
     )]
     private ?Articles $article = null;
 
-    /*
-     * Coefficient de consommation.
-     *
-     * Exemples :
-     *
-     * 1 kakemono = 1 structure
-     * coefficient = 1
-     *
-     * 1 kakemono 85x200 peut utiliser 1,70 m² de matière
-     * coefficient = 1.700
-     */
+
     #[ORM\Column(
         type: Types::DECIMAL,
         precision: 12,
@@ -65,16 +61,16 @@ class ProduitArticleStock
     )]
     private string $coefficient = '1.000';
 
-    /*
-     * Comment calculer la consommation.
-     */
+
     #[ORM\Column(
         length: 30,
         options: [
             'default' => self::MODE_QUANTITE,
         ]
     )]
-    private string $modeCalcul = self::MODE_QUANTITE;
+    private string $modeCalcul =
+        self::MODE_QUANTITE;
+
 
     #[ORM\Column(
         options: [
@@ -83,6 +79,7 @@ class ProduitArticleStock
     )]
     private bool $actif = true;
 
+
     #[ORM\Column(
         options: [
             'default' => true,
@@ -90,11 +87,13 @@ class ProduitArticleStock
     )]
     private bool $obligatoire = true;
 
+
     #[ORM\Column(
         type: Types::TEXT,
         nullable: true
     )]
     private ?string $observation = null;
+
 
     #[ORM\Column(
         options: [
@@ -103,15 +102,18 @@ class ProduitArticleStock
     )]
     private int $ordre = 10;
 
+
     public function getId(): ?int
     {
         return $this->id;
     }
 
+
     public function getProduit(): ?Produits
     {
         return $this->produit;
     }
+
 
     public function setProduit(
         ?Produits $produit
@@ -121,10 +123,12 @@ class ProduitArticleStock
         return $this;
     }
 
+
     public function getArticle(): ?Articles
     {
         return $this->article;
     }
+
 
     public function setArticle(
         ?Articles $article
@@ -134,10 +138,12 @@ class ProduitArticleStock
         return $this;
     }
 
+
     public function getCoefficient(): string
     {
         return $this->coefficient;
     }
+
 
     public function setCoefficient(
         string|int|float $coefficient
@@ -160,10 +166,12 @@ class ProduitArticleStock
         return $this;
     }
 
+
     public function getModeCalcul(): string
     {
         return $this->modeCalcul;
     }
+
 
     public function setModeCalcul(
         string $modeCalcul
@@ -176,11 +184,13 @@ class ProduitArticleStock
             self::MODE_FORFAIT,
         ];
 
-        if (!in_array(
-            $modeCalcul,
-            $modesAutorises,
-            true
-        )) {
+        if (
+            !in_array(
+                $modeCalcul,
+                $modesAutorises,
+                true
+            )
+        ) {
             throw new \InvalidArgumentException(
                 'Mode de calcul de stock invalide.'
             );
@@ -191,10 +201,12 @@ class ProduitArticleStock
         return $this;
     }
 
+
     public function isActif(): bool
     {
         return $this->actif;
     }
+
 
     public function setActif(
         bool $actif
@@ -204,10 +216,12 @@ class ProduitArticleStock
         return $this;
     }
 
+
     public function isObligatoire(): bool
     {
         return $this->obligatoire;
     }
+
 
     public function setObligatoire(
         bool $obligatoire
@@ -217,10 +231,12 @@ class ProduitArticleStock
         return $this;
     }
 
+
     public function getObservation(): ?string
     {
         return $this->observation;
     }
+
 
     public function setObservation(
         ?string $observation
@@ -230,10 +246,12 @@ class ProduitArticleStock
         return $this;
     }
 
+
     public function getOrdre(): int
     {
         return $this->ordre;
     }
+
 
     public function setOrdre(
         int $ordre
@@ -243,11 +261,7 @@ class ProduitArticleStock
         return $this;
     }
 
-    /*
-     * ========================================================
-     * CALCUL DE LA QUANTITÉ THÉORIQUE À CONSOMMER
-     * ========================================================
-     */
+
     public function calculerQuantitePourDetail(
         CommandesDetails $detail
     ): float {
@@ -264,7 +278,10 @@ class ProduitArticleStock
             self::MODE_SURFACE =>
                 max(
                     0,
-                    (float) ($detail->getSurface() ?? 0)
+                    (float) (
+                        $detail->getSurface()
+                        ?? 0
+                    )
                 )
                 * $quantite
                 * $coefficient,
@@ -272,7 +289,10 @@ class ProduitArticleStock
             self::MODE_METRE =>
                 max(
                     0,
-                    (float) ($detail->getLongueur() ?? 0)
+                    (float) (
+                        $detail->getLongueur()
+                        ?? 0
+                    )
                 )
                 * $quantite
                 * $coefficient,
@@ -282,7 +302,8 @@ class ProduitArticleStock
 
             self::MODE_UNITE,
             self::MODE_QUANTITE =>
-                $quantite * $coefficient,
+                $quantite
+                * $coefficient,
 
             default => 0,
         };

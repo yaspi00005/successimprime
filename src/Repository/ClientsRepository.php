@@ -80,6 +80,42 @@ public function rechercherPourDataTable(
         'filtered' => $filtered,
     ];
 }
+public function telephoneExistePourAutreClient(
+    string $telephone,
+    ?int $clientId = null
+): bool {
+    $telephone = trim($telephone);
+
+    if ($telephone === '') {
+        return false;
+    }
+
+    $qb = $this
+        ->createQueryBuilder('c')
+        ->select('COUNT(c.id)')
+        ->andWhere('c.telephone = :telephone')
+        ->setParameter(
+            'telephone',
+            $telephone
+        );
+
+    /*
+     * En modification :
+     * on ignore le client actuellement modifié.
+     */
+    if ($clientId !== null) {
+        $qb
+            ->andWhere('c.id != :clientId')
+            ->setParameter(
+                'clientId',
+                $clientId
+            );
+    }
+
+    return (int) $qb
+        ->getQuery()
+        ->getSingleScalarResult() > 0;
+}
     //    /**
     //     * @return Clients[] Returns an array of Clients objects
     //     */

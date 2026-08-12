@@ -115,6 +115,12 @@ class Commandes
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $publicId;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $bonusPlafondApplique = false;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $montantBonusPlafond = 0;
+
     public function __construct()
     {
         $this->dateCommande = new \DateTime();
@@ -480,7 +486,60 @@ class Commandes
 
         return $this;
     }
+
     public const PAIEMENT_IMPAYE = 'impayee';
     public const PAIEMENT_PARTIEL = 'partielle';
     public const PAIEMENT_PAYE = 'payee';
+
+    public function estVerrouilleeParProduction(): bool
+    {
+        foreach ($this->getOrdresProduction() as $ordre) {
+            if (
+                in_array(
+                    $ordre->getStatut(),
+                    [
+                        'en_cours',
+                        'terminee',
+                    ],
+                    true
+                )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isBonusPlafondApplique(): bool
+    {
+        return $this->bonusPlafondApplique;
+    }
+
+    public function setBonusPlafondApplique(
+        bool $bonusPlafondApplique
+    ): static {
+        $this->bonusPlafondApplique =
+            $bonusPlafondApplique;
+
+        return $this;
+    }
+
+
+    public function getMontantBonusPlafond(): int
+    {
+        return $this->montantBonusPlafond;
+    }
+
+    public function setMontantBonusPlafond(
+        int $montantBonusPlafond
+    ): static {
+        $this->montantBonusPlafond =
+            max(
+                0,
+                $montantBonusPlafond
+            );
+
+        return $this;
+    }
 }

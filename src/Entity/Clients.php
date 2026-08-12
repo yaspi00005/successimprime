@@ -9,7 +9,16 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Bridge\Doctrine\Types\UuidType;
+use Symfony\Component\Uid\Uuid;
 
+
+
+#[UniqueEntity(
+    fields: ['telephone'],
+    message: 'Un client avec ce numéro de téléphone existe déjà.',
+    errorPath: 'telephone'
+)]
 #[ORM\Entity(repositoryClass: ClientsRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 class Clients
@@ -32,6 +41,7 @@ class Clients
     #[ORM\Column(length: 50, nullable: false)]
     private ?string $prenom = null;
 
+    
     #[ORM\Column(
         length: 30,
         unique: true
@@ -105,9 +115,17 @@ class Clients
     )]
     private Collection $devis;
 
+    #[ORM\Column(
+        type: UuidType::NAME,
+        unique: true
+    )]
+    private Uuid $publicId;
+
+
     public function __construct()
     {
         $this->devis = new ArrayCollection();
+        $this->publicId = Uuid::v7();
     }
 
     public function getId(): ?int
@@ -433,29 +451,33 @@ class Clients
         return $this->devis;
     }
 
-   public function addDevi(Devis $devi): static
-{
-    if (!$this->devis->contains($devi)) {
-        $this->devis->add($devi);
-        $devi->setClients($this);
+    public function addDevi(Devis $devi): static
+    {
+        if (!$this->devis->contains($devi)) {
+            $this->devis->add($devi);
+            $devi->setClients($this);
+        }
+
+        return $this;
     }
 
-    return $this;
-}
-
-public function removeDevi(Devis $devi): static
-{
-    if (
-        $this->devis->removeElement($devi)
-        && $devi->getClients() === $this
-    ) {
-        /*
+    public function removeDevi(Devis $devi): static
+    {
+        if (
+            $this->devis->removeElement($devi)
+            && $devi->getClients() === $this
+        ) {
+            /*
          * La relation est obligatoire dans Devis.
          * Le devis doit être associé à un autre client
          * avant son retrait définitif.
          */
-    }
+        }
 
-    return $this;
-}
+        return $this;
+    }
+    public function getPublicId(): Uuid
+    {
+        return $this->publicId;
+    }
 }

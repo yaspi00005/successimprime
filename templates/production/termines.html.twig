@@ -114,7 +114,8 @@
 											{% for operateur in operateurs %}
 
 												<option value="{{ operateur.id }}" {% if filtres.operateur == operateur.id %} selected {% endif %}>
-													{{ operateur }}
+													{{ operateur.employe.prenom }}
+													{{ operateur.employe.nom }}
 												</option>
 
 											{% endfor %}
@@ -295,7 +296,8 @@
 										<td class="align-middle">
 
 											{% if ordre.terminePar %}
-												{{ ordre.terminePar }}
+												{{ ordre.terminePar.employe.prenom }}
+												{{ ordre.terminePar.employe.nom }}
 											{% else %}
 												—
 											{% endif %}

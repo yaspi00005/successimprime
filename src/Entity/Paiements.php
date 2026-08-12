@@ -189,10 +189,20 @@ class Paiements
     private ?User $annulePar = null;
 
     #[ORM\OneToOne(
-    mappedBy: 'paiement',
-    targetEntity: MouvementTresorerie::class
-)]
-private ?MouvementTresorerie $mouvementTresorerie = null;
+        mappedBy: 'paiement',
+        targetEntity: MouvementTresorerie::class
+    )]
+    private ?MouvementTresorerie $mouvementTresorerie = null;
+
+    #[ORM\ManyToOne(
+        inversedBy: 'paiements'
+    )]
+    #[ORM\JoinColumn(
+        name: 'facture_id',
+        nullable: true,
+        onDelete: 'SET NULL'
+    )]
+    private ?Factures $facture = null;
 
     public function __construct()
     {
@@ -678,22 +688,34 @@ private ?MouvementTresorerie $mouvementTresorerie = null;
         );
     }
     public function getMouvementTresorerie(): ?MouvementTresorerie
-{
-    return $this->mouvementTresorerie;
-}
-
-public function setMouvementTresorerie(
-    ?MouvementTresorerie $mouvementTresorerie
-): static {
-    $this->mouvementTresorerie = $mouvementTresorerie;
-
-    if (
-        $mouvementTresorerie !== null
-        && $mouvementTresorerie->getPaiement() !== $this
-    ) {
-        $mouvementTresorerie->setPaiement($this);
+    {
+        return $this->mouvementTresorerie;
     }
 
-    return $this;
-}
+    public function setMouvementTresorerie(
+        ?MouvementTresorerie $mouvementTresorerie
+    ): static {
+        $this->mouvementTresorerie = $mouvementTresorerie;
+
+        if (
+            $mouvementTresorerie !== null
+            && $mouvementTresorerie->getPaiement() !== $this
+        ) {
+            $mouvementTresorerie->setPaiement($this);
+        }
+
+        return $this;
+    }
+    public function getFacture(): ?Factures
+    {
+        return $this->facture;
+    }
+
+    public function setFacture(
+        ?Factures $facture
+    ): static {
+        $this->facture = $facture;
+
+        return $this;
+    }
 }

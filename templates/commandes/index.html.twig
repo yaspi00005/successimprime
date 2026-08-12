@@ -82,36 +82,63 @@
 		</div>
 
 		<div class="row">
-			<div class="col-sm-6 col-xl-3">
-				<div class="card commande-stat">
-					<div class="card-body">
-						<div class="text-muted">Résultats affichés</div>
-						<div class="h2 mb-0">{{ commandes|length }}</div>
-					</div>
-				</div>
-			</div>
-			<div class="col-sm-6 col-xl-3">
-				<div class="card commande-stat border-warning">
-					<div class="card-body">
-						<div class="text-muted">À encaisser</div>
-						<div class="h2 mb-0">
-							{{ totalReste|default(0)|number_format(0, ',', ' ') }}
-							F CFA
+			{% if is_granted('ROLE_ADMIN') %}
+
+				<div class="col-sm-6 col-xl-3">
+					<div class="card commande-stat">
+						<div class="card-body">
+							<div class="text-muted">
+								Résultats affichés
+							</div>
+
+							<div class="h2 mb-0">
+								{{ commandes|length }}
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
-			<div class="col-sm-6 col-xl-3">
-				<div class="card commande-stat border-success">
-					<div class="card-body">
-						<div class="text-muted">Total encaissé</div>
-						<div class="h2 mb-0">
-							{{ totalPaye|default(0)|number_format(0, ',', ' ') }}
-							F CFA
+
+
+				<div class="col-sm-6 col-xl-3">
+					<div class="card commande-stat border-warning">
+						<div class="card-body">
+							<div class="text-muted">
+								À encaisser
+							</div>
+
+							<div class="h2 mb-0">
+								{{
+                        totalReste
+                            |default(0)
+                            |number_format(0, ',', ' ')
+                    }}
+								F CFA
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+
+
+				<div class="col-sm-6 col-xl-3">
+					<div class="card commande-stat border-success">
+						<div class="card-body">
+							<div class="text-muted">
+								Total encaissé
+							</div>
+
+							<div class="h2 mb-0">
+								{{
+                        totalPaye
+                            |default(0)
+                            |number_format(0, ',', ' ')
+                    }}
+								F CFA
+							</div>
+						</div>
+					</div>
+				</div>
+
+			{% endif %}
 			<div class="col-sm-6 col-xl-3">
 				<div class="card commande-stat border-info">
 					<div class="card-body">
