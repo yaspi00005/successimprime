@@ -467,6 +467,29 @@ public function setPrixB2B(?float $prixB2B): static
 
     return $this;
 }
+
+/**
+ * Taux de remise B2B en pourcentage, dérivé de prixBase et prixB2B.
+ * Source unique pour tout calcul de remise B2B sur ce produit
+ * (configurations comprises).
+ */
+public function getRemiseB2B(): float
+{
+    $prixBase = (float) ($this->prixBase ?? 0);
+    $prixB2B = $this->prixB2B;
+
+    if ($prixBase <= 0 || $prixB2B === null) {
+        return 0.0;
+    }
+
+    $prixB2B = (float) $prixB2B;
+
+    if ($prixB2B < 0 || $prixB2B >= $prixBase) {
+        return 0.0;
+    }
+
+    return (($prixBase - $prixB2B) / $prixBase) * 100;
+}
 public function getModeCalcul(): string
 {
     return $this->modeCalcul;

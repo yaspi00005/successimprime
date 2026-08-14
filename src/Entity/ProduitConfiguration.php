@@ -614,4 +614,25 @@ private ?Format $format = null;
 
         return $this;
     }
+
+    /**
+     * Taux de remise B2B dérivé du Produit parent (pas du prixB2B
+     * propre à la configuration) — cf. règle métier documentée :
+     * la remise B2B en configuration automatique vient du Produit.
+     */
+    public function getRemiseB2BProduit(): float
+    {
+        return $this->produit?->getRemiseB2B() ?? 0.0;
+    }
+
+    /**
+     * Prix B2B théorique de cette configuration, calculé en appliquant
+     * la remise B2B du Produit au prixBase de la configuration.
+     */
+    public function getPrixB2BCalcule(): int
+    {
+        $remise = $this->getRemiseB2BProduit();
+
+        return (int) round(($this->prixBase ?? 0) * (1 - $remise / 100));
+    }
 }
