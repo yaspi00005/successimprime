@@ -27,3 +27,4 @@
 
 # Copies locales des migrations
 /migrations copy/
+*.dmg
