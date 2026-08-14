@@ -1019,12 +1019,37 @@
 
                         attr: {
                             class:
-                                'form-control js-select-search',
+                                'form-control js-select-search js-client-commande',
 
                             'data-placeholder':
                                 'Rechercher un client...'
                         }
                     }) }}
+
+				</div>
+
+
+				<div class="col-lg-6">
+
+					<div class="form-group">
+
+						<label>
+							Profil tarifaire
+						</label>
+
+						<div class="alert alert-light border mb-0">
+
+							<strong class="js-profil-client">
+								Sélectionnez un client
+							</strong>
+
+							<div class="small text-muted js-profil-client-aide">
+								Le tarif B2B ou B2C sera appliqué automatiquement.
+							</div>
+
+						</div>
+
+					</div>
 
 				</div>
 
@@ -1809,6 +1834,97 @@ const commandeVerrouillee = form.dataset.circuitVerrouille === '1';
 
 /*
          * ====================================================
+         * CLIENT B2B / B2C
+         * ====================================================
+         */
+
+const clientSelect = form.querySelector('.js-client-commande');
+
+const profilClient = form.querySelector('.js-profil-client');
+
+const profilClientAide = form.querySelector('.js-profil-client-aide');
+
+
+function typeClientActuel() {
+
+if (! clientSelect || ! clientSelect.value) {
+return 'B2C';
+}
+
+const option = clientSelect.options[clientSelect.selectedIndex];
+
+if (! option) {
+return 'B2C';
+}
+
+const type = String(option.dataset.typeClient || 'B2C').trim().toUpperCase();
+
+return type === 'B2B' ? 'B2B' : 'B2C';
+}
+
+
+function clientEstB2B() {
+return typeClientActuel() === 'B2B';
+}
+
+
+function afficherProfilClient() {
+
+if (! profilClient || ! profilClientAide) {
+return;
+}
+
+if (! clientSelect || ! clientSelect.value) {
+profilClient.textContent = 'Sélectionnez un client';
+profilClientAide.textContent = 'Le tarif B2B ou B2C sera appliqué automatiquement.';
+return;
+}
+
+if (clientEstB2B()) {
+profilClient.textContent = 'Client B2B';
+profilClientAide.textContent = 'Le tarif professionnel B2B est appliqué automatiquement lorsqu’il existe pour le produit.';
+} else {
+profilClient.textContent = 'Client B2C';
+profilClientAide.textContent = 'Le prix public est appliqué, sans remise B2B.';
+}
+}
+
+
+async function appliquerNouveauProfilClient() {
+
+afficherProfilClient();
+
+const details = collection.querySelectorAll('.detail-commande');
+
+for (const detail of details) {
+
+if (valeurTypeLigne(detail) !== 'produit') {
+continue;
+}
+
+const mode = valeurModeConfiguration(detail);
+
+if (mode === 'automatique') {
+const configuration = champDetail(detail, 'configuration');
+
+if (configuration && configuration.value) {
+await chargerConfiguration(detail);
+}
+} else {
+const produit = champDetail(detail, 'produit');
+
+if (produit && produit.value) {
+await chargerOptionsManuelles(detail);
+}
+}
+}
+
+calculerCommande();
+}
+
+
+/*
+         * ====================================================
          * URLS
          * ====================================================
          */
@@ -2559,7 +2675,7 @@ const infosProduit = json.produit || {};
 
 definirValeur(detail, 'prixUnitaire', infosProduit.prixBase || 0);
 
-definirValeur(detail, 'remise', Math.round(infosProduit.remiseB2B || 0));
+definirValeur(detail, 'remise', clientEstB2B() ? Math.round(infosProduit.remiseB2B || 0) : 0);
 
 definirValeur(detail, 'modeCalcul', infosProduit.modeCalcul || 'unite');
 
@@ -2612,7 +2728,7 @@ definirValeur(detail, 'format', config.format);
 
 definirValeur(detail, 'prixUnitaire', config.prixBase || 0);
 
-definirValeur(detail, 'remise', Math.round(config.remiseB2B || 0));
+definirValeur(detail, 'remise', clientEstB2B() ? Math.round(config.remiseB2B || 0) : 0);
 
 definirValeur(detail, 'modeCalcul', config.modeCalcul || 'unite');
 
@@ -2940,6 +3056,11 @@ addButton.addEventListener('click', ajouterDetail);
 }
 
 
+if (clientSelect && ! commandeVerrouillee) {
+clientSelect.addEventListener('change', appliquerNouveauProfilClient);
+}
+
+
 collection.querySelectorAll('.detail-commande').forEach(initialiserDetail);
 
 
@@ -2952,6 +3073,9 @@ remiseCommande.addEventListener('input', calculerCommande);
 
 
 initialiserSelect2(form);
+
+
+afficherProfilClient();
 
 
 rafraichirDetails();

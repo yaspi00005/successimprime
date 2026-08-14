@@ -53,6 +53,13 @@ class CommandesType extends AbstractType
                 },
                 'placeholder' => 'Sélectionnez un client',
                 'required' => true,
+                'choice_attr' => static function (
+                    Clients $client
+                ): array {
+                    return [
+                        'data-type-client' => $client->getTypeClient(),
+                    ];
+                },
                 'attr' => [
                     'class' => 'form-select js-select-search',
                     'data-placeholder'
