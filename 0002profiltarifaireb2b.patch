@@ -1,0 +1,224 @@
+From a2a323a9a84f31615cb82065f073789d30d00c53 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 14 Aug 2026 23:33:42 +0000
+Subject: [PATCH] Afficher le profil tarifaire (B2B/B2C) du client et
+ conditionner la remise B2B
+
+La remise B2B calculee sur le produit s'appliquait a tous les clients,
+B2B comme B2C. On ajoute :
+
+- CommandesType : choice_attr data-type-client sur le select client.
+- _form.html.twig : bloc "Profil tarifaire" a cote du select client,
+  mis a jour automatiquement au changement de client.
+- La remise B2B n'est desormais appliquee que si le client selectionne
+  est B2B ; sinon elle reste a 0. Changer de client sur une commande
+  deja en cours recalcule les lignes produit existantes.
+---
+ src/Form/CommandesType.php          |   7 ++
+ templates/commandes/_form.html.twig | 130 +++++++++++++++++++++++++++-
+ 2 files changed, 134 insertions(+), 3 deletions(-)
+
+diff --git a/src/Form/CommandesType.php b/src/Form/CommandesType.php
+index 0d29696..825fe31 100644
+--- a/src/Form/CommandesType.php
++++ b/src/Form/CommandesType.php
+@@ -53,6 +53,13 @@ class CommandesType extends AbstractType
+                 },
+                 'placeholder' => 'Sélectionnez un client',
+                 'required' => true,
++                'choice_attr' => static function (
++                    Clients $client
++                ): array {
++                    return [
++                        'data-type-client' => $client->getTypeClient(),
++                    ];
++                },
+                 'attr' => [
+                     'class' => 'form-select js-select-search',
+                     'data-placeholder'
+diff --git a/templates/commandes/_form.html.twig b/templates/commandes/_form.html.twig
+index 57abb78..3b8da6e 100644
+--- a/templates/commandes/_form.html.twig
++++ b/templates/commandes/_form.html.twig
+@@ -1019,7 +1019,7 @@
+ 
+                         attr: {
+                             class:
+-                                'form-control js-select-search',
++                                'form-control js-select-search js-client-commande',
+ 
+                             'data-placeholder':
+                                 'Rechercher un client...'
+@@ -1028,6 +1028,31 @@
+ 
+ 				</div>
+ 
++
++				<div class="col-lg-6">
++
++					<div class="form-group">
++
++						<label>
++							Profil tarifaire
++						</label>
++
++						<div class="alert alert-light border mb-0">
++
++							<strong class="js-profil-client">
++								Sélectionnez un client
++							</strong>
++
++							<div class="small text-muted js-profil-client-aide">
++								Le tarif B2B ou B2C sera appliqué automatiquement.
++							</div>
++
++						</div>
++
++					</div>
++
++				</div>
++
+ 			</div>
+ 
+ 		</div>
+@@ -1807,6 +1832,97 @@ return;
+ const commandeVerrouillee = form.dataset.circuitVerrouille === '1';
+ 
+ 
++/*
++         * ====================================================
++         * CLIENT B2B / B2C
++         * ====================================================
++         */
++
++const clientSelect = form.querySelector('.js-client-commande');
++
++const profilClient = form.querySelector('.js-profil-client');
++
++const profilClientAide = form.querySelector('.js-profil-client-aide');
++
++
++function typeClientActuel() {
++
++if (! clientSelect || ! clientSelect.value) {
++return 'B2C';
++}
++
++const option = clientSelect.options[clientSelect.selectedIndex];
++
++if (! option) {
++return 'B2C';
++}
++
++const type = String(option.dataset.typeClient || 'B2C').trim().toUpperCase();
++
++return type === 'B2B' ? 'B2B' : 'B2C';
++}
++
++
++function clientEstB2B() {
++return typeClientActuel() === 'B2B';
++}
++
++
++function afficherProfilClient() {
++
++if (! profilClient || ! profilClientAide) {
++return;
++}
++
++if (! clientSelect || ! clientSelect.value) {
++profilClient.textContent = 'Sélectionnez un client';
++profilClientAide.textContent = 'Le tarif B2B ou B2C sera appliqué automatiquement.';
++return;
++}
++
++if (clientEstB2B()) {
++profilClient.textContent = 'Client B2B';
++profilClientAide.textContent = 'Le tarif professionnel B2B est appliqué automatiquement lorsqu’il existe pour le produit.';
++} else {
++profilClient.textContent = 'Client B2C';
++profilClientAide.textContent = 'Le prix public est appliqué, sans remise B2B.';
++}
++}
++
++
++async function appliquerNouveauProfilClient() {
++
++afficherProfilClient();
++
++const details = collection.querySelectorAll('.detail-commande');
++
++for (const detail of details) {
++
++if (valeurTypeLigne(detail) !== 'produit') {
++continue;
++}
++
++const mode = valeurModeConfiguration(detail);
++
++if (mode === 'automatique') {
++const configuration = champDetail(detail, 'configuration');
++
++if (configuration && configuration.value) {
++await chargerConfiguration(detail);
++}
++} else {
++const produit = champDetail(detail, 'produit');
++
++if (produit && produit.value) {
++await chargerOptionsManuelles(detail);
++}
++}
++}
++
++calculerCommande();
++}
++
++
+ /*
+          * ====================================================
+          * URLS
+@@ -2559,7 +2675,7 @@ const infosProduit = json.produit || {};
+ 
+ definirValeur(detail, 'prixUnitaire', infosProduit.prixBase || 0);
+ 
+-definirValeur(detail, 'remise', Math.round(infosProduit.remiseB2B || 0));
++definirValeur(detail, 'remise', clientEstB2B() ? Math.round(infosProduit.remiseB2B || 0) : 0);
+ 
+ definirValeur(detail, 'modeCalcul', infosProduit.modeCalcul || 'unite');
+ 
+@@ -2612,7 +2728,7 @@ definirValeur(detail, 'format', config.format);
+ 
+ definirValeur(detail, 'prixUnitaire', config.prixBase || 0);
+ 
+-definirValeur(detail, 'remise', Math.round(config.remiseB2B || 0));
++definirValeur(detail, 'remise', clientEstB2B() ? Math.round(config.remiseB2B || 0) : 0);
+ 
+ definirValeur(detail, 'modeCalcul', config.modeCalcul || 'unite');
+ 
+@@ -2940,6 +3056,11 @@ addButton.addEventListener('click', ajouterDetail);
+ }
+ 
+ 
++if (clientSelect && ! commandeVerrouillee) {
++clientSelect.addEventListener('change', appliquerNouveauProfilClient);
++}
++
++
+ collection.querySelectorAll('.detail-commande').forEach(initialiserDetail);
+ 
+ 
+@@ -2954,6 +3075,9 @@ remiseCommande.addEventListener('input', calculerCommande);
+ initialiserSelect2(form);
+ 
+ 
++afficherProfilClient();
++
++
+ rafraichirDetails();
+ 
+ });
+-- 
+2.43.0
+
