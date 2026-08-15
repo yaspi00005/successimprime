@@ -32,3 +32,8 @@
 # Copies locales des migrations
 /migrations copy/
 *.dmg
+
+# Sauvegardes de la base de données (données réelles de clients :
+# ne doivent jamais partir sur GitHub, voir scripts/windows/backup_db.bat)
+/backups/
+*.sql

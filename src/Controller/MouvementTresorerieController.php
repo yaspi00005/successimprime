@@ -1037,7 +1037,6 @@ foreach ($comptes as $compte) {
             }
         }
 $maCaissePersonnelle = null;
-
 foreach ($comptes as $compte) {
     if (
         $compte->estPersonnel()

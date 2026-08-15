@@ -1,0 +1,23 @@
+diff --git a/src/Controller/MouvementTresorerieController.php b/src/Controller/MouvementTresorerieController.php
+index d403f82..13fbff6 100644
+--- a/src/Controller/MouvementTresorerieController.php
++++ b/src/Controller/MouvementTresorerieController.php
+@@ -1036,18 +1036,6 @@ foreach ($comptes as $compte) {
+                 );
+             }
+         }
+-$maCaissePersonnelle = null;
+-
+-foreach ($comptes as $compte) {
+-    if (
+-        $compte->estPersonnel()
+-        &&
+-        $compte->appartientA($user)
+-    ) {
+-        $maCaissePersonnelle = $compte;
+-        break;
+-    }
+-}
+ 
+         return $this->render(
+             'mouvement_tresorerie/new.html.twig',

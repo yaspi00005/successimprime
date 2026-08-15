@@ -1,0 +1,169 @@
+diff --git a/.gitignore b/.gitignore
+index 45cae85..1f9680d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -32,3 +32,8 @@
+ # Copies locales des migrations
+ /migrations copy/
+ *.dmg
++
++# Sauvegardes de la base de données (données réelles de clients :
++# ne doivent jamais partir sur GitHub, voir scripts/windows/backup_db.bat)
++/backups/
++*.sql
+diff --git a/scripts/windows/backup_db.bat b/scripts/windows/backup_db.bat
+new file mode 100644
+index 0000000..1a1d6af
+--- /dev/null
++++ b/scripts/windows/backup_db.bat
+@@ -0,0 +1,82 @@
++@echo off
++setlocal enabledelayedexpansion
++
++:: ============================================================
++:: CONFIGURATION
++:: ============================================================
++set DB_USER=root
++set DB_PASS=
++set DB_NAME=success_imprim
++set BACKUP_DIR=C:\xamppok\htdocs\successImprim\backups
++set MYSQLDUMP=C:\xamppok\mysql\bin\mysqldump.exe
++set MYSQLADMIN=C:\xamppok\mysql\bin\mysqladmin.exe
++set LOG_FILE=%BACKUP_DIR%\backup.log
++set JOURS_A_CONSERVER=30
++
++:: ============================================================
++:: DOSSIER DE SAUVEGARDE
++:: ============================================================
++if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
++
++:: ============================================================
++:: ATTENTE DE MYSQL
++::
++:: Utile surtout au demarrage de la machine : MySQL (XAMPP) peut
++:: mettre quelques secondes a etre pret. On tente 10 fois, toutes
++:: les 5 secondes, avant d'abandonner.
++:: ============================================================
++set TENTATIVES=0
++
++:ATTENTE_MYSQL
++"%MYSQLADMIN%" -u %DB_USER% ping >nul 2>&1
++if %ERRORLEVEL% equ 0 goto MYSQL_PRET
++
++set /a TENTATIVES+=1
++if %TENTATIVES% geq 10 (
++    echo [%date% %time%] MySQL indisponible apres 10 tentatives, sauvegarde annulee. >> "%LOG_FILE%"
++    exit /b 1
++)
++
++timeout /t 5 /nobreak >nul
++goto ATTENTE_MYSQL
++
++:MYSQL_PRET
++
++:: ============================================================
++:: HORODATAGE
++::
++:: Via PowerShell plutot que %date%/%time% : independant de la
++:: langue/region configuree sur la machine Windows.
++:: ============================================================
++for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set TIMESTAMP=%%i
++
++set FICHIER=%BACKUP_DIR%\%DB_NAME%_%TIMESTAMP%.sql
++
++:: ============================================================
++:: SAUVEGARDE
++:: ============================================================
++echo [%date% %time%] Debut de la sauvegarde... >> "%LOG_FILE%"
++
++if "%DB_PASS%"=="" (
++    "%MYSQLDUMP%" -u %DB_USER% %DB_NAME% > "%FICHIER%" 2>> "%LOG_FILE%"
++) else (
++    "%MYSQLDUMP%" -u %DB_USER% -p%DB_PASS% %DB_NAME% > "%FICHIER%" 2>> "%LOG_FILE%"
++)
++
++if %ERRORLEVEL% neq 0 (
++    echo [%date% %time%] ECHEC de la sauvegarde ^(code %ERRORLEVEL%^) >> "%LOG_FILE%"
++    del "%FICHIER%" 2>nul
++    exit /b 1
++)
++
++echo [%date% %time%] Sauvegarde reussie : %FICHIER% >> "%LOG_FILE%"
++
++:: ============================================================
++:: PURGE DES SAUVEGARDES DE PLUS DE %JOURS_A_CONSERVER% JOURS
++::
++:: Evite de remplir le disque : a une sauvegarde toutes les 6h,
++:: on accumule vite plusieurs centaines de fichiers.
++:: ============================================================
++forfiles /p "%BACKUP_DIR%" /m "%DB_NAME%_*.sql" /d -%JOURS_A_CONSERVER% /c "cmd /c del @path" 2>nul
++
++exit /b 0
+diff --git a/scripts/windows/demarrer_serveur.bat b/scripts/windows/demarrer_serveur.bat
+new file mode 100644
+index 0000000..885acc1
+--- /dev/null
++++ b/scripts/windows/demarrer_serveur.bat
+@@ -0,0 +1,13 @@
++@echo off
++
++:: ============================================================
++:: DEMARRAGE DU SERVEUR SYMFONY
++::
++:: Volontairement separe de backup_db.bat : la sauvegarde tourne
++:: desormais toutes les 6h via une tache planifiee (voir
++:: installer_taches_planifiees.bat), et ne doit jamais relancer
++:: le serveur au passage (ca couperait les connexions en cours).
++:: ============================================================
++
++cd /d C:\xamppok\htdocs\successImprim
++symfony server:start --listen-ip=0.0.0.0 --port=8000 --no-tls
+diff --git a/scripts/windows/installer_taches_planifiees.bat b/scripts/windows/installer_taches_planifiees.bat
+new file mode 100644
+index 0000000..7b310c4
+--- /dev/null
++++ b/scripts/windows/installer_taches_planifiees.bat
+@@ -0,0 +1,43 @@
++@echo off
++
++:: ============================================================
++:: INSTALLATION DES TACHES PLANIFIEES DE SAUVEGARDE
++::
++:: A executer UNE SEULE FOIS, avec un clic droit
++:: "Executer en tant qu'administrateur" (necessaire pour creer
++:: des taches qui s'executent meme sans utilisateur connecte).
++::
++:: Reexecuter ce script est sans risque : /f remplace les taches
++:: existantes du meme nom au lieu d'en creer des doublons.
++:: ============================================================
++
++set SCRIPT_SAUVEGARDE=C:\xamppok\htdocs\successImprim\scripts\windows\backup_db.bat
++
++echo Installation de la tache "sauvegarde au demarrage"...
++schtasks /create ^
++    /tn "SuccessImprim_Sauvegarde_Demarrage" ^
++    /tr "\"%SCRIPT_SAUVEGARDE%\"" ^
++    /sc onstart ^
++    /ru SYSTEM ^
++    /f
++
++echo.
++echo Installation de la tache "sauvegarde toutes les 6h"...
++schtasks /create ^
++    /tn "SuccessImprim_Sauvegarde_6h" ^
++    /tr "\"%SCRIPT_SAUVEGARDE%\"" ^
++    /sc hourly ^
++    /mo 6 ^
++    /ru SYSTEM ^
++    /f
++
++echo.
++echo Termine. Verification :
++schtasks /query /tn "SuccessImprim_Sauvegarde_Demarrage"
++schtasks /query /tn "SuccessImprim_Sauvegarde_6h"
++
++echo.
++echo Pour tester une sauvegarde immediatement :
++echo   schtasks /run /tn "SuccessImprim_Sauvegarde_6h"
++echo.
++pause
