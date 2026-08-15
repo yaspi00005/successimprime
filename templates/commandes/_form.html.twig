@@ -1969,8 +1969,15 @@ const articleCommandeUrl = "{{ path(
          * ====================================================
          */
 
-function construireUrl(modele, id) {
-return modele.replace('/0/', '/' + encodeURIComponent(id) + '/');
+function construireUrl(modele, id) { /*
+ * "/0/" ne fonctionne que si l'id 0 est suivi d'un autre segment
+ * (ex. /produit/0/options-manuelles). Quand 0 est le DERNIER
+ * segment de l'URL (ex. /produit/0, /configuration/0), il n'y a
+ * pas de "/" apres : le remplacement echouait silencieusement et
+ * l'URL gardait l'id 0, jamais trouve cote serveur
+ * (EntityValueResolver : "Produits introuvable").
+ */
+return modele.replace(/\/0(\/|$)/, '/' + encodeURIComponent(id) + '$1');
 }
 
 
