@@ -252,6 +252,7 @@
 	{% elseif
 		routeCourante starts with 'app_employes_'
 		or routeCourante starts with 'app_user_'
+		or routeCourante starts with 'app_journal_activite_'
 	%}
 
 		{% set menuActif = 'rh' %}
@@ -1499,6 +1500,28 @@
 																																													"></i>
 
 														Utilisateurs et accès
+
+													</a>
+
+
+													<a href="{{ path( 'app_journal_activite_index' ) }}" class="
+																																													slide-item
+																																													{{
+																																														routeCourante
+																																														starts with
+																																														'app_journal_activite_'
+																																															? 'active'
+																																															: ''
+																																													}}
+																																												">
+
+														<i class="
+																																														fa
+																																														fa-history
+																																														mr-2
+																																													"></i>
+
+														Journal d'activité
 
 													</a>
 
