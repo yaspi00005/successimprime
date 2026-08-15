@@ -116,6 +116,17 @@ public function telephoneExistePourAutreClient(
         ->getQuery()
         ->getSingleScalarResult() > 0;
 }
+    /**
+     * Nombre total de clients enregistrés.
+     */
+    public function compterClients(): int
+    {
+        return (int) $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     //    /**
     //     * @return Clients[] Returns an array of Clients objects
     //     */

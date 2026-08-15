@@ -25,6 +25,10 @@
 # Fichiers privés uploadés par les utilisateurs
 /public/uploads/employes/
 
+# Médias du diaporama de l'écran d'accueil (images/vidéos déposées manuellement)
+/public/uploads/tv/*
+!/public/uploads/tv/.gitkeep
+
 # Copies locales des migrations
 /migrations copy/
 *.dmg

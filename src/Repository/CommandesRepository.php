@@ -212,6 +212,72 @@ final class CommandesRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * Commandes traitées et chiffre d'affaires généré, groupés par agent.
+     *
+     * @return array<int, array{agent: \App\Entity\User, nbCommandes: int, caGenere: int}>
+     */
+    public function statistiquesParAgent(
+        ?\DateTimeInterface $debut = null,
+        ?\DateTimeInterface $fin = null
+    ): array {
+        $qb = $this->createQueryBuilder('c')
+            ->select('a AS agent')
+            ->addSelect('COUNT(c.id) AS nbCommandes')
+            ->addSelect('COALESCE(SUM(c.totalTtc), 0) AS caGenere')
+            ->join('c.agents', 'a')
+            ->andWhere('c.deleted = false')
+            ->groupBy('a.id')
+            ->orderBy('caGenere', 'DESC');
+
+        if ($debut) {
+            $qb
+                ->andWhere('c.dateCommande >= :debut')
+                ->setParameter('debut', $debut);
+        }
+
+        if ($fin) {
+            $qb
+                ->andWhere('c.dateCommande <= :fin')
+                ->setParameter('fin', $fin);
+        }
+
+        $resultats = $qb->getQuery()->getResult();
+
+        foreach ($resultats as &$ligne) {
+            $ligne['nbCommandes'] = (int) $ligne['nbCommandes'];
+            $ligne['caGenere'] = (int) $ligne['caGenere'];
+        }
+
+        return $resultats;
+    }
+
+    /**
+     * Nombre de commandes (non supprimées) sur une période.
+     */
+    public function compterCommandes(
+        ?\DateTimeInterface $debut = null,
+        ?\DateTimeInterface $fin = null
+    ): int {
+        $qb = $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->andWhere('c.deleted = false');
+
+        if ($debut) {
+            $qb
+                ->andWhere('c.dateCommande >= :debut')
+                ->setParameter('debut', $debut);
+        }
+
+        if ($fin) {
+            $qb
+                ->andWhere('c.dateCommande <= :fin')
+                ->setParameter('fin', $fin);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     private function rechercheEstActive(array $filtres): bool
     {
         $champsRecherche = [
