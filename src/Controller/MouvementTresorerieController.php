@@ -1036,18 +1036,6 @@ foreach ($comptes as $compte) {
                 );
             }
         }
-$maCaissePersonnelle = null;
-foreach ($comptes as $compte) {
-    if (
-        $compte->estPersonnel()
-        &&
-        $compte->appartientA($user)
-    ) {
-        $maCaissePersonnelle = $compte;
-        break;
-    }
-}
-
         return $this->render(
             'mouvement_tresorerie/new.html.twig',
             [
