@@ -1,0 +1,15 @@
+diff --git a/templates/articles/form.html.twig b/templates/articles/form.html.twig
+index 445a328..bc305e9 100644
+--- a/templates/articles/form.html.twig
++++ b/templates/articles/form.html.twig
+@@ -88,6 +88,10 @@
+ 						{{ form_row(form.actif) }}
+ 					</div>
+ 
++					<div class="col-12">
++						{{ form_row(form.vendable) }}
++					</div>
++
+ 				</div>
+ 
+ 
