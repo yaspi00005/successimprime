@@ -1044,7 +1044,16 @@
 													</h6>
 
 
-													<a href="#" class="slide-item">
+													<a href="{{ path( 'app_fournisseur_index' ) }}" class="
+																																													slide-item
+																																													{{
+																																														routeCourante
+																																														starts with
+																																														'app_fournisseur_'
+																																															? 'active'
+																																															: ''
+																																													}}
+																																												">
 
 														<i class="
 																																														fa
@@ -1057,7 +1066,17 @@
 													</a>
 
 
-													<a href="#" class="slide-item">
+													<a href="{{ path( 'app_achat_index', {statut: 'demande'} ) }}" class="
+																																													slide-item
+																																													{{
+																																														routeCourante
+																																														starts with
+																																														'app_achat_'
+																																														and app.request.query.get('statut', 'demande') == 'demande'
+																																															? 'active'
+																																															: ''
+																																													}}
+																																												">
 
 														<i class="
 																																														fa
@@ -1070,7 +1089,17 @@
 													</a>
 
 
-													<a href="#" class="slide-item">
+													<a href="{{ path( 'app_achat_index', {statut: 'recu'} ) }}" class="
+																																													slide-item
+																																													{{
+																																														routeCourante
+																																														starts with
+																																														'app_achat_'
+																																														and app.request.query.get('statut') == 'recu'
+																																															? 'active'
+																																															: ''
+																																													}}
+																																												">
 
 														<i class="
 																																														fa
