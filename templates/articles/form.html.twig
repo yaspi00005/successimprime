@@ -125,4 +125,15 @@
 
 	</div>
 
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+			if (window.jQuery && window.jQuery.fn.select2) {
+				window.jQuery('.js-select-search').select2({
+					width: '100%',
+					allowClear: true
+				});
+			}
+		});
+	</script>
+
 {% endblock %}

@@ -72,11 +72,9 @@ class Articles
     )]
     private ?int $prixVente = null;
 
-    #[ORM\Column(
-        length: 100,
-        nullable: true
-    )]
-    private ?string $fournisseur = null;
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Fournisseurs $fournisseur = null;
 
     #[ORM\Column(
         type: Types::TEXT,
@@ -345,24 +343,16 @@ private Collection $produitsStock;
     }
 
 
-    public function getFournisseur(): ?string
+    public function getFournisseur(): ?Fournisseurs
     {
         return $this->fournisseur;
     }
 
 
     public function setFournisseur(
-        ?string $fournisseur
+        ?Fournisseurs $fournisseur
     ): static {
-        $fournisseur =
-            $fournisseur !== null
-                ? trim($fournisseur)
-                : null;
-
-        $this->fournisseur =
-            $fournisseur !== ''
-                ? $fournisseur
-                : null;
+        $this->fournisseur = $fournisseur;
 
         return $this;
     }

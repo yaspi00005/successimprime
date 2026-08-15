@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\FournisseursRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -17,14 +19,31 @@ class Fournisseurs
     #[ORM\Column(length: 255)]
     private ?string $nom = null;
 
-    #[ORM\Column(type: Types::INTEGER)]
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
     private ?int $telephone = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $email = null;
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $adresse = null;
+
+    #[ORM\Column(options: ['default' => true])]
+    private bool $actif = true;
+
+    /**
+     * @var Collection<int, Achats>
+     */
+    #[ORM\OneToMany(
+        targetEntity: Achats::class,
+        mappedBy: 'fournisseur'
+    )]
+    private Collection $achats;
+
+    public function __construct()
+    {
+        $this->achats = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -48,7 +67,7 @@ class Fournisseurs
         return $this->telephone;
     }
 
-    public function setTelephone(int $telephone): static
+    public function setTelephone(?int $telephone): static
     {
         $this->telephone = $telephone;
 
@@ -60,7 +79,7 @@ class Fournisseurs
         return $this->email;
     }
 
-    public function setEmail(string $email): static
+    public function setEmail(?string $email): static
     {
         $this->email = $email;
 
@@ -72,10 +91,35 @@ class Fournisseurs
         return $this->adresse;
     }
 
-    public function setAdresse(string $adresse): static
+    public function setAdresse(?string $adresse): static
     {
         $this->adresse = $adresse;
 
         return $this;
+    }
+
+    public function isActif(): bool
+    {
+        return $this->actif;
+    }
+
+    public function setActif(bool $actif): static
+    {
+        $this->actif = $actif;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Achats>
+     */
+    public function getAchats(): Collection
+    {
+        return $this->achats;
+    }
+
+    public function __toString(): string
+    {
+        return $this->nom ?? 'Fournisseur';
     }
 }

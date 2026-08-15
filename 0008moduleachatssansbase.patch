@@ -1,0 +1,2848 @@
+diff --git a/migrations/Version20260815120000.php b/migrations/Version20260815120000.php
+new file mode 100644
+index 0000000..2c0d135
+--- /dev/null
++++ b/migrations/Version20260815120000.php
+@@ -0,0 +1,190 @@
++<?php
++
++declare(strict_types=1);
++
++namespace DoctrineMigrations;
++
++use Doctrine\DBAL\Schema\Schema;
++use Doctrine\Migrations\AbstractMigration;
++
++final class Version20260815120000 extends AbstractMigration
++{
++    public function getDescription(): string
++    {
++        return 'Ajoute le module Achats (fournisseurs, achats, achat_detail) et transforme articles.fournisseur en relation.';
++    }
++
++    public function up(Schema $schema): void
++    {
++        /*
++         * ========================================================
++         * FOURNISSEURS
++         * ========================================================
++         *
++         * La table n'existait pas encore : l'entité Fournisseurs
++         * était présente dans le code mais jamais migrée.
++         */
++        $this->addSql(
++            'CREATE TABLE fournisseurs (
++                id INT AUTO_INCREMENT NOT NULL,
++                nom VARCHAR(255) NOT NULL,
++                telephone INT DEFAULT NULL,
++                email VARCHAR(255) DEFAULT NULL,
++                adresse LONGTEXT DEFAULT NULL,
++                actif TINYINT(1) DEFAULT 1 NOT NULL,
++                PRIMARY KEY (id)
++            ) DEFAULT CHARACTER SET utf8mb4'
++        );
++
++        /*
++         * ========================================================
++         * ACHATS (en-tête)
++         * ========================================================
++         */
++        $this->addSql(
++            'CREATE TABLE achats (
++                id INT AUTO_INCREMENT NOT NULL,
++                fournisseur_id INT NOT NULL,
++                numero VARCHAR(50) DEFAULT NULL,
++                statut VARCHAR(20) NOT NULL,
++                date_demande DATETIME NOT NULL,
++                date_reception DATETIME DEFAULT NULL,
++                observation LONGTEXT DEFAULT NULL,
++                total_ht INT DEFAULT 0 NOT NULL,
++                tva INT DEFAULT 0 NOT NULL,
++                total_ttc INT DEFAULT 0 NOT NULL,
++                UNIQUE INDEX uniq_achat_numero (numero),
++                INDEX idx_achats_fournisseur (fournisseur_id),
++                PRIMARY KEY (id)
++            ) DEFAULT CHARACTER SET utf8mb4'
++        );
++
++        $this->addSql(
++            'ALTER TABLE achats
++             ADD CONSTRAINT fk_achats_fournisseur
++             FOREIGN KEY (fournisseur_id) REFERENCES fournisseurs (id)'
++        );
++
++        /*
++         * ========================================================
++         * ACHAT_DETAIL (lignes)
++         * ========================================================
++         */
++        $this->addSql(
++            'CREATE TABLE achat_detail (
++                id INT AUTO_INCREMENT NOT NULL,
++                achat_id INT NOT NULL,
++                article_id INT NOT NULL,
++                quantite INT NOT NULL,
++                prix_unitaire INT NOT NULL,
++                total_ht INT DEFAULT 0 NOT NULL,
++                INDEX idx_achat_detail_achat (achat_id),
++                INDEX idx_achat_detail_article (article_id),
++                PRIMARY KEY (id)
++            ) DEFAULT CHARACTER SET utf8mb4'
++        );
++
++        $this->addSql(
++            'ALTER TABLE achat_detail
++             ADD CONSTRAINT fk_achat_detail_achat
++             FOREIGN KEY (achat_id) REFERENCES achats (id) ON DELETE CASCADE'
++        );
++
++        $this->addSql(
++            'ALTER TABLE achat_detail
++             ADD CONSTRAINT fk_achat_detail_article
++             FOREIGN KEY (article_id) REFERENCES articles (id)'
++        );
++
++        /*
++         * ========================================================
++         * ARTICLES.FOURNISSEUR : TEXTE LIBRE -> RELATION
++         * ========================================================
++         */
++        $this->addSql(
++            'ALTER TABLE articles ADD fournisseur_id INT DEFAULT NULL'
++        );
++
++        /*
++         * Crée une fiche Fournisseurs pour chaque nom déjà saisi
++         * en texte libre sur un article, sans doublon.
++         */
++        $this->addSql(
++            "INSERT INTO fournisseurs (nom, actif)
++             SELECT DISTINCT TRIM(a.fournisseur), 1
++             FROM articles a
++             WHERE a.fournisseur IS NOT NULL
++               AND TRIM(a.fournisseur) <> ''
++               AND NOT EXISTS (
++                   SELECT 1 FROM fournisseurs f
++                   WHERE f.nom = TRIM(a.fournisseur)
++               )"
++        );
++
++        $this->addSql(
++            "UPDATE articles a
++             JOIN fournisseurs f ON f.nom = TRIM(a.fournisseur)
++             SET a.fournisseur_id = f.id
++             WHERE a.fournisseur IS NOT NULL
++               AND TRIM(a.fournisseur) <> ''"
++        );
++
++        $this->addSql(
++            'ALTER TABLE articles
++             ADD CONSTRAINT fk_articles_fournisseur
++             FOREIGN KEY (fournisseur_id) REFERENCES fournisseurs (id)
++             ON DELETE SET NULL'
++        );
++
++        $this->addSql(
++            'CREATE INDEX idx_articles_fournisseur ON articles (fournisseur_id)'
++        );
++
++        $this->addSql(
++            'ALTER TABLE articles DROP COLUMN fournisseur'
++        );
++    }
++
++    public function down(Schema $schema): void
++    {
++        $this->addSql(
++            'ALTER TABLE articles ADD fournisseur VARCHAR(100) DEFAULT NULL'
++        );
++
++        $this->addSql(
++            'UPDATE articles a
++             JOIN fournisseurs f ON f.id = a.fournisseur_id
++             SET a.fournisseur = f.nom'
++        );
++
++        $this->addSql(
++            'ALTER TABLE articles DROP FOREIGN KEY fk_articles_fournisseur'
++        );
++
++        $this->addSql(
++            'DROP INDEX idx_articles_fournisseur ON articles'
++        );
++
++        $this->addSql(
++            'ALTER TABLE articles DROP COLUMN fournisseur_id'
++        );
++
++        $this->addSql(
++            'ALTER TABLE achat_detail DROP FOREIGN KEY fk_achat_detail_achat'
++        );
++
++        $this->addSql(
++            'ALTER TABLE achat_detail DROP FOREIGN KEY fk_achat_detail_article'
++        );
++
++        $this->addSql('DROP TABLE achat_detail');
++
++        $this->addSql(
++            'ALTER TABLE achats DROP FOREIGN KEY fk_achats_fournisseur'
++        );
++
++        $this->addSql('DROP TABLE achats');
++
++        $this->addSql('DROP TABLE fournisseurs');
++    }
++}
+diff --git a/src/Controller/AchatsController.php b/src/Controller/AchatsController.php
+new file mode 100644
+index 0000000..b9a81c4
+--- /dev/null
++++ b/src/Controller/AchatsController.php
+@@ -0,0 +1,341 @@
++<?php
++
++namespace App\Controller;
++
++use App\Entity\Achats;
++use App\Entity\Fournisseurs;
++use App\Entity\StockEntrees;
++use App\Form\AchatType;
++use App\Repository\AchatsRepository;
++use App\Repository\FournisseursRepository;
++use Doctrine\ORM\EntityManagerInterface;
++use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
++use Symfony\Component\HttpFoundation\Request;
++use Symfony\Component\HttpFoundation\Response;
++use Symfony\Component\Routing\Attribute\Route;
++
++#[Route('/achats')]
++final class AchatsController extends AbstractController
++{
++    #[Route('', name: 'app_achat_index', methods: ['GET'])]
++    public function index(
++        Request $request,
++        AchatsRepository $achatsRepository
++    ): Response {
++        $statut = $request->query->get('statut', Achats::STATUT_DEMANDE);
++
++        if (!in_array($statut, Achats::STATUTS, true)) {
++            $statut = Achats::STATUT_DEMANDE;
++        }
++
++        return $this->render('achats/index.html.twig', [
++            'achats' => $achatsRepository->findParStatut($statut),
++            'statut' => $statut,
++        ]);
++    }
++
++    #[Route('/new', name: 'app_achat_new', methods: ['GET', 'POST'])]
++    public function new(
++        Request $request,
++        EntityManagerInterface $entityManager,
++        FournisseursRepository $fournisseursRepository
++    ): Response {
++        $achat = new Achats();
++
++        $fournisseurId = $request->query->getInt('fournisseur');
++
++        if ($fournisseurId > 0) {
++            $fournisseur = $fournisseursRepository->find($fournisseurId);
++
++            if ($fournisseur instanceof Fournisseurs) {
++                $achat->setFournisseur($fournisseur);
++            }
++        }
++
++        $form = $this->createForm(AchatType::class, $achat);
++        $form->handleRequest($request);
++
++        if ($form->isSubmitted() && $form->isValid()) {
++            $achat->recalculerTotaux();
++
++            $entityManager->persist($achat);
++            $entityManager->flush();
++
++            $achat->setNumero(
++                sprintf(
++                    'ACH-%06d-%s',
++                    $achat->getId(),
++                    (new \DateTimeImmutable())->format('m-Y')
++                )
++            );
++
++            $entityManager->flush();
++
++            $this->addFlash(
++                'success',
++                sprintf(
++                    'La demande d’achat %s a été enregistrée.',
++                    $achat->getNumero()
++                )
++            );
++
++            return $this->redirectToRoute(
++                'app_achat_show',
++                ['id' => $achat->getId()],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        return $this->render('achats/new.html.twig', [
++            'form' => $form,
++        ]);
++    }
++
++    #[Route(
++        '/{id}',
++        name: 'app_achat_show',
++        requirements: ['id' => '\d+'],
++        methods: ['GET']
++    )]
++    public function show(Achats $achat): Response
++    {
++        return $this->render('achats/show.html.twig', [
++            'achat' => $achat,
++        ]);
++    }
++
++    #[Route(
++        '/{id}/edit',
++        name: 'app_achat_edit',
++        requirements: ['id' => '\d+'],
++        methods: ['GET', 'POST']
++    )]
++    public function edit(
++        Request $request,
++        Achats $achat,
++        EntityManagerInterface $entityManager
++    ): Response {
++        if (!$achat->estEnDemande()) {
++            $this->addFlash(
++                'error',
++                'Seule une demande d’achat en attente peut être modifiée.'
++            );
++
++            return $this->redirectToRoute(
++                'app_achat_show',
++                ['id' => $achat->getId()],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        $form = $this->createForm(AchatType::class, $achat);
++        $form->handleRequest($request);
++
++        if ($form->isSubmitted() && $form->isValid()) {
++            $achat->recalculerTotaux();
++
++            $entityManager->flush();
++
++            $this->addFlash(
++                'success',
++                'La demande d’achat a été modifiée avec succès.'
++            );
++
++            return $this->redirectToRoute(
++                'app_achat_show',
++                ['id' => $achat->getId()],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        return $this->render('achats/edit.html.twig', [
++            'achat' => $achat,
++            'form' => $form,
++        ]);
++    }
++
++    #[Route(
++        '/{id}/recevoir',
++        name: 'app_achat_recevoir',
++        requirements: ['id' => '\d+'],
++        methods: ['POST']
++    )]
++    public function recevoir(
++        Request $request,
++        Achats $achat,
++        EntityManagerInterface $entityManager
++    ): Response {
++        if (!$this->isCsrfTokenValid(
++            'recevoir_achat' . $achat->getId(),
++            $request->getPayload()->getString('_token')
++        )) {
++            throw $this->createAccessDeniedException(
++                'Jeton de sécurité invalide.'
++            );
++        }
++
++        if (!$achat->estEnDemande()) {
++            $this->addFlash(
++                'error',
++                'Cet achat a déjà été traité.'
++            );
++
++            return $this->redirectToRoute(
++                'app_achat_show',
++                ['id' => $achat->getId()],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        if ($achat->getLignes()->isEmpty()) {
++            $this->addFlash(
++                'error',
++                'Cet achat ne contient aucune ligne à réceptionner.'
++            );
++
++            return $this->redirectToRoute(
++                'app_achat_show',
++                ['id' => $achat->getId()],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        $maintenant = new \DateTimeImmutable();
++
++        /*
++         * Chaque ligne d'achat reçue génère une entrée de stock,
++         * exactement comme l'entrée de stock manuelle sur une fiche
++         * article (StockService additionne StockEntrees - StockSorties).
++         */
++        foreach ($achat->getLignes() as $ligne) {
++            $article = $ligne->getArticle();
++
++            if ($article === null) {
++                continue;
++            }
++
++            $entree = new StockEntrees();
++            $entree->setArticle($article);
++            $entree->setQuantites($ligne->getQuantite());
++            $entree->setPrix($ligne->getPrixUnitaire());
++            $entree->setDate($maintenant);
++
++            $entityManager->persist($entree);
++
++            if ($ligne->getPrixUnitaire() > 0) {
++                $article->setPrixAchat($ligne->getPrixUnitaire());
++            }
++        }
++
++        $achat->setStatut(Achats::STATUT_RECU);
++        $achat->setDateReception($maintenant);
++
++        $entityManager->flush();
++
++        $this->addFlash(
++            'success',
++            sprintf(
++                'L’achat %s a été réceptionné, le stock a été mis à jour.',
++                $achat->getNumero()
++            )
++        );
++
++        return $this->redirectToRoute(
++            'app_achat_show',
++            ['id' => $achat->getId()],
++            Response::HTTP_SEE_OTHER
++        );
++    }
++
++    #[Route(
++        '/{id}/annuler',
++        name: 'app_achat_annuler',
++        requirements: ['id' => '\d+'],
++        methods: ['POST']
++    )]
++    public function annuler(
++        Request $request,
++        Achats $achat,
++        EntityManagerInterface $entityManager
++    ): Response {
++        if (!$this->isCsrfTokenValid(
++            'annuler_achat' . $achat->getId(),
++            $request->getPayload()->getString('_token')
++        )) {
++            throw $this->createAccessDeniedException(
++                'Jeton de sécurité invalide.'
++            );
++        }
++
++        if (!$achat->estEnDemande()) {
++            $this->addFlash(
++                'error',
++                'Seule une demande d’achat en attente peut être annulée.'
++            );
++
++            return $this->redirectToRoute(
++                'app_achat_show',
++                ['id' => $achat->getId()],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        $achat->setStatut(Achats::STATUT_ANNULE);
++        $entityManager->flush();
++
++        $this->addFlash(
++            'success',
++            'La demande d’achat a été annulée.'
++        );
++
++        return $this->redirectToRoute(
++            'app_achat_show',
++            ['id' => $achat->getId()],
++            Response::HTTP_SEE_OTHER
++        );
++    }
++
++    #[Route(
++        '/{id}/delete',
++        name: 'app_achat_delete',
++        requirements: ['id' => '\d+'],
++        methods: ['POST']
++    )]
++    public function delete(
++        Request $request,
++        Achats $achat,
++        EntityManagerInterface $entityManager
++    ): Response {
++        if ($this->isCsrfTokenValid(
++            'delete' . $achat->getId(),
++            $request->getPayload()->getString('_token')
++        )) {
++            if (!$achat->estEnDemande()) {
++                $this->addFlash(
++                    'error',
++                    'Seule une demande d’achat en attente peut être supprimée.'
++                );
++
++                return $this->redirectToRoute(
++                    'app_achat_show',
++                    ['id' => $achat->getId()],
++                    Response::HTTP_SEE_OTHER
++                );
++            }
++
++            $entityManager->remove($achat);
++            $entityManager->flush();
++
++            $this->addFlash(
++                'success',
++                'La demande d’achat a été supprimée.'
++            );
++        }
++
++        return $this->redirectToRoute(
++            'app_achat_index',
++            [],
++            Response::HTTP_SEE_OTHER
++        );
++    }
++}
+diff --git a/src/Controller/FournisseursController.php b/src/Controller/FournisseursController.php
+new file mode 100644
+index 0000000..1719a2a
+--- /dev/null
++++ b/src/Controller/FournisseursController.php
+@@ -0,0 +1,210 @@
++<?php
++
++namespace App\Controller;
++
++use App\Entity\Fournisseurs;
++use App\Form\FournisseursType;
++use App\Repository\FournisseursRepository;
++use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
++use Doctrine\ORM\EntityManagerInterface;
++use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
++use Symfony\Component\HttpFoundation\Request;
++use Symfony\Component\HttpFoundation\Response;
++use Symfony\Component\Routing\Attribute\Route;
++
++#[Route('/fournisseurs')]
++final class FournisseursController extends AbstractController
++{
++    #[Route('', name: 'app_fournisseur_index', methods: ['GET'])]
++    public function index(
++        FournisseursRepository $fournisseursRepository
++    ): Response {
++        return $this->render('fournisseurs/index.html.twig', [
++            'fournisseurs' => $fournisseursRepository->findBy(
++                [],
++                ['nom' => 'ASC']
++            ),
++        ]);
++    }
++
++    #[Route('/new', name: 'app_fournisseur_new', methods: ['GET', 'POST'])]
++    public function new(
++        Request $request,
++        EntityManagerInterface $entityManager
++    ): Response {
++        $fournisseur = new Fournisseurs();
++        $form = $this->createForm(FournisseursType::class, $fournisseur);
++        $form->handleRequest($request);
++
++        if ($form->isSubmitted() && $form->isValid()) {
++            try {
++                $entityManager->persist($fournisseur);
++                $entityManager->flush();
++            } catch (UniqueConstraintViolationException) {
++                $this->addFlash(
++                    'error',
++                    'Un fournisseur portant ce nom existe déjà.'
++                );
++
++                return $this->render('fournisseurs/new.html.twig', [
++                    'form' => $form,
++                ]);
++            }
++
++            $this->addFlash(
++                'success',
++                sprintf(
++                    'Le fournisseur « %s » a été ajouté avec succès.',
++                    $fournisseur->getNom()
++                )
++            );
++
++            return $this->redirectToRoute(
++                'app_fournisseur_index',
++                [],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        return $this->render('fournisseurs/new.html.twig', [
++            'form' => $form,
++        ]);
++    }
++
++    #[Route(
++        '/{id}',
++        name: 'app_fournisseur_show',
++        requirements: ['id' => '\d+'],
++        methods: ['GET']
++    )]
++    public function show(Fournisseurs $fournisseur): Response
++    {
++        return $this->render('fournisseurs/show.html.twig', [
++            'fournisseur' => $fournisseur,
++        ]);
++    }
++
++    #[Route(
++        '/{id}/edit',
++        name: 'app_fournisseur_edit',
++        requirements: ['id' => '\d+'],
++        methods: ['GET', 'POST']
++    )]
++    public function edit(
++        Request $request,
++        Fournisseurs $fournisseur,
++        EntityManagerInterface $entityManager
++    ): Response {
++        $form = $this->createForm(FournisseursType::class, $fournisseur);
++        $form->handleRequest($request);
++
++        if ($form->isSubmitted() && $form->isValid()) {
++            try {
++                $entityManager->flush();
++            } catch (UniqueConstraintViolationException) {
++                $this->addFlash(
++                    'error',
++                    'Un autre fournisseur porte déjà ce nom.'
++                );
++
++                return $this->render('fournisseurs/edit.html.twig', [
++                    'fournisseur' => $fournisseur,
++                    'form' => $form,
++                ]);
++            }
++
++            $this->addFlash(
++                'success',
++                'Le fournisseur a été modifié avec succès.'
++            );
++
++            return $this->redirectToRoute(
++                'app_fournisseur_show',
++                ['id' => $fournisseur->getId()],
++                Response::HTTP_SEE_OTHER
++            );
++        }
++
++        return $this->render('fournisseurs/edit.html.twig', [
++            'fournisseur' => $fournisseur,
++            'form' => $form,
++        ]);
++    }
++
++    #[Route(
++        '/{id}/delete',
++        name: 'app_fournisseur_delete',
++        requirements: ['id' => '\d+'],
++        methods: ['POST']
++    )]
++    public function delete(
++        Request $request,
++        Fournisseurs $fournisseur,
++        EntityManagerInterface $entityManager
++    ): Response {
++        if ($this->isCsrfTokenValid(
++            'delete' . $fournisseur->getId(),
++            $request->getPayload()->getString('_token')
++        )) {
++            if (!$fournisseur->getAchats()->isEmpty()) {
++                $this->addFlash(
++                    'error',
++                    'Ce fournisseur a des achats liés et ne peut pas être supprimé. Désactivez-le à la place.'
++                );
++
++                return $this->redirectToRoute(
++                    'app_fournisseur_show',
++                    ['id' => $fournisseur->getId()],
++                    Response::HTTP_SEE_OTHER
++                );
++            }
++
++            $entityManager->remove($fournisseur);
++            $entityManager->flush();
++
++            $this->addFlash(
++                'success',
++                'Le fournisseur a été supprimé.'
++            );
++        }
++
++        return $this->redirectToRoute(
++            'app_fournisseur_index',
++            [],
++            Response::HTTP_SEE_OTHER
++        );
++    }
++
++    #[Route(
++        '/{id}/toggle-actif',
++        name: 'app_fournisseur_toggle_actif',
++        requirements: ['id' => '\d+'],
++        methods: ['POST']
++    )]
++    public function toggleActif(
++        Request $request,
++        Fournisseurs $fournisseur,
++        EntityManagerInterface $entityManager
++    ): Response {
++        if ($this->isCsrfTokenValid(
++            'toggle_actif' . $fournisseur->getId(),
++            $request->getPayload()->getString('_token')
++        )) {
++            $fournisseur->setActif(!$fournisseur->isActif());
++            $entityManager->flush();
++
++            $this->addFlash(
++                'success',
++                $fournisseur->isActif()
++                    ? 'Le fournisseur a été réactivé.'
++                    : 'Le fournisseur a été désactivé.'
++            );
++        }
++
++        return $this->redirectToRoute(
++            'app_fournisseur_show',
++            ['id' => $fournisseur->getId()],
++            Response::HTTP_SEE_OTHER
++        );
++    }
++}
+diff --git a/src/Entity/AchatDetail.php b/src/Entity/AchatDetail.php
+new file mode 100644
+index 0000000..aba3259
+--- /dev/null
++++ b/src/Entity/AchatDetail.php
+@@ -0,0 +1,100 @@
++<?php
++
++namespace App\Entity;
++
++use App\Repository\AchatDetailRepository;
++use Doctrine\ORM\Mapping as ORM;
++use Symfony\Component\Validator\Constraints as Assert;
++
++#[ORM\Entity(repositoryClass: AchatDetailRepository::class)]
++class AchatDetail
++{
++    #[ORM\Id]
++    #[ORM\GeneratedValue]
++    #[ORM\Column]
++    private ?int $id = null;
++
++    #[ORM\ManyToOne(inversedBy: 'lignes')]
++    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
++    private ?Achats $achat = null;
++
++    #[ORM\ManyToOne]
++    #[ORM\JoinColumn(nullable: false)]
++    private ?Articles $article = null;
++
++    #[ORM\Column]
++    #[Assert\Positive(message: 'La quantité doit être supérieure à zéro.')]
++    private int $quantite = 1;
++
++    #[ORM\Column]
++    #[Assert\PositiveOrZero(message: 'Le prix unitaire ne peut pas être négatif.')]
++    private int $prixUnitaire = 0;
++
++    #[ORM\Column(options: ['default' => 0])]
++    private int $totalHt = 0;
++
++    public function getId(): ?int
++    {
++        return $this->id;
++    }
++
++    public function getAchat(): ?Achats
++    {
++        return $this->achat;
++    }
++
++    public function setAchat(?Achats $achat): static
++    {
++        $this->achat = $achat;
++
++        return $this;
++    }
++
++    public function getArticle(): ?Articles
++    {
++        return $this->article;
++    }
++
++    public function setArticle(?Articles $article): static
++    {
++        $this->article = $article;
++
++        return $this;
++    }
++
++    public function getQuantite(): int
++    {
++        return $this->quantite;
++    }
++
++    public function setQuantite(int $quantite): static
++    {
++        $this->quantite = max(1, $quantite);
++        $this->calculerTotalHt();
++
++        return $this;
++    }
++
++    public function getPrixUnitaire(): int
++    {
++        return $this->prixUnitaire;
++    }
++
++    public function setPrixUnitaire(int $prixUnitaire): static
++    {
++        $this->prixUnitaire = max(0, $prixUnitaire);
++        $this->calculerTotalHt();
++
++        return $this;
++    }
++
++    public function getTotalHt(): int
++    {
++        return $this->totalHt;
++    }
++
++    private function calculerTotalHt(): void
++    {
++        $this->totalHt = $this->quantite * $this->prixUnitaire;
++    }
++}
+diff --git a/src/Entity/Achats.php b/src/Entity/Achats.php
+new file mode 100644
+index 0000000..6b3cfca
+--- /dev/null
++++ b/src/Entity/Achats.php
+@@ -0,0 +1,262 @@
++<?php
++
++namespace App\Entity;
++
++use App\Repository\AchatsRepository;
++use Doctrine\Common\Collections\ArrayCollection;
++use Doctrine\Common\Collections\Collection;
++use Doctrine\DBAL\Types\Types;
++use Doctrine\ORM\Mapping as ORM;
++use Symfony\Component\Validator\Constraints as Assert;
++
++#[ORM\Entity(repositoryClass: AchatsRepository::class)]
++class Achats
++{
++    public const STATUT_DEMANDE = 'demande';
++    public const STATUT_RECU = 'recu';
++    public const STATUT_ANNULE = 'annule';
++
++    public const STATUTS = [
++        self::STATUT_DEMANDE,
++        self::STATUT_RECU,
++        self::STATUT_ANNULE,
++    ];
++
++    #[ORM\Id]
++    #[ORM\GeneratedValue]
++    #[ORM\Column]
++    private ?int $id = null;
++
++    #[ORM\Column(length: 50, nullable: true, unique: true)]
++    private ?string $numero = null;
++
++    #[ORM\ManyToOne(inversedBy: 'achats')]
++    #[ORM\JoinColumn(nullable: false)]
++    private ?Fournisseurs $fournisseur = null;
++
++    #[ORM\Column(length: 20)]
++    #[Assert\Choice(
++        choices: self::STATUTS,
++        message: 'Statut d’achat invalide.'
++    )]
++    private string $statut = self::STATUT_DEMANDE;
++
++    #[ORM\Column]
++    private ?\DateTimeImmutable $dateDemande = null;
++
++    #[ORM\Column(nullable: true)]
++    private ?\DateTimeImmutable $dateReception = null;
++
++    #[ORM\Column(type: Types::TEXT, nullable: true)]
++    private ?string $observation = null;
++
++    #[ORM\Column(options: ['default' => 0])]
++    private int $totalHt = 0;
++
++    #[ORM\Column(options: ['default' => 0])]
++    private int $tva = 0;
++
++    #[ORM\Column(options: ['default' => 0])]
++    private int $totalTtc = 0;
++
++    /**
++     * @var Collection<int, AchatDetail>
++     */
++    #[ORM\OneToMany(
++        targetEntity: AchatDetail::class,
++        mappedBy: 'achat',
++        cascade: ['persist', 'remove'],
++        orphanRemoval: true
++    )]
++    private Collection $lignes;
++
++    public function __construct()
++    {
++        $this->lignes = new ArrayCollection();
++        $this->dateDemande = new \DateTimeImmutable();
++    }
++
++    public function getId(): ?int
++    {
++        return $this->id;
++    }
++
++    public function getNumero(): ?string
++    {
++        return $this->numero;
++    }
++
++    public function setNumero(?string $numero): static
++    {
++        $this->numero = $numero;
++
++        return $this;
++    }
++
++    public function getFournisseur(): ?Fournisseurs
++    {
++        return $this->fournisseur;
++    }
++
++    public function setFournisseur(?Fournisseurs $fournisseur): static
++    {
++        $this->fournisseur = $fournisseur;
++
++        return $this;
++    }
++
++    public function getStatut(): string
++    {
++        return $this->statut;
++    }
++
++    public function setStatut(string $statut): static
++    {
++        $this->statut = in_array($statut, self::STATUTS, true)
++            ? $statut
++            : self::STATUT_DEMANDE;
++
++        return $this;
++    }
++
++    public function estEnDemande(): bool
++    {
++        return $this->statut === self::STATUT_DEMANDE;
++    }
++
++    public function estRecu(): bool
++    {
++        return $this->statut === self::STATUT_RECU;
++    }
++
++    public function estAnnule(): bool
++    {
++        return $this->statut === self::STATUT_ANNULE;
++    }
++
++    public function getDateDemande(): ?\DateTimeImmutable
++    {
++        return $this->dateDemande;
++    }
++
++    public function setDateDemande(\DateTimeImmutable $dateDemande): static
++    {
++        $this->dateDemande = $dateDemande;
++
++        return $this;
++    }
++
++    public function getDateReception(): ?\DateTimeImmutable
++    {
++        return $this->dateReception;
++    }
++
++    public function setDateReception(?\DateTimeImmutable $dateReception): static
++    {
++        $this->dateReception = $dateReception;
++
++        return $this;
++    }
++
++    public function getObservation(): ?string
++    {
++        return $this->observation;
++    }
++
++    public function setObservation(?string $observation): static
++    {
++        $this->observation = $observation;
++
++        return $this;
++    }
++
++    public function getTotalHt(): int
++    {
++        return $this->totalHt;
++    }
++
++    public function setTotalHt(int $totalHt): static
++    {
++        $this->totalHt = max(0, $totalHt);
++
++        return $this;
++    }
++
++    public function getTva(): int
++    {
++        return $this->tva;
++    }
++
++    public function setTva(int $tva): static
++    {
++        $this->tva = max(0, $tva);
++
++        return $this;
++    }
++
++    public function getTotalTtc(): int
++    {
++        return $this->totalTtc;
++    }
++
++    public function setTotalTtc(int $totalTtc): static
++    {
++        $this->totalTtc = max(0, $totalTtc);
++
++        return $this;
++    }
++
++    /**
++     * @return Collection<int, AchatDetail>
++     */
++    public function getLignes(): Collection
++    {
++        return $this->lignes;
++    }
++
++    public function addLigne(AchatDetail $ligne): static
++    {
++        if (!$this->lignes->contains($ligne)) {
++            $this->lignes->add($ligne);
++            $ligne->setAchat($this);
++        }
++
++        return $this;
++    }
++
++    public function removeLigne(AchatDetail $ligne): static
++    {
++        if (
++            $this->lignes->removeElement($ligne)
++            && $ligne->getAchat() === $this
++        ) {
++            $ligne->setAchat(null);
++        }
++
++        return $this;
++    }
++
++    /**
++     * Recalcule totalHt/totalTtc à partir des lignes actuelles.
++     */
++    public function recalculerTotaux(): static
++    {
++        $totalHt = 0;
++
++        foreach ($this->lignes as $ligne) {
++            $totalHt += $ligne->getTotalHt();
++        }
++
++        $this->totalHt = $totalHt;
++        $this->totalTtc = (int) round(
++            $totalHt * (1 + $this->tva / 100)
++        );
++
++        return $this;
++    }
++
++    public function __toString(): string
++    {
++        return $this->numero ?? 'Nouvel achat';
++    }
++}
+diff --git a/src/Entity/Articles.php b/src/Entity/Articles.php
+index 25408d4..9daaca5 100644
+--- a/src/Entity/Articles.php
++++ b/src/Entity/Articles.php
+@@ -72,11 +72,9 @@ class Articles
+     )]
+     private ?int $prixVente = null;
+ 
+-    #[ORM\Column(
+-        length: 100,
+-        nullable: true
+-    )]
+-    private ?string $fournisseur = null;
++    #[ORM\ManyToOne]
++    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
++    private ?Fournisseurs $fournisseur = null;
+ 
+     #[ORM\Column(
+         type: Types::TEXT,
+@@ -345,24 +343,16 @@ private Collection $produitsStock;
+     }
+ 
+ 
+-    public function getFournisseur(): ?string
++    public function getFournisseur(): ?Fournisseurs
+     {
+         return $this->fournisseur;
+     }
+ 
+ 
+     public function setFournisseur(
+-        ?string $fournisseur
++        ?Fournisseurs $fournisseur
+     ): static {
+-        $fournisseur =
+-            $fournisseur !== null
+-                ? trim($fournisseur)
+-                : null;
+-
+-        $this->fournisseur =
+-            $fournisseur !== ''
+-                ? $fournisseur
+-                : null;
++        $this->fournisseur = $fournisseur;
+ 
+         return $this;
+     }
+diff --git a/src/Entity/Fournisseurs.php b/src/Entity/Fournisseurs.php
+index ba20a78..e8975b1 100644
+--- a/src/Entity/Fournisseurs.php
++++ b/src/Entity/Fournisseurs.php
+@@ -3,6 +3,8 @@
+ namespace App\Entity;
+ 
+ use App\Repository\FournisseursRepository;
++use Doctrine\Common\Collections\ArrayCollection;
++use Doctrine\Common\Collections\Collection;
+ use Doctrine\DBAL\Types\Types;
+ use Doctrine\ORM\Mapping as ORM;
+ 
+@@ -17,15 +19,32 @@ class Fournisseurs
+     #[ORM\Column(length: 255)]
+     private ?string $nom = null;
+ 
+-    #[ORM\Column(type: Types::INTEGER)]
++    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+     private ?int $telephone = null;
+ 
+-    #[ORM\Column(length: 255)]
++    #[ORM\Column(length: 255, nullable: true)]
+     private ?string $email = null;
+ 
+-    #[ORM\Column(type: Types::TEXT)]
++    #[ORM\Column(type: Types::TEXT, nullable: true)]
+     private ?string $adresse = null;
+ 
++    #[ORM\Column(options: ['default' => true])]
++    private bool $actif = true;
++
++    /**
++     * @var Collection<int, Achats>
++     */
++    #[ORM\OneToMany(
++        targetEntity: Achats::class,
++        mappedBy: 'fournisseur'
++    )]
++    private Collection $achats;
++
++    public function __construct()
++    {
++        $this->achats = new ArrayCollection();
++    }
++
+     public function getId(): ?int
+     {
+         return $this->id;
+@@ -48,7 +67,7 @@ class Fournisseurs
+         return $this->telephone;
+     }
+ 
+-    public function setTelephone(int $telephone): static
++    public function setTelephone(?int $telephone): static
+     {
+         $this->telephone = $telephone;
+ 
+@@ -60,7 +79,7 @@ class Fournisseurs
+         return $this->email;
+     }
+ 
+-    public function setEmail(string $email): static
++    public function setEmail(?string $email): static
+     {
+         $this->email = $email;
+ 
+@@ -72,10 +91,35 @@ class Fournisseurs
+         return $this->adresse;
+     }
+ 
+-    public function setAdresse(string $adresse): static
++    public function setAdresse(?string $adresse): static
+     {
+         $this->adresse = $adresse;
+ 
+         return $this;
+     }
++
++    public function isActif(): bool
++    {
++        return $this->actif;
++    }
++
++    public function setActif(bool $actif): static
++    {
++        $this->actif = $actif;
++
++        return $this;
++    }
++
++    /**
++     * @return Collection<int, Achats>
++     */
++    public function getAchats(): Collection
++    {
++        return $this->achats;
++    }
++
++    public function __toString(): string
++    {
++        return $this->nom ?? 'Fournisseur';
++    }
+ }
+diff --git a/src/Form/AchatDetailType.php b/src/Form/AchatDetailType.php
+new file mode 100644
+index 0000000..84a457d
+--- /dev/null
++++ b/src/Form/AchatDetailType.php
+@@ -0,0 +1,79 @@
++<?php
++
++namespace App\Form;
++
++use App\Entity\AchatDetail;
++use App\Entity\Articles;
++use App\Repository\ArticlesRepository;
++use Symfony\Bridge\Doctrine\Form\Type\EntityType;
++use Symfony\Component\Form\AbstractType;
++use Symfony\Component\Form\Extension\Core\Type\IntegerType;
++use Symfony\Component\Form\FormBuilderInterface;
++use Symfony\Component\OptionsResolver\OptionsResolver;
++use Symfony\Component\Validator\Constraints\NotNull;
++use Symfony\Component\Validator\Constraints\Positive;
++use Symfony\Component\Validator\Constraints\PositiveOrZero;
++
++final class AchatDetailType extends AbstractType
++{
++    public function buildForm(
++        FormBuilderInterface $builder,
++        array $options
++    ): void {
++        $builder
++            ->add('article', EntityType::class, [
++                'class' => Articles::class,
++                'choice_label' => static fn(Articles $article): string =>
++                    sprintf('%s — %s', $article->getReference(), $article->getDesignation()),
++
++                'query_builder' => static function (
++                    ArticlesRepository $repository
++                ) {
++                    return $repository->createQueryBuilder('a')
++                        ->andWhere('a.actif = true')
++                        ->orderBy('a.designation', 'ASC');
++                },
++
++                'placeholder' => 'Sélectionnez un article',
++
++                'attr' => [
++                    'class' => 'form-control js-select-search js-achat-article',
++                    'data-placeholder' => 'Rechercher un article...',
++                ],
++
++                'constraints' => [
++                    new NotNull(message: 'Sélectionnez un article.'),
++                ],
++            ])
++
++            ->add('quantite', IntegerType::class, [
++                'label' => 'Quantité',
++                'attr' => [
++                    'class' => 'form-control js-achat-quantite',
++                    'min' => 1,
++                ],
++                'constraints' => [
++                    new Positive(message: 'La quantité doit être supérieure à zéro.'),
++                ],
++            ])
++
++            ->add('prixUnitaire', IntegerType::class, [
++                'label' => 'Prix unitaire (FCFA)',
++                'attr' => [
++                    'class' => 'form-control js-achat-prix',
++                    'min' => 0,
++                ],
++                'constraints' => [
++                    new PositiveOrZero(message: 'Le prix unitaire ne peut pas être négatif.'),
++                ],
++            ])
++        ;
++    }
++
++    public function configureOptions(OptionsResolver $resolver): void
++    {
++        $resolver->setDefaults([
++            'data_class' => AchatDetail::class,
++        ]);
++    }
++}
+diff --git a/src/Form/AchatType.php b/src/Form/AchatType.php
+new file mode 100644
+index 0000000..3dff2c7
+--- /dev/null
++++ b/src/Form/AchatType.php
+@@ -0,0 +1,99 @@
++<?php
++
++namespace App\Form;
++
++use App\Entity\Achats;
++use App\Entity\Fournisseurs;
++use App\Repository\FournisseursRepository;
++use Symfony\Bridge\Doctrine\Form\Type\EntityType;
++use Symfony\Component\Form\Extension\Core\Type\CollectionType;
++use Symfony\Component\Form\Extension\Core\Type\IntegerType;
++use Symfony\Component\Form\Extension\Core\Type\TextareaType;
++use Symfony\Component\Form\AbstractType;
++use Symfony\Component\Form\FormBuilderInterface;
++use Symfony\Component\OptionsResolver\OptionsResolver;
++use Symfony\Component\Validator\Constraints\Count;
++use Symfony\Component\Validator\Constraints\NotNull;
++use Symfony\Component\Validator\Constraints\PositiveOrZero;
++use Symfony\Component\Validator\Constraints\Valid;
++
++final class AchatType extends AbstractType
++{
++    public function buildForm(
++        FormBuilderInterface $builder,
++        array $options
++    ): void {
++        $builder
++            ->add('fournisseur', EntityType::class, [
++                'class' => Fournisseurs::class,
++                'choice_label' => 'nom',
++
++                'query_builder' => static function (
++                    FournisseursRepository $repository
++                ) {
++                    return $repository->createQueryBuilder('f')
++                        ->andWhere('f.actif = true')
++                        ->orderBy('f.nom', 'ASC');
++                },
++
++                'placeholder' => 'Sélectionnez un fournisseur',
++
++                'attr' => [
++                    'class' => 'form-control js-select-search',
++                    'data-placeholder' => 'Rechercher un fournisseur...',
++                ],
++
++                'constraints' => [
++                    new NotNull(message: 'Sélectionnez un fournisseur.'),
++                ],
++            ])
++
++            ->add('tva', IntegerType::class, [
++                'label' => 'TVA (%)',
++                'required' => false,
++                'empty_data' => '0',
++                'attr' => [
++                    'class' => 'form-control js-achat-tva',
++                    'min' => 0,
++                ],
++                'constraints' => [
++                    new PositiveOrZero(message: 'La TVA ne peut pas être négative.'),
++                ],
++            ])
++
++            ->add('observation', TextareaType::class, [
++                'label' => 'Observation',
++                'required' => false,
++                'attr' => [
++                    'class' => 'form-control',
++                    'rows' => 3,
++                ],
++            ])
++
++            ->add('lignes', CollectionType::class, [
++                'entry_type' => AchatDetailType::class,
++                'label' => false,
++                'required' => true,
++                'allow_add' => true,
++                'allow_delete' => true,
++                'by_reference' => false,
++                'prototype' => true,
++                'prototype_name' => '__ligne__',
++                'constraints' => [
++                    new Count(
++                        min: 1,
++                        minMessage: 'Ajoutez au moins un article à acheter.'
++                    ),
++                    new Valid(),
++                ],
++            ])
++        ;
++    }
++
++    public function configureOptions(OptionsResolver $resolver): void
++    {
++        $resolver->setDefaults([
++            'data_class' => Achats::class,
++        ]);
++    }
++}
+diff --git a/src/Form/ArticlesType.php b/src/Form/ArticlesType.php
+index ade1967..65e90de 100644
+--- a/src/Form/ArticlesType.php
++++ b/src/Form/ArticlesType.php
+@@ -3,6 +3,8 @@
+ namespace App\Form;
+ 
+ use App\Entity\Articles;
++use App\Entity\Fournisseurs;
++use Symfony\Bridge\Doctrine\Form\Type\EntityType;
+ use Symfony\Component\Form\AbstractType;
+ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+@@ -195,17 +197,31 @@ final class ArticlesType extends AbstractType
+ 
+             ->add(
+                 'fournisseur',
+-                TextType::class,
++                EntityType::class,
+                 [
++                    'class' => Fournisseurs::class,
++                    'choice_label' => 'nom',
++
++                    'query_builder' => static function (
++                        \App\Repository\FournisseursRepository $repository
++                    ) {
++                        return $repository->createQueryBuilder('f')
++                            ->andWhere('f.actif = true')
++                            ->orderBy('f.nom', 'ASC');
++                    },
++
+                     'label' =>
+                         'Fournisseur',
+ 
++                    'placeholder' =>
++                        'Aucun fournisseur',
++
+                     'required' =>
+                         false,
+ 
+                     'attr' => [
+                         'class' =>
+-                            'form-control',
++                            'form-control js-select-search',
+                     ],
+                 ]
+             )
+diff --git a/src/Form/FournisseursType.php b/src/Form/FournisseursType.php
+new file mode 100644
+index 0000000..be6d17d
+--- /dev/null
++++ b/src/Form/FournisseursType.php
+@@ -0,0 +1,73 @@
++<?php
++
++namespace App\Form;
++
++use App\Entity\Fournisseurs;
++use Symfony\Component\Form\AbstractType;
++use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
++use Symfony\Component\Form\Extension\Core\Type\EmailType;
++use Symfony\Component\Form\Extension\Core\Type\IntegerType;
++use Symfony\Component\Form\Extension\Core\Type\TextareaType;
++use Symfony\Component\Form\Extension\Core\Type\TextType;
++use Symfony\Component\Form\FormBuilderInterface;
++use Symfony\Component\OptionsResolver\OptionsResolver;
++use Symfony\Component\Validator\Constraints\NotBlank;
++
++final class FournisseursType extends AbstractType
++{
++    public function buildForm(
++        FormBuilderInterface $builder,
++        array $options
++    ): void {
++        $builder
++            ->add('nom', TextType::class, [
++                'label' => 'Nom du fournisseur',
++                'attr' => [
++                    'class' => 'form-control',
++                ],
++                'constraints' => [
++                    new NotBlank(
++                        message: 'Le nom du fournisseur est obligatoire.'
++                    ),
++                ],
++            ])
++
++            ->add('telephone', IntegerType::class, [
++                'label' => 'Téléphone',
++                'required' => false,
++                'attr' => [
++                    'class' => 'form-control',
++                ],
++            ])
++
++            ->add('email', EmailType::class, [
++                'label' => 'E-mail',
++                'required' => false,
++                'attr' => [
++                    'class' => 'form-control',
++                ],
++            ])
++
++            ->add('adresse', TextareaType::class, [
++                'label' => 'Adresse',
++                'required' => false,
++                'attr' => [
++                    'class' => 'form-control',
++                    'rows' => 3,
++                ],
++            ])
++
++            ->add('actif', CheckboxType::class, [
++                'label' => 'Fournisseur actif',
++                'required' => false,
++            ])
++        ;
++    }
++
++    public function configureOptions(OptionsResolver $resolver): void
++    {
++        $resolver->setDefaults([
++            'data_class' => Fournisseurs::class,
++        ]);
++    }
++}
+diff --git a/src/Repository/AchatDetailRepository.php b/src/Repository/AchatDetailRepository.php
+new file mode 100644
+index 0000000..faeca5f
+--- /dev/null
++++ b/src/Repository/AchatDetailRepository.php
+@@ -0,0 +1,18 @@
++<?php
++
++namespace App\Repository;
++
++use App\Entity\AchatDetail;
++use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
++use Doctrine\Persistence\ManagerRegistry;
++
++/**
++ * @extends ServiceEntityRepository<AchatDetail>
++ */
++class AchatDetailRepository extends ServiceEntityRepository
++{
++    public function __construct(ManagerRegistry $registry)
++    {
++        parent::__construct($registry, AchatDetail::class);
++    }
++}
+diff --git a/src/Repository/AchatsRepository.php b/src/Repository/AchatsRepository.php
+new file mode 100644
+index 0000000..6b3d650
+--- /dev/null
++++ b/src/Repository/AchatsRepository.php
+@@ -0,0 +1,31 @@
++<?php
++
++namespace App\Repository;
++
++use App\Entity\Achats;
++use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
++use Doctrine\Persistence\ManagerRegistry;
++
++/**
++ * @extends ServiceEntityRepository<Achats>
++ */
++class AchatsRepository extends ServiceEntityRepository
++{
++    public function __construct(ManagerRegistry $registry)
++    {
++        parent::__construct($registry, Achats::class);
++    }
++
++    /**
++     * @return Achats[]
++     */
++    public function findParStatut(string $statut): array
++    {
++        return $this->createQueryBuilder('a')
++            ->andWhere('a.statut = :statut')
++            ->setParameter('statut', $statut)
++            ->orderBy('a.dateDemande', 'DESC')
++            ->getQuery()
++            ->getResult();
++    }
++}
+diff --git a/templates/achats/_form.html.twig b/templates/achats/_form.html.twig
+new file mode 100644
+index 0000000..17abcb5
+--- /dev/null
++++ b/templates/achats/_form.html.twig
+@@ -0,0 +1,223 @@
++{% macro ligne_achat(ligne) %}
++
++	<tr class="js-ligne-achat">
++
++		<td style="min-width:260px;">
++			{{ form_widget(ligne.article) }}
++			{{ form_errors(ligne.article) }}
++		</td>
++
++		<td style="width:120px;">
++			{{ form_widget(ligne.quantite, {attr: {class: 'form-control js-achat-quantite'}}) }}
++			{{ form_errors(ligne.quantite) }}
++		</td>
++
++		<td style="width:160px;">
++			{{ form_widget(ligne.prixUnitaire, {attr: {class: 'form-control js-achat-prix'}}) }}
++			{{ form_errors(ligne.prixUnitaire) }}
++		</td>
++
++		<td style="width:150px;" class="align-middle text-right js-ligne-total">
++			0 FCFA
++		</td>
++
++		<td style="width:50px;" class="align-middle text-center">
++			<button type="button" class="btn btn-sm btn-danger-light js-supprimer-ligne-achat">
++				<i class="fa fa-trash"></i>
++			</button>
++		</td>
++
++	</tr>
++
++{% endmacro %}
++
++{% import _self as achat_macros %}
++
++{{ form_start(form) }}
++
++<div class="card-body">
++
++	<div class="row">
++
++		<div class="col-md-6">
++			<div class="form-group">
++				{{ form_label(form.fournisseur) }}
++				{{ form_widget(form.fournisseur) }}
++				{{ form_errors(form.fournisseur) }}
++			</div>
++		</div>
++
++		<div class="col-md-3">
++			<div class="form-group">
++				{{ form_label(form.tva) }}
++				{{ form_widget(form.tva) }}
++				{{ form_errors(form.tva) }}
++			</div>
++		</div>
++
++	</div>
++
++	<div class="form-group">
++		{{ form_label(form.observation) }}
++		{{ form_widget(form.observation) }}
++		{{ form_errors(form.observation) }}
++	</div>
++
++
++	<hr>
++
++	<div class="d-flex justify-content-between align-items-center mb-2">
++		<h4 class="mb-0">Articles à acheter</h4>
++		<button type="button" id="js-ajouter-ligne-achat" class="btn btn-sm btn-primary-light">
++			<i class="fa fa-plus mr-1"></i>
++			Ajouter une ligne
++		</button>
++	</div>
++
++	{{ form_errors(form.lignes) }}
++
++	<div class="table-responsive">
++		<table class="table table-bordered" id="js-table-lignes-achat">
++			<thead>
++				<tr>
++					<th>Article</th>
++					<th>Quantité</th>
++					<th>Prix unitaire</th>
++					<th class="text-right">Total ligne</th>
++					<th></th>
++				</tr>
++			</thead>
++			<tbody id="js-lignes-achat-corps" data-index="{{ form.lignes|length }}" data-prototype="{{ achat_macros.ligne_achat(form.lignes.vars.prototype)|e('html_attr') }}">
++
++				{% for ligne in form.lignes %}
++					{{ achat_macros.ligne_achat(ligne) }}
++				{% endfor %}
++
++			</tbody>
++			<tfoot>
++				<tr>
++					<td colspan="3" class="text-right"><strong>Total HT estimé</strong></td>
++					<td class="text-right" id="js-total-ht-achat">0 FCFA</td>
++					<td></td>
++				</tr>
++			</tfoot>
++		</table>
++	</div>
++
++	{% if form.vars.errors|length > 0 %}
++		<div class="alert alert-danger mt-3">
++			{{ form_errors(form) }}
++		</div>
++	{% endif %}
++
++</div>
++
++<div class="card-footer text-right">
++	<a href="{{ path('app_achat_index') }}" class="btn btn-secondary">
++		<i class="fa fa-arrow-left mr-1"></i>
++		Retour
++	</a>
++	<button type="submit" class="btn btn-primary-light">
++		<i class="fa fa-save mr-1"></i>
++		Enregistrer
++	</button>
++</div>
++
++{{ form_end(form) }}
++
++
++	<script>
++		document.addEventListener('DOMContentLoaded', function () {
++
++			const corps = document.getElementById('js-lignes-achat-corps');
++			const boutonAjouter = document.getElementById('js-ajouter-ligne-achat');
++			const totalHtElement = document.getElementById('js-total-ht-achat');
++
++			if (window.jQuery && window.jQuery.fn.select2) {
++				window.jQuery('.js-select-search').not('.js-ligne-achat .js-select-search').select2({
++					width: '100%',
++					allowClear: true
++				});
++			}
++
++			if (!corps) {
++				return;
++			}
++
++			function formaterMontant(valeur) {
++				return Math.round(Number(valeur || 0)).toLocaleString('fr-FR') + ' FCFA';
++			}
++
++			function calculerLigne(ligne) {
++				const quantite = Number(ligne.querySelector('.js-achat-quantite')?.value || 0);
++				const prix = Number(ligne.querySelector('.js-achat-prix')?.value || 0);
++				const total = Math.max(0, quantite) * Math.max(0, prix);
++
++				const totalElement = ligne.querySelector('.js-ligne-total');
++				if (totalElement) {
++					totalElement.textContent = formaterMontant(total);
++				}
++
++				return total;
++			}
++
++			function calculerTout() {
++				let total = 0;
++
++				corps.querySelectorAll('.js-ligne-achat').forEach(function (ligne) {
++					total += calculerLigne(ligne);
++				});
++
++				if (totalHtElement) {
++					totalHtElement.textContent = formaterMontant(total);
++				}
++			}
++
++			function initialiserLigne(ligne) {
++				if (window.jQuery && window.jQuery.fn.select2) {
++					window.jQuery(ligne).find('select.js-select-search').each(function () {
++						const select = window.jQuery(this);
++						if (!select.hasClass('select2-hidden-accessible')) {
++							select.select2({width: '100%', allowClear: true});
++						}
++					});
++				}
++
++				ligne.addEventListener('input', calculerTout);
++				ligne.addEventListener('change', calculerTout);
++
++				const supprimer = ligne.querySelector('.js-supprimer-ligne-achat');
++				if (supprimer) {
++					supprimer.addEventListener('click', function () {
++						if (corps.querySelectorAll('.js-ligne-achat').length <= 1) {
++							return;
++						}
++						ligne.remove();
++						calculerTout();
++					});
++				}
++			}
++
++			corps.querySelectorAll('.js-ligne-achat').forEach(initialiserLigne);
++			calculerTout();
++
++			if (boutonAjouter) {
++				boutonAjouter.addEventListener('click', function () {
++					const index = Number(corps.dataset.index || 0);
++					const html = corps.dataset.prototype.replace(/__ligne__/g, String(index));
++
++					corps.dataset.index = String(index + 1);
++
++					const temporaire = document.createElement('tbody');
++					temporaire.innerHTML = html.trim();
++					const nouvelleLigne = temporaire.firstElementChild;
++
++					if (nouvelleLigne) {
++						corps.appendChild(nouvelleLigne);
++						initialiserLigne(nouvelleLigne);
++					}
++				});
++			}
++
++		});
++	</script>
+diff --git a/templates/achats/edit.html.twig b/templates/achats/edit.html.twig
+new file mode 100644
+index 0000000..dc66c70
+--- /dev/null
++++ b/templates/achats/edit.html.twig
+@@ -0,0 +1,40 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	Modifier {{ achat.numero|default('la demande d’achat') }}
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="page-header">
++		<ol class="breadcrumb">
++			<li class="breadcrumb-item">
++				<a href="{{ path('app_achat_index') }}">Achats</a>
++			</li>
++			<li class="breadcrumb-item">
++				<a href="{{ path('app_achat_show', {id: achat.id}) }}">{{ achat.numero|default('#' ~ achat.id) }}</a>
++			</li>
++			<li class="breadcrumb-item active">
++				Modifier
++			</li>
++		</ol>
++	</div>
++
++	<div class="row">
++		<div class="col-md-10">
++			<div class="card">
++				<div class="card-header">
++					<h3 class="mb-0 card-title">
++						Modifier {{ achat.numero|default('la demande d’achat') }}
++					</h3>
++				</div>
++
++				{% include 'achats/_form.html.twig' %}
++
++			</div>
++		</div>
++	</div>
++
++{% endblock %}
+diff --git a/templates/achats/index.html.twig b/templates/achats/index.html.twig
+new file mode 100644
+index 0000000..000a5b6
+--- /dev/null
++++ b/templates/achats/index.html.twig
+@@ -0,0 +1,142 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	Achats
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="side-app">
++
++		<div class="page-header">
++
++			<div>
++				<h1 class="page-title">
++					{{ statut == 'recu' ? 'Achats reçus' : (statut == 'annule' ? 'Achats annulés' : 'Demandes d’achat') }}
++				</h1>
++
++				<ol class="breadcrumb">
++					<li class="breadcrumb-item">
++						Achats
++					</li>
++					<li class="breadcrumb-item active">
++						{{ statut == 'recu' ? 'Reçus' : (statut == 'annule' ? 'Annulés' : 'Demandes') }}
++					</li>
++				</ol>
++			</div>
++
++			<div class="ml-auto">
++				<a href="{{ path('app_achat_new') }}" class="btn btn-primary-light">
++					<i class="fa fa-plus mr-1"></i>
++					Nouvelle demande d’achat
++				</a>
++			</div>
++
++		</div>
++
++
++		<ul class="nav nav-tabs mb-3">
++			<li class="nav-item">
++				<a class="nav-link {{ statut == 'demande' ? 'active' : '' }}" href="{{ path('app_achat_index', {statut: 'demande'}) }}">
++					<i class="fa fa-clock-o mr-1"></i>
++					Demandes d’achat
++				</a>
++			</li>
++			<li class="nav-item">
++				<a class="nav-link {{ statut == 'recu' ? 'active' : '' }}" href="{{ path('app_achat_index', {statut: 'recu'}) }}">
++					<i class="fa fa-check mr-1"></i>
++					Achats reçus
++				</a>
++			</li>
++			<li class="nav-item">
++				<a class="nav-link {{ statut == 'annule' ? 'active' : '' }}" href="{{ path('app_achat_index', {statut: 'annule'}) }}">
++					<i class="fa fa-ban mr-1"></i>
++					Annulés
++				</a>
++			</li>
++		</ul>
++
++
++		<div class="row row-cards">
++
++			<div class="col-lg-12">
++
++				<div class="card">
++
++					<div class="table-responsive">
++
++						<table class="table table-bordered table-hover mb-0">
++
++							<thead>
++								<tr>
++									<th>Numéro</th>
++									<th>Fournisseur</th>
++									<th>Date</th>
++									<th class="text-right">Total TTC</th>
++									<th class="text-center">Actions</th>
++								</tr>
++							</thead>
++
++							<tbody>
++
++								{% for achat in achats %}
++
++									<tr>
++										<td>
++											<a href="{{ path('app_achat_show', {id: achat.id}) }}">
++												<strong>{{ achat.numero|default('Brouillon #' ~ achat.id) }}</strong>
++											</a>
++										</td>
++
++										<td>
++											{% if achat.fournisseur %}
++												<a href="{{ path('app_fournisseur_show', {id: achat.fournisseur.id}) }}">
++													{{ achat.fournisseur.nom }}
++												</a>
++											{% else %}
++												—
++											{% endif %}
++										</td>
++
++										<td class="nowrap">
++											{{ achat.dateDemande|date('d/m/Y') }}
++										</td>
++
++										<td class="text-right nowrap">
++											{{ achat.totalTtc|number_format(0, ',', ' ') }} FCFA
++										</td>
++
++										<td class="text-center nowrap">
++											<a href="{{ path('app_achat_show', {id: achat.id}) }}" class="btn btn-sm btn-primary-light">
++												<i class="fa fa-eye"></i>
++											</a>
++										</td>
++									</tr>
++
++								{% else %}
++
++									<tr>
++										<td colspan="5" class="text-center text-muted py-5">
++											Aucun achat dans cette catégorie.
++										</td>
++									</tr>
++
++								{% endfor %}
++
++							</tbody>
++
++						</table>
++
++					</div>
++
++				</div>
++
++			</div>
++
++		</div>
++
++	</div>
++
++{% endblock %}
+diff --git a/templates/achats/new.html.twig b/templates/achats/new.html.twig
+new file mode 100644
+index 0000000..43a52a6
+--- /dev/null
++++ b/templates/achats/new.html.twig
+@@ -0,0 +1,37 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	Nouvel achat
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="page-header">
++		<ol class="breadcrumb">
++			<li class="breadcrumb-item">
++				<a href="{{ path('app_achat_index') }}">Achats</a>
++			</li>
++			<li class="breadcrumb-item active">
++				Nouvelle demande d’achat
++			</li>
++		</ol>
++	</div>
++
++	<div class="row">
++		<div class="col-md-10">
++			<div class="card">
++				<div class="card-header">
++					<h3 class="mb-0 card-title">
++						Nouvelle demande d’achat
++					</h3>
++				</div>
++
++				{% include 'achats/_form.html.twig' %}
++
++			</div>
++		</div>
++	</div>
++
++{% endblock %}
+diff --git a/templates/achats/show.html.twig b/templates/achats/show.html.twig
+new file mode 100644
+index 0000000..7bd6c99
+--- /dev/null
++++ b/templates/achats/show.html.twig
+@@ -0,0 +1,172 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	{{ achat.numero|default('Demande d’achat #' ~ achat.id) }}
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="page-header">
++
++		<div>
++			<h1 class="page-title">
++				{{ achat.numero|default('Brouillon #' ~ achat.id) }}
++
++				{% if achat.statut == 'recu' %}
++					<span class="badge badge-success ml-2">Reçu</span>
++				{% elseif achat.statut == 'annule' %}
++					<span class="badge badge-light ml-2">Annulé</span>
++				{% else %}
++					<span class="badge badge-warning ml-2">Demande en attente</span>
++				{% endif %}
++			</h1>
++
++			<ol class="breadcrumb">
++				<li class="breadcrumb-item">
++					<a href="{{ path('app_achat_index') }}">Achats</a>
++				</li>
++				<li class="breadcrumb-item active">
++					{{ achat.numero|default('#' ~ achat.id) }}
++				</li>
++			</ol>
++		</div>
++
++		{% if achat.statut == 'demande' %}
++
++			<div class="ml-auto btn-group">
++
++				<a href="{{ path('app_achat_edit', {id: achat.id}) }}" class="btn btn-primary-light">
++					<i class="fa fa-pencil mr-1"></i>
++					Modifier
++				</a>
++
++				<form method="post" action="{{ path('app_achat_recevoir', {id: achat.id}) }}" class="d-inline" onsubmit="return confirm('Confirmer la réception ? Le stock des articles sera mis à jour.');">
++					<input type="hidden" name="_token" value="{{ csrf_token('recevoir_achat' ~ achat.id) }}">
++					<button type="submit" class="btn btn-success-light">
++						<i class="fa fa-check mr-1"></i>
++						Marquer comme reçu
++					</button>
++				</form>
++
++				<form method="post" action="{{ path('app_achat_annuler', {id: achat.id}) }}" class="d-inline" onsubmit="return confirm('Annuler cette demande d’achat ?');">
++					<input type="hidden" name="_token" value="{{ csrf_token('annuler_achat' ~ achat.id) }}">
++					<button type="submit" class="btn btn-danger-light">
++						<i class="fa fa-ban mr-1"></i>
++						Annuler
++					</button>
++				</form>
++
++			</div>
++
++		{% endif %}
++
++	</div>
++
++
++	<div class="row">
++
++		<div class="col-lg-4">
++
++			<div class="card">
++				<div class="card-header">
++					<h3 class="card-title">Informations</h3>
++				</div>
++				<div class="card-body">
++
++					<table class="table table-borderless mb-0">
++						<tr>
++							<th>Fournisseur</th>
++							<td>
++								{% if achat.fournisseur %}
++									<a href="{{ path('app_fournisseur_show', {id: achat.fournisseur.id}) }}">
++										{{ achat.fournisseur.nom }}
++									</a>
++								{% else %}
++									—
++								{% endif %}
++							</td>
++						</tr>
++						<tr>
++							<th>Date de demande</th>
++							<td>{{ achat.dateDemande|date('d/m/Y H:i') }}</td>
++						</tr>
++						<tr>
++							<th>Date de réception</th>
++							<td>{{ achat.dateReception ? achat.dateReception|date('d/m/Y H:i') : '—' }}</td>
++						</tr>
++						<tr>
++							<th>Observation</th>
++							<td>{{ achat.observation|default('—')|nl2br }}</td>
++						</tr>
++					</table>
++
++				</div>
++			</div>
++
++		</div>
++
++		<div class="col-lg-8">
++
++			<div class="card">
++				<div class="card-header">
++					<h3 class="card-title">Articles</h3>
++				</div>
++
++				<div class="table-responsive">
++					<table class="table table-bordered mb-0">
++						<thead>
++							<tr>
++								<th>Article</th>
++								<th class="text-right">Quantité</th>
++								<th class="text-right">Prix unitaire</th>
++								<th class="text-right">Total</th>
++							</tr>
++						</thead>
++						<tbody>
++							{% for ligne in achat.lignes %}
++								<tr>
++									<td>
++										{% if ligne.article %}
++											{{ ligne.article.reference }} — {{ ligne.article.designation }}
++										{% else %}
++											—
++										{% endif %}
++									</td>
++									<td class="text-right">{{ ligne.quantite }}</td>
++									<td class="text-right nowrap">{{ ligne.prixUnitaire|number_format(0, ',', ' ') }} FCFA</td>
++									<td class="text-right nowrap">{{ ligne.totalHt|number_format(0, ',', ' ') }} FCFA</td>
++								</tr>
++							{% else %}
++								<tr>
++									<td colspan="4" class="text-center text-muted py-4">
++										Aucune ligne.
++									</td>
++								</tr>
++							{% endfor %}
++						</tbody>
++						<tfoot>
++							<tr>
++								<td colspan="3" class="text-right"><strong>Total HT</strong></td>
++								<td class="text-right nowrap">{{ achat.totalHt|number_format(0, ',', ' ') }} FCFA</td>
++							</tr>
++							<tr>
++								<td colspan="3" class="text-right"><strong>TVA ({{ achat.tva }}%)</strong></td>
++								<td class="text-right nowrap">{{ (achat.totalTtc - achat.totalHt)|number_format(0, ',', ' ') }} FCFA</td>
++							</tr>
++							<tr>
++								<td colspan="3" class="text-right"><strong>Total TTC</strong></td>
++								<td class="text-right nowrap"><strong>{{ achat.totalTtc|number_format(0, ',', ' ') }} FCFA</strong></td>
++							</tr>
++						</tfoot>
++					</table>
++				</div>
++
++			</div>
++
++		</div>
++
++	</div>
++
++{% endblock %}
+diff --git a/templates/articles/form.html.twig b/templates/articles/form.html.twig
+index ed083df..445a328 100644
+--- a/templates/articles/form.html.twig
++++ b/templates/articles/form.html.twig
+@@ -125,4 +125,15 @@
+ 
+ 	</div>
+ 
++	<script>
++		document.addEventListener('DOMContentLoaded', function () {
++			if (window.jQuery && window.jQuery.fn.select2) {
++				window.jQuery('.js-select-search').select2({
++					width: '100%',
++					allowClear: true
++				});
++			}
++		});
++	</script>
++
+ {% endblock %}
+diff --git a/templates/articles/show.html.twig b/templates/articles/show.html.twig
+index 3c56851..7618ad7 100644
+--- a/templates/articles/show.html.twig
++++ b/templates/articles/show.html.twig
+@@ -339,7 +339,13 @@
+ 								</th>
+ 
+ 								<td>
+-									{{ article.fournisseur|default('—') }}
++									{% if article.fournisseur %}
++										<a href="{{ path('app_fournisseur_show', {id: article.fournisseur.id}) }}">
++											{{ article.fournisseur.nom }}
++										</a>
++									{% else %}
++										—
++									{% endif %}
+ 								</td>
+ 
+ 							</tr>
+diff --git a/templates/fournisseurs/_form.html.twig b/templates/fournisseurs/_form.html.twig
+new file mode 100644
+index 0000000..b6264d7
+--- /dev/null
++++ b/templates/fournisseurs/_form.html.twig
+@@ -0,0 +1,72 @@
++{{ form_start(form) }}
++
++<div class="card-body">
++
++	<div class="row">
++
++		<div class="col-md-6">
++			<div class="form-group">
++				{{ form_label(form.nom) }}
++				{{ form_widget(form.nom) }}
++				{{ form_errors(form.nom) }}
++			</div>
++		</div>
++
++		<div class="col-md-6">
++			<div class="form-group">
++				{{ form_label(form.telephone) }}
++				{{ form_widget(form.telephone) }}
++				{{ form_errors(form.telephone) }}
++			</div>
++		</div>
++
++		<div class="col-md-6">
++			<div class="form-group">
++				{{ form_label(form.email) }}
++				{{ form_widget(form.email) }}
++				{{ form_errors(form.email) }}
++			</div>
++		</div>
++
++		<div class="col-md-6">
++			<div class="form-group mt-4">
++				<label class="custom-switch mb-0">
++					{{ form_widget(form.actif, {attr: {class: 'custom-switch-input'}}) }}
++					<span class="custom-switch-indicator"></span>
++					<span class="custom-switch-description">
++						Fournisseur actif
++					</span>
++				</label>
++			</div>
++		</div>
++
++		<div class="col-md-12">
++			<div class="form-group">
++				{{ form_label(form.adresse) }}
++				{{ form_widget(form.adresse) }}
++				{{ form_errors(form.adresse) }}
++			</div>
++		</div>
++
++	</div>
++
++	{% if form.vars.errors|length > 0 %}
++		<div class="alert alert-danger mt-3">
++			{{ form_errors(form) }}
++		</div>
++	{% endif %}
++
++</div>
++
++<div class="card-footer text-right">
++	<a href="{{ path('app_fournisseur_index') }}" class="btn btn-secondary">
++		<i class="fa fa-arrow-left mr-1"></i>
++		Retour
++	</a>
++	<button type="submit" class="btn btn-primary-light">
++		<i class="fa fa-save mr-1"></i>
++		Enregistrer
++	</button>
++</div>
++
++{{ form_end(form) }}
+diff --git a/templates/fournisseurs/edit.html.twig b/templates/fournisseurs/edit.html.twig
+new file mode 100644
+index 0000000..5207159
+--- /dev/null
++++ b/templates/fournisseurs/edit.html.twig
+@@ -0,0 +1,40 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	Modifier {{ fournisseur.nom }}
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="page-header">
++		<ol class="breadcrumb">
++			<li class="breadcrumb-item">
++				<a href="{{ path('app_fournisseur_index') }}">Fournisseurs</a>
++			</li>
++			<li class="breadcrumb-item">
++				<a href="{{ path('app_fournisseur_show', {id: fournisseur.id}) }}">{{ fournisseur.nom }}</a>
++			</li>
++			<li class="breadcrumb-item active">
++				Modifier
++			</li>
++		</ol>
++	</div>
++
++	<div class="row">
++		<div class="col-md-8">
++			<div class="card">
++				<div class="card-header">
++					<h3 class="mb-0 card-title">
++						Modifier {{ fournisseur.nom }}
++					</h3>
++				</div>
++
++				{% include 'fournisseurs/_form.html.twig' %}
++
++			</div>
++		</div>
++	</div>
++
++{% endblock %}
+diff --git a/templates/fournisseurs/index.html.twig b/templates/fournisseurs/index.html.twig
+new file mode 100644
+index 0000000..2146f4e
+--- /dev/null
++++ b/templates/fournisseurs/index.html.twig
+@@ -0,0 +1,177 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	Fournisseurs
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="side-app">
++
++		<div class="page-header">
++
++			<div>
++
++				<h1 class="page-title">
++					Fournisseurs
++				</h1>
++
++				<ol class="breadcrumb">
++					<li class="breadcrumb-item">
++						Achats
++					</li>
++					<li class="breadcrumb-item active">
++						Fournisseurs
++					</li>
++				</ol>
++
++			</div>
++
++			<div class="ml-auto">
++
++				<a href="{{ path('app_fournisseur_new') }}" class="btn btn-primary-light">
++					<i class="fa fa-plus mr-1"></i>
++					Nouveau fournisseur
++				</a>
++
++			</div>
++
++		</div>
++
++
++		<div class="row row-cards">
++
++			<div class="col-lg-12">
++
++				<div class="card">
++
++					<div class="card-header">
++
++						<div>
++							<h3 class="card-title mb-1">
++								Liste des fournisseurs
++							</h3>
++							<small class="text-muted">
++								{{ fournisseurs|length }} fournisseur(s)
++							</small>
++						</div>
++
++						<div class="ml-auto" style="min-width:260px;">
++							<input type="text" id="fournisseur-search" class="form-control" placeholder="Rechercher un fournisseur..." autocomplete="off">
++						</div>
++
++					</div>
++
++					<div class="table-responsive">
++
++						<table class="table table-bordered table-hover mb-0" id="fournisseurs-table">
++
++							<thead>
++								<tr>
++									<th>Nom</th>
++									<th>Téléphone</th>
++									<th>E-mail</th>
++									<th class="text-center">Statut</th>
++									<th class="text-center">Actions</th>
++								</tr>
++							</thead>
++
++							<tbody>
++
++								{% for fournisseur in fournisseurs %}
++
++									<tr class="fournisseur-row" data-search="{{ fournisseur.nom|default('') }} {{ fournisseur.email|default('') }} {{ fournisseur.telephone|default('') }}">
++
++										<td class="align-middle">
++											<a href="{{ path('app_fournisseur_show', {id: fournisseur.id}) }}">
++												<strong>{{ fournisseur.nom }}</strong>
++											</a>
++										</td>
++
++										<td class="align-middle">
++											{{ fournisseur.telephone|default('—') }}
++										</td>
++
++										<td class="align-middle">
++											{{ fournisseur.email|default('—') }}
++										</td>
++
++										<td class="align-middle text-center">
++											{% if fournisseur.actif %}
++												<span class="badge badge-success">Actif</span>
++											{% else %}
++												<span class="badge badge-light">Inactif</span>
++											{% endif %}
++										</td>
++
++										<td class="align-middle text-center nowrap">
++											<div class="btn-group">
++												<a href="{{ path('app_fournisseur_show', {id: fournisseur.id}) }}" class="btn btn-sm btn-primary-light" title="Voir">
++													<i class="fa fa-eye"></i>
++												</a>
++												<a href="{{ path('app_fournisseur_edit', {id: fournisseur.id}) }}" class="btn btn-sm btn-warning-light" title="Modifier">
++													<i class="fa fa-pencil"></i>
++												</a>
++											</div>
++										</td>
++
++									</tr>
++
++								{% else %}
++
++									<tr>
++										<td colspan="5" class="text-center text-muted py-5">
++											Aucun fournisseur enregistré.
++										</td>
++									</tr>
++
++								{% endfor %}
++
++							</tbody>
++
++						</table>
++
++					</div>
++
++				</div>
++
++			</div>
++
++		</div>
++
++	</div>
++
++{% endblock %}
++
++
++{% block javascripts %}
++
++	{{ parent() }}
++
++	<script>
++		document.addEventListener('DOMContentLoaded', function () {
++
++			const searchInput = document.getElementById('fournisseur-search');
++			const rows = document.querySelectorAll('#fournisseurs-table .fournisseur-row');
++
++			function normaliser(valeur) {
++				return (valeur || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
++			}
++
++			if (searchInput) {
++				searchInput.addEventListener('input', function () {
++					const recherche = normaliser(searchInput.value);
++
++					rows.forEach(function (row) {
++						const contenu = normaliser(row.dataset.search || row.textContent);
++						row.style.display = (recherche === '' || contenu.includes(recherche)) ? '' : 'none';
++					});
++				});
++			}
++
++		});
++	</script>
++
++{% endblock %}
+diff --git a/templates/fournisseurs/new.html.twig b/templates/fournisseurs/new.html.twig
+new file mode 100644
+index 0000000..01df9dd
+--- /dev/null
++++ b/templates/fournisseurs/new.html.twig
+@@ -0,0 +1,37 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	Nouveau fournisseur
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="page-header">
++		<ol class="breadcrumb">
++			<li class="breadcrumb-item">
++				<a href="{{ path('app_fournisseur_index') }}">Fournisseurs</a>
++			</li>
++			<li class="breadcrumb-item active">
++				Nouveau fournisseur
++			</li>
++		</ol>
++	</div>
++
++	<div class="row">
++		<div class="col-md-8">
++			<div class="card">
++				<div class="card-header">
++					<h3 class="mb-0 card-title">
++						Ajouter un fournisseur
++					</h3>
++				</div>
++
++				{% include 'fournisseurs/_form.html.twig' %}
++
++			</div>
++		</div>
++	</div>
++
++{% endblock %}
+diff --git a/templates/fournisseurs/show.html.twig b/templates/fournisseurs/show.html.twig
+new file mode 100644
+index 0000000..e77efcf
+--- /dev/null
++++ b/templates/fournisseurs/show.html.twig
+@@ -0,0 +1,148 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	{{ fournisseur.nom }}
++{% endblock %}
++
++{% block body %}
++
++	{% include "alert.html.twig" %}
++
++	<div class="page-header">
++
++		<div>
++			<h1 class="page-title">
++				{{ fournisseur.nom }}
++				{% if fournisseur.actif %}
++					<span class="badge badge-success ml-2">Actif</span>
++				{% else %}
++					<span class="badge badge-light ml-2">Inactif</span>
++				{% endif %}
++			</h1>
++
++			<ol class="breadcrumb">
++				<li class="breadcrumb-item">
++					<a href="{{ path('app_fournisseur_index') }}">Fournisseurs</a>
++				</li>
++				<li class="breadcrumb-item active">
++					{{ fournisseur.nom }}
++				</li>
++			</ol>
++		</div>
++
++		<div class="ml-auto btn-group">
++
++			<a href="{{ path('app_achat_new', {fournisseur: fournisseur.id}) }}" class="btn btn-success-light">
++				<i class="fa fa-plus mr-1"></i>
++				Nouvel achat
++			</a>
++
++			<a href="{{ path('app_fournisseur_edit', {id: fournisseur.id}) }}" class="btn btn-primary-light">
++				<i class="fa fa-pencil mr-1"></i>
++				Modifier
++			</a>
++
++			<form method="post" action="{{ path('app_fournisseur_toggle_actif', {id: fournisseur.id}) }}" class="d-inline">
++				<input type="hidden" name="_token" value="{{ csrf_token('toggle_actif' ~ fournisseur.id) }}">
++				<button type="submit" class="btn {{ fournisseur.actif ? 'btn-warning-light' : 'btn-success-light' }}">
++					<i class="fa fa-power-off mr-1"></i>
++					{{ fournisseur.actif ? 'Désactiver' : 'Réactiver' }}
++				</button>
++			</form>
++
++		</div>
++
++	</div>
++
++
++	<div class="row">
++
++		<div class="col-lg-4">
++
++			<div class="card">
++				<div class="card-header">
++					<h3 class="card-title">Coordonnées</h3>
++				</div>
++				<div class="card-body">
++
++					<table class="table table-borderless mb-0">
++						<tr>
++							<th>Téléphone</th>
++							<td>{{ fournisseur.telephone|default('—') }}</td>
++						</tr>
++						<tr>
++							<th>E-mail</th>
++							<td>{{ fournisseur.email|default('—') }}</td>
++						</tr>
++						<tr>
++							<th>Adresse</th>
++							<td>{{ fournisseur.adresse|default('—')|nl2br }}</td>
++						</tr>
++					</table>
++
++				</div>
++			</div>
++
++		</div>
++
++		<div class="col-lg-8">
++
++			<div class="card">
++				<div class="card-header">
++					<h3 class="card-title">Historique des achats</h3>
++				</div>
++
++				<div class="table-responsive">
++					<table class="table table-bordered mb-0">
++						<thead>
++							<tr>
++								<th>Numéro</th>
++								<th>Date</th>
++								<th class="text-center">Statut</th>
++								<th class="text-right">Total TTC</th>
++								<th class="text-center">Actions</th>
++							</tr>
++						</thead>
++						<tbody>
++							{% for achat in fournisseur.achats %}
++								<tr>
++									<td>
++										<a href="{{ path('app_achat_show', {id: achat.id}) }}">
++											{{ achat.numero|default('Brouillon #' ~ achat.id) }}
++										</a>
++									</td>
++									<td class="nowrap">{{ achat.dateDemande|date('d/m/Y') }}</td>
++									<td class="text-center">
++										{% if achat.statut == 'recu' %}
++											<span class="badge badge-success">Reçu</span>
++										{% elseif achat.statut == 'annule' %}
++											<span class="badge badge-light">Annulé</span>
++										{% else %}
++											<span class="badge badge-warning">Demande</span>
++										{% endif %}
++									</td>
++									<td class="text-right nowrap">{{ achat.totalTtc|number_format(0, ',', ' ') }} FCFA</td>
++									<td class="text-center">
++										<a href="{{ path('app_achat_show', {id: achat.id}) }}" class="btn btn-sm btn-primary-light">
++											<i class="fa fa-eye"></i>
++										</a>
++									</td>
++								</tr>
++							{% else %}
++								<tr>
++									<td colspan="5" class="text-center text-muted py-4">
++										Aucun achat pour ce fournisseur.
++									</td>
++								</tr>
++							{% endfor %}
++						</tbody>
++					</table>
++				</div>
++
++			</div>
++
++		</div>
++
++	</div>
++
++{% endblock %}

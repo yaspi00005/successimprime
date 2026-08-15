@@ -339,7 +339,13 @@
 								</th>
 
 								<td>
-									{{ article.fournisseur|default('—') }}
+									{% if article.fournisseur %}
+										<a href="{{ path('app_fournisseur_show', {id: article.fournisseur.id}) }}">
+											{{ article.fournisseur.nom }}
+										</a>
+									{% else %}
+										—
+									{% endif %}
 								</td>
 
 							</tr>

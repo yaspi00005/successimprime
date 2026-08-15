@@ -3,6 +3,8 @@
 namespace App\Form;
 
 use App\Entity\Articles;
+use App\Entity\Fournisseurs;
+use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -195,17 +197,31 @@ final class ArticlesType extends AbstractType
 
             ->add(
                 'fournisseur',
-                TextType::class,
+                EntityType::class,
                 [
+                    'class' => Fournisseurs::class,
+                    'choice_label' => 'nom',
+
+                    'query_builder' => static function (
+                        \App\Repository\FournisseursRepository $repository
+                    ) {
+                        return $repository->createQueryBuilder('f')
+                            ->andWhere('f.actif = true')
+                            ->orderBy('f.nom', 'ASC');
+                    },
+
                     'label' =>
                         'Fournisseur',
+
+                    'placeholder' =>
+                        'Aucun fournisseur',
 
                     'required' =>
                         false,
 
                     'attr' => [
                         'class' =>
-                            'form-control',
+                            'form-control js-select-search',
                     ],
                 ]
             )
