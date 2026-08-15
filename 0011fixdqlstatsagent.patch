@@ -1,0 +1,95 @@
+From b0a2d5bf1948deebb5c063e8de8a3df2cb5fa677 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 15 Aug 2026 14:12:30 +0000
+Subject: [PATCH] Corriger l'erreur DQL sur les statistiques par agent
+
+Doctrine refuse de melanger une entite complete (User) et des
+fonctions d'agregation (COUNT/SUM) dans un meme SELECT sans
+selectionner aussi l'alias racine : "Cannot select entity through
+identification variables without choosing at least one root entity
+alias". On selectionne desormais les champs de l'agent un par un
+(id, username, nom/prenom/photos via l'employe lie) plutot que
+l'entite User entiere.
+---
+ src/Repository/CommandesRepository.php | 24 ++++++++++++++++++++++--
+ templates/dashboard/index.html.twig    |  7 +++----
+ 2 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/Repository/CommandesRepository.php b/src/Repository/CommandesRepository.php
+index 020a156..3818de0 100644
+--- a/src/Repository/CommandesRepository.php
++++ b/src/Repository/CommandesRepository.php
+@@ -215,19 +215,38 @@ final class CommandesRepository extends ServiceEntityRepository
+     /**
+      * Commandes traitées et chiffre d'affaires généré, groupés par agent.
+      *
+-     * @return array<int, array{agent: \App\Entity\User, nbCommandes: int, caGenere: int}>
++     * Doctrine n'autorise pas de mélanger une entité complète et des
++     * fonctions d'agrégation (COUNT/SUM) dans un même SELECT sans
++     * sélectionner aussi l'alias racine : on sélectionne donc les
++     * champs de l'agent un par un plutôt que l'entité User entière.
++     *
++     * @return array<int, array{
++     *     agentId: int,
++     *     agentUsername: string,
++     *     agentNom: ?string,
++     *     agentPrenom: ?string,
++     *     agentPhotos: ?string,
++     *     nbCommandes: int,
++     *     caGenere: int
++     * }>
+      */
+     public function statistiquesParAgent(
+         ?\DateTimeInterface $debut = null,
+         ?\DateTimeInterface $fin = null
+     ): array {
+         $qb = $this->createQueryBuilder('c')
+-            ->select('a AS agent')
++            ->select('a.id AS agentId')
++            ->addSelect('a.username AS agentUsername')
++            ->addSelect('e.nom AS agentNom')
++            ->addSelect('e.prenom AS agentPrenom')
++            ->addSelect('e.photos AS agentPhotos')
+             ->addSelect('COUNT(c.id) AS nbCommandes')
+             ->addSelect('COALESCE(SUM(c.totalTtc), 0) AS caGenere')
+             ->join('c.agents', 'a')
++            ->leftJoin('a.employe', 'e')
+             ->andWhere('c.deleted = false')
+             ->groupBy('a.id')
++            ->addGroupBy('e.id')
+             ->orderBy('caGenere', 'DESC');
+ 
+         if ($debut) {
+@@ -245,6 +264,7 @@ final class CommandesRepository extends ServiceEntityRepository
+         $resultats = $qb->getQuery()->getResult();
+ 
+         foreach ($resultats as &$ligne) {
++            $ligne['agentId'] = (int) $ligne['agentId'];
+             $ligne['nbCommandes'] = (int) $ligne['nbCommandes'];
+             $ligne['caGenere'] = (int) $ligne['caGenere'];
+         }
+diff --git a/templates/dashboard/index.html.twig b/templates/dashboard/index.html.twig
+index f0ac0f0..b7c01c4 100644
+--- a/templates/dashboard/index.html.twig
++++ b/templates/dashboard/index.html.twig
+@@ -170,14 +170,13 @@
+ 
+ 					{% for ligne in statsParAgent %}
+ 
+-						{% set employe = ligne.agent.employe %}
+-						{% set nomAgent = employe ? (employe.prenom ~ ' ' ~ employe.nom) : ligne.agent.username %}
++						{% set nomAgent = ligne.agentNom ? (ligne.agentPrenom ~ ' ' ~ ligne.agentNom) : ligne.agentUsername %}
+ 						{% set pourcentage = meilleurCa > 0 ? (ligne.caGenere / meilleurCa * 100) : 0 %}
+ 
+ 						<div class="agent-ligne">
+ 
+-							{% if employe and employe.photos %}
+-								<img src="{{ asset('uploads/employes/' ~ employe.photos) }}" class="agent-avatar" alt="{{ nomAgent }}">
++							{% if ligne.agentPhotos %}
++								<img src="{{ asset('uploads/employes/' ~ ligne.agentPhotos) }}" class="agent-avatar" alt="{{ nomAgent }}">
+ 							{% else %}
+ 								<div class="agent-avatar">
+ 									{{ nomAgent|slice(0, 1)|upper }}
+-- 
+2.43.0
+

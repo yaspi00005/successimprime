@@ -215,19 +215,38 @@ final class CommandesRepository extends ServiceEntityRepository
     /**
      * Commandes traitées et chiffre d'affaires généré, groupés par agent.
      *
-     * @return array<int, array{agent: \App\Entity\User, nbCommandes: int, caGenere: int}>
+     * Doctrine n'autorise pas de mélanger une entité complète et des
+     * fonctions d'agrégation (COUNT/SUM) dans un même SELECT sans
+     * sélectionner aussi l'alias racine : on sélectionne donc les
+     * champs de l'agent un par un plutôt que l'entité User entière.
+     *
+     * @return array<int, array{
+     *     agentId: int,
+     *     agentUsername: string,
+     *     agentNom: ?string,
+     *     agentPrenom: ?string,
+     *     agentPhotos: ?string,
+     *     nbCommandes: int,
+     *     caGenere: int
+     * }>
      */
     public function statistiquesParAgent(
         ?\DateTimeInterface $debut = null,
         ?\DateTimeInterface $fin = null
     ): array {
         $qb = $this->createQueryBuilder('c')
-            ->select('a AS agent')
+            ->select('a.id AS agentId')
+            ->addSelect('a.username AS agentUsername')
+            ->addSelect('e.nom AS agentNom')
+            ->addSelect('e.prenom AS agentPrenom')
+            ->addSelect('e.photos AS agentPhotos')
             ->addSelect('COUNT(c.id) AS nbCommandes')
             ->addSelect('COALESCE(SUM(c.totalTtc), 0) AS caGenere')
             ->join('c.agents', 'a')
+            ->leftJoin('a.employe', 'e')
             ->andWhere('c.deleted = false')
             ->groupBy('a.id')
+            ->addGroupBy('e.id')
             ->orderBy('caGenere', 'DESC');
 
         if ($debut) {
@@ -245,6 +264,7 @@ final class CommandesRepository extends ServiceEntityRepository
         $resultats = $qb->getQuery()->getResult();
 
         foreach ($resultats as &$ligne) {
+            $ligne['agentId'] = (int) $ligne['agentId'];
             $ligne['nbCommandes'] = (int) $ligne['nbCommandes'];
             $ligne['caGenere'] = (int) $ligne['caGenere'];
         }

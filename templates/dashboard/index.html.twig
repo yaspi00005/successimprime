@@ -170,14 +170,13 @@
 
 					{% for ligne in statsParAgent %}
 
-						{% set employe = ligne.agent.employe %}
-						{% set nomAgent = employe ? (employe.prenom ~ ' ' ~ employe.nom) : ligne.agent.username %}
+						{% set nomAgent = ligne.agentNom ? (ligne.agentPrenom ~ ' ' ~ ligne.agentNom) : ligne.agentUsername %}
 						{% set pourcentage = meilleurCa > 0 ? (ligne.caGenere / meilleurCa * 100) : 0 %}
 
 						<div class="agent-ligne">
 
-							{% if employe and employe.photos %}
-								<img src="{{ asset('uploads/employes/' ~ employe.photos) }}" class="agent-avatar" alt="{{ nomAgent }}">
+							{% if ligne.agentPhotos %}
+								<img src="{{ asset('uploads/employes/' ~ ligne.agentPhotos) }}" class="agent-avatar" alt="{{ nomAgent }}">
 							{% else %}
 								<div class="agent-avatar">
 									{{ nomAgent|slice(0, 1)|upper }}
