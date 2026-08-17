@@ -1421,6 +1421,82 @@ return;
 
 /*
                  * ================================================
+                 * CONFIRMATION
+                 * ================================================
+                 *
+                 * Une erreur de montant ou de compte a un impact
+                 * réel sur les soldes : on demande toujours une
+                 * confirmation récapitulative avant d'enregistrer.
+                 * ================================================
+                 */
+
+if (! formulaire.dataset.confirme) {
+
+event.preventDefault();
+
+
+const typeLabel = typeMouvement && typeMouvement.selectedIndex > -1 ? typeMouvement.options[typeMouvement.selectedIndex].text : '';
+
+
+const montantTexte = champMontant ? champMontant.value : '';
+
+
+const sourceTexte = champSource && ! champSource.disabled && champSource.selectedIndex > -1 ? champSource.options[champSource.selectedIndex].text : '';
+
+
+const destinationTexte = champDestination && ! champDestination.disabled && champDestination.selectedIndex > -1 ? champDestination.options[champDestination.selectedIndex].text : '';
+
+
+let recap = '<div class="text-left">';
+
+recap += '<strong>' + typeLabel + '</strong><br>';
+
+recap += 'Montant : <strong>' + montantTexte + ' FCFA</strong>';
+
+
+if (sourceTexte) {
+recap += '<br>Compte source : ' + sourceTexte;
+}
+
+
+if (destinationTexte) {
+recap += '<br>Compte destination : ' + destinationTexte;
+}
+
+recap += '</div>';
+
+
+Swal.fire({
+icon: 'question',
+
+title: 'Confirmer ce mouvement ?',
+
+html: recap,
+
+showCancelButton: true,
+
+confirmButtonText: 'Oui, enregistrer',
+
+cancelButtonText: 'Vérifier',
+
+confirmButtonColor: '#6259ca'
+}).then(function (resultat) {
+
+if (resultat.isConfirmed) {
+
+formulaire.dataset.confirme = '1';
+
+formulaire.requestSubmit();
+}
+});
+
+
+return;
+}
+
+
+/*
+                 * ================================================
                  * MONTANT
                  * ================================================
                  *

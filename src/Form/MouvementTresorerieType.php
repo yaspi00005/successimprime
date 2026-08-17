@@ -576,28 +576,43 @@ class MouvementTresorerieType extends AbstractType
                          *
                          * Autorisés dans la liste :
                          *
-                         * - partagé ;
-                         * - Admin ;
-                         * - son personnel.
+                         * - son compte personnel ;
+                         * - les comptes partagés (communs) ;
+                         * - les comptes bancaires.
                          *
-                         * Jamais la caisse personnelle
-                         * d'un autre utilisateur.
+                         * Jamais :
+                         * - la caisse personnelle d'un autre agent ;
+                         * - un compte administratif non bancaire
+                         *   (ex : Caisse Administration).
                          * ============================================
                          */
 
                         return $qb
                             ->andWhere(
                                 '
-                                compte.portee = :partagee
-                                OR
-                                compte.portee = :admin
-                                OR
                                 (
                                     compte.portee = :personnelle
                                     AND
                                     compte.proprietaire = :utilisateur
                                 )
+
+                                OR
+
+                                compte.portee = :partagee
+
+                                OR
+
+                                (
+                                    compte.portee = :admin
+                                    AND
+                                    compte.type = :typeBanque
+                                )
                                 '
+                            )
+                            ->setParameter(
+                                'personnelle',
+                                CompteTresorerie
+                                    ::PORTEE_PERSONNELLE
                             )
                             ->setParameter(
                                 'partagee',
@@ -610,9 +625,9 @@ class MouvementTresorerieType extends AbstractType
                                     ::PORTEE_ADMIN
                             )
                             ->setParameter(
-                                'personnelle',
+                                'typeBanque',
                                 CompteTresorerie
-                                    ::PORTEE_PERSONNELLE
+                                    ::TYPE_BANQUE
                             )
                             ->setParameter(
                                 'utilisateur',

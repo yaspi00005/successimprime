@@ -1192,6 +1192,84 @@ foreach ($comptes as $compte) {
 
     /*
      * ============================================================
+     * VÉRIFICATION ADMIN
+     * ============================================================
+     *
+     * Champ purement déclaratif : aucun impact sur les soldes
+     * ni sur le statut du mouvement.
+     * ============================================================
+     */
+
+    #[Route(
+        '/{id}/verifier',
+        name: 'toggle_verification',
+        requirements: [
+            'id' => '\d+',
+        ],
+        methods: ['POST']
+    )]
+    #[IsGranted('ROLE_ADMIN')]
+    public function toggleVerification(
+        Request $request,
+        MouvementTresorerie $mouvement,
+        EntityManagerInterface $entityManager
+    ): Response {
+        $admin = $this->getUser();
+
+        if (!$admin instanceof User) {
+            throw $this->createAccessDeniedException(
+                'Utilisateur non authentifié.'
+            );
+        }
+
+        if (
+            !$this->isCsrfTokenValid(
+                'verifier-mouvement-'
+                . $mouvement->getId(),
+                (string)
+                $request
+                    ->request
+                    ->get('_token')
+            )
+        ) {
+            $this->addFlash(
+                'error',
+                'Le jeton de sécurité est invalide.'
+            );
+
+            return $this->redirectToRoute(
+                'app_mouvement_tresorerie_show',
+                ['id' => $mouvement->getId()]
+            );
+        }
+
+        if ($mouvement->isVerifie()) {
+            $mouvement->retirerVerification();
+
+            $this->addFlash(
+                'success',
+                'La vérification a été retirée.'
+            );
+        } else {
+            $mouvement->marquerCommeVerifie($admin);
+
+            $this->addFlash(
+                'success',
+                'Le mouvement a été marqué comme vérifié.'
+            );
+        }
+
+        $entityManager->flush();
+
+        return $this->redirectToRoute(
+            'app_mouvement_tresorerie_show',
+            ['id' => $mouvement->getId()]
+        );
+    }
+
+
+    /*
+     * ============================================================
      * ANNULATION
      * ============================================================
      */
@@ -1291,18 +1369,64 @@ foreach ($comptes as $compte) {
         }
 
 
-        try {
-            $service
-                ->annulerEnAttente(
-                    $mouvement,
-                    $motif
-                );
+        /*
+         * ====================================================
+         * MOUVEMENT DÉJÀ VALIDÉ
+         * ====================================================
+         *
+         * Contrepasser un mouvement qui a déjà modifié les
+         * soldes est réservé à l'administrateur : c'est le
+         * mécanisme prévu pour corriger une erreur de saisie
+         * après coup (annulation + nouvelle saisie correcte).
+         * ====================================================
+         */
 
-
+        if (
+            $mouvement->isValide()
+            && !$this->isGranted('ROLE_ADMIN')
+        ) {
             $this->addFlash(
-                'success',
-                'Le mouvement a été annulé.'
+                'error',
+                'Seul un administrateur peut annuler un mouvement déjà validé.'
             );
+
+            return $this
+                ->redirectToRoute(
+                    'app_mouvement_tresorerie_show',
+                    [
+                        'id' =>
+                            $mouvement
+                                ->getId(),
+                    ]
+                );
+        }
+
+
+        try {
+            if ($mouvement->isValide()) {
+                $service
+                    ->annulerValide(
+                        $mouvement,
+                        $motif
+                    );
+
+                $this->addFlash(
+                    'success',
+                    'Le mouvement a été annulé et les soldes ont été corrigés en conséquence.'
+                );
+            } else {
+                $service
+                    ->annulerEnAttente(
+                        $mouvement,
+                        $motif
+                    );
+
+
+                $this->addFlash(
+                    'success',
+                    'Le mouvement a été annulé.'
+                );
+            }
 
         } catch (
             \InvalidArgumentException

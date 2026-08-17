@@ -16,6 +16,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: ReclamationRepository::class)]
 #[ORM\Table(name: 'reclamations')]
 #[ORM\Index(name: 'idx_reclamation_statut', columns: ['statut'])]
+#[ORM\HasLifecycleCallbacks]
 class Reclamation
 {
     public const STATUT_EN_ATTENTE = 'en_attente';

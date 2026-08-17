@@ -133,11 +133,11 @@
 								{{ form_row(formAjout.raisonSociale) }}
 							</div>
 
-							<div class="col-md-6 client-zone-particulier">
+							<div class="col-md-6 client-field-prenom">
 								{{ form_row(formAjout.prenom) }}
 							</div>
 
-							<div class="col-md-6 client-zone-particulier">
+							<div class="col-md-6 client-field-nom">
 								{{ form_row(formAjout.nom) }}
 							</div>
 
@@ -384,6 +384,33 @@ element.classList.toggle('d-none', ! estEntreprise);
 form.querySelectorAll('.client-field-particulier, .client-zone-particulier').forEach(function (element) {
 element.classList.toggle('d-none', estEntreprise);
 });
+
+
+/*
+ * Nom / prénom restent toujours affichés :
+ * client particulier, ou personne responsable
+ * pour un compte entreprise.
+ */
+const labelNom = form.querySelector('.client-field-nom label');
+const labelPrenom = form.querySelector('.client-field-prenom label');
+const champNom = form.querySelector('.client-field-nom input');
+const champPrenom = form.querySelector('.client-field-prenom input');
+
+if (labelNom) {
+labelNom.textContent = estEntreprise ? 'Nom du responsable' : 'Nom';
+}
+
+if (labelPrenom) {
+labelPrenom.textContent = estEntreprise ? 'Prénom du responsable' : 'Prénom';
+}
+
+if (champNom) {
+champNom.placeholder = estEntreprise ? 'Nom du responsable' : 'Nom du client';
+}
+
+if (champPrenom) {
+champPrenom.placeholder = estEntreprise ? 'Prénom du responsable' : 'Prénom du client';
+}
 }
 
 

@@ -1,0 +1,23 @@
+diff --git a/src/Entity/CommandesDetails.php b/src/Entity/CommandesDetails.php
+index b8a1e04..44b01d4 100644
+--- a/src/Entity/CommandesDetails.php
++++ b/src/Entity/CommandesDetails.php
+@@ -880,12 +880,16 @@ class CommandesDetails
+      * Reprend les données fiables de ProduitConfiguration,
+      * puis calcule ou verrouille les dimensions.
+      */
+-        if ($this->isConfigurationAutomatique()) {
++        if (
++            $this->typeLigne === self::TYPE_PRODUIT
++            && $this->isConfigurationAutomatique()
++        ) {
+             $this->appliquerConfiguration($clientB2B);
+         }
+ 
+         if (
+-            !$this->isConfigurationAutomatique()
++            $this->typeLigne === self::TYPE_PRODUIT
++            && !$this->isConfigurationAutomatique()
+             && $this->modeCalcul === 'metre_carre'
+         ) {
+             $this->calculerSurface();

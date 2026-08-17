@@ -133,12 +133,7 @@
 
 
 	{% set peutVoirJournalCaisse =
-		is_granted('ROLE_ADMIN')
-	%}
-
-
-	{% set peutVoirComptesTresorerie =
-		is_granted('ROLE_ADMIN')
+		is_granted('ROLE_JOURNAL_CAISSE')
 	%}
 
 
@@ -170,7 +165,6 @@
 		peutVoirFactures
 		or peutVoirPaiements
 		or peutVoirTresorerie
-		or peutVoirComptesTresorerie
 		or peutVoirJournalCaisse
 		or peutVoirRapprochement
 		or peutVoirMesStats
@@ -277,13 +271,6 @@
 	%}
 
 		{% set menuActif = 'parametres' %}
-
-
-	{% elseif
-		routeCourante starts with 'app_reclamation_'
-	%}
-
-		{% set menuActif = 'reclamations' %}
 
 	{% endif %}
 
@@ -660,27 +647,6 @@
 
 								{% endif %}
 
-
-								{# =============================================
-																   RÉCLAMATIONS
-
-																   Accessible à tous les utilisateurs connectés.
-																   ============================================= #}
-
-								<li class="{{ menuActif == 'reclamations' ? 'resp-tab-active active' : '' }}" data-menu="reclamations" title="Réclamations">
-
-									<i class="
-																							side-menu__icon
-																							fa
-																							fa-money
-																						"></i>
-
-									<div class="slider-text">
-										Réclamations
-									</div>
-
-								</li>
-
 							</ul>
 
 
@@ -837,7 +803,26 @@
 													{% endif %}
 
 
-													
+													<a href="{{ path('app_reclamation_index') }}" class="
+																																																																																													slide-item
+																																																																																													{{
+																																																																																														routeCourante
+																																																																																														starts with
+																																																																																														'app_reclamation_'
+																																																																																															? 'active'
+																																																																																															: ''
+																																																																																													}}
+																																																																																												">
+
+														<i class="
+																																																																																													fa
+																																																																																													fa-money
+																																																																																													mr-2
+																																																																																												"></i>
+
+														Réclamations
+
+													</a>
 
 
 													{% if peutVoirLivraison %}
@@ -1730,54 +1715,6 @@
 										</div>
 
 									{% endif %}
-
-
-									{# =================================================
-																		   RÉCLAMATIONS
-
-																		   Accessible à tous les utilisateurs connectés.
-																		   ================================================= #}
-
-									<div data-panel="reclamations" class="{{ menuActif == 'reclamations' ? 'resp-tab-content-active' : '' }}">
-
-										<div class="row">
-
-											<div class="col-md-12">
-
-												<h4 class="font-weight-normal">
-
-													<i class="
-																															fa
-																															fa-money
-																														"></i>
-
-													Réclamations
-
-												</h4>
-
-
-												<a href="{{ path( 'app_reclamation_index' ) }}" class="
-																														slide-item
-																														{{
-																															routeCourante
-																															starts with
-																															'app_reclamation_'
-																																? 'active'
-																																: ''
-																														}}
-																													">
-
-													<i class="fa fa-money mr-2"></i>
-
-													Mes réclamations
-
-												</a>
-
-											</div>
-
-										</div>
-
-									</div>
 
 								</div>
 

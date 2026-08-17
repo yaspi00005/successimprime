@@ -1101,19 +1101,23 @@ final class ClientsController extends AbstractController
         Clients $client
     ): void {
         if (
-            $client->isB2B()
+            $client->isEntreprise()
             && trim((string) $client->getRaisonSociale()) === ''
         ) {
             $form->get('raisonSociale')->addError(
                 new FormError(
-                    'La raison sociale est obligatoire pour un client B2B.'
+                    'La raison sociale est obligatoire pour un compte entreprise.'
                 )
             );
         }
 
+        /*
+         * Le nom/prénom identifient le client particulier,
+         * ou la personne responsable pour un compte entreprise :
+         * toujours requis, quel que soit le type de compte.
+         */
         if (
-            $client->isB2C()
-            && trim((string) $client->getNom()) === ''
+            trim((string) $client->getNom()) === ''
             && trim((string) $client->getPrenom()) === ''
         ) {
             $form->get('nom')->addError(

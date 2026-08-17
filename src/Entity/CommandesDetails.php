@@ -880,12 +880,16 @@ class CommandesDetails
      * Reprend les données fiables de ProduitConfiguration,
      * puis calcule ou verrouille les dimensions.
      */
-        if ($this->isConfigurationAutomatique()) {
+        if (
+            $this->typeLigne === self::TYPE_PRODUIT
+            && $this->isConfigurationAutomatique()
+        ) {
             $this->appliquerConfiguration($clientB2B);
         }
 
         if (
-            !$this->isConfigurationAutomatique()
+            $this->typeLigne === self::TYPE_PRODUIT
+            && !$this->isConfigurationAutomatique()
             && $this->modeCalcul === 'metre_carre'
         ) {
             $this->calculerSurface();

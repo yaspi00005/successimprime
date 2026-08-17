@@ -890,6 +890,83 @@
 
 
 	{# ========================================================
+							       FACTURATION À UN TIERS
+							       ======================================================== #}
+
+	<div class="card">
+
+		<div class="card-header">
+
+			<div class="card-title">
+				<i class="fa fa-exchange mr-2"></i>
+				Facturation à un tiers
+			</div>
+
+		</div>
+
+		<div class="card-body">
+
+			<div class="custom-control custom-checkbox mb-3">
+
+				{{ form_widget(form.facturerAUnTiers, {
+                        attr: {
+                            class: 'custom-control-input js-facturer-a-un-tiers'
+                        }
+                    }) }}
+
+				{{ form_label(form.facturerAUnTiers, null, {
+                        label_attr: {
+                            class: 'custom-control-label'
+                        }
+                    }) }}
+
+			</div>
+
+			<small class="form-text text-muted mb-3 d-block">
+				Le demandeur du devis n'est pas toujours celui qui paie
+				(ex : un employé demande, son entreprise règle).
+				Cochez cette case pour indiquer les coordonnées du payeur ;
+				elles remplaceront celles du client sur le PDF.
+			</small>
+
+			<div class="row js-zone-facturer-a-un-tiers" style="display:none;">
+
+				<div class="col-md-6">
+					{{ form_row(form.nomFacturation, {
+                            label: 'Nom du payeur',
+                            attr: { class: 'form-control' }
+                        }) }}
+				</div>
+
+				<div class="col-md-6">
+					{{ form_row(form.adresseFacturation, {
+                            label: 'Adresse de facturation',
+                            attr: { class: 'form-control' }
+                        }) }}
+				</div>
+
+				<div class="col-md-6">
+					{{ form_row(form.telephoneFacturation, {
+                            label: 'Téléphone du payeur',
+                            attr: { class: 'form-control' }
+                        }) }}
+				</div>
+
+				<div class="col-md-6">
+					{{ form_row(form.emailFacturation, {
+                            label: 'Email du payeur',
+                            attr: { class: 'form-control' }
+                        }) }}
+				</div>
+
+			</div>
+
+		</div>
+
+	</div>
+
+
+	{# ========================================================
 							       INFORMATIONS DEVIS
 							       ======================================================== #}
 
@@ -3120,6 +3197,29 @@ aucun.style.display = details.length ? 'none' : '';
 
 
 calculerRecapitulatif();
+}
+
+
+/* =========================================================
+       FACTURATION À UN TIERS
+       ========================================================= */
+
+const facturerAUnTiersInput = document.getElementById('{{ form.facturerAUnTiers.vars.id }}');
+
+const zoneFacturerAUnTiers = document.querySelector('.js-zone-facturer-a-un-tiers');
+
+function actualiserFacturerAUnTiers() {
+if (! facturerAUnTiersInput || ! zoneFacturerAUnTiers) {
+return;
+}
+
+zoneFacturerAUnTiers.style.display = facturerAUnTiersInput.checked ? '' : 'none';
+}
+
+if (facturerAUnTiersInput) {
+facturerAUnTiersInput.addEventListener('change', actualiserFacturerAUnTiers);
+
+actualiserFacturerAUnTiers();
 }
 
 

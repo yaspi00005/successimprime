@@ -144,6 +144,106 @@ class MouvementTresorerieService
         );
     }
 
+    /**
+     * Annule un mouvement déjà validé, en contrepassant son
+     * impact sur les soldes des comptes concernés.
+     *
+     * Réservé à l’administrateur : corriger une erreur de
+     * saisie sur un mouvement déjà appliqué se fait toujours
+     * par annulation + nouvelle saisie, jamais par modification
+     * silencieuse du montant d’un mouvement historique.
+     */
+    public function annulerValide(
+        MouvementTresorerie $mouvement,
+        string $motif
+    ): MouvementTresorerie {
+        return $this->entityManager->wrapInTransaction(
+            function () use (
+                $mouvement,
+                $motif
+            ): MouvementTresorerie {
+                if ($mouvement->getId() === null) {
+                    throw new \LogicException(
+                        'Le mouvement n’est pas enregistré.'
+                    );
+                }
+
+                $this->entityManager->lock(
+                    $mouvement,
+                    LockMode::PESSIMISTIC_WRITE
+                );
+
+                $this->entityManager->refresh($mouvement);
+
+                if (!$mouvement->isValide()) {
+                    throw new \LogicException(
+                        'Seul un mouvement validé peut être contrepassé.'
+                    );
+                }
+
+                $this->contrepasserSoldes($mouvement);
+
+                $mouvement->marquerCommeAnnule($motif);
+
+                $this->entityManager->flush();
+
+                return $mouvement;
+            }
+        );
+    }
+
+    /**
+     * Inverse exactement l’effet d’un mouvement validé
+     * sur les soldes des comptes concernés.
+     */
+    private function contrepasserSoldes(
+        MouvementTresorerie $mouvement
+    ): void {
+        $source = $mouvement->getCompteSource();
+        $destination = $mouvement->getCompteDestination();
+        $montant = $mouvement->getMontant();
+
+        $this->verrouillerComptes($source, $destination);
+
+        switch ($mouvement->getType()) {
+            case MouvementTresorerie::TYPE_ENCAISSEMENT:
+                if ($destination === null) {
+                    throw new \LogicException(
+                        'Compte destination absent.'
+                    );
+                }
+
+                $destination->debiter($montant);
+                break;
+
+            case MouvementTresorerie::TYPE_DECAISSEMENT:
+                if ($source === null) {
+                    throw new \LogicException(
+                        'Compte source absent.'
+                    );
+                }
+
+                $source->crediter($montant);
+                break;
+
+            case MouvementTresorerie::TYPE_TRANSFERT:
+                if ($source === null || $destination === null) {
+                    throw new \LogicException(
+                        'Comptes du transfert absents.'
+                    );
+                }
+
+                $destination->debiter($montant);
+                $source->crediter($montant);
+                break;
+
+            default:
+                throw new \LogicException(
+                    'Type de mouvement non pris en charge.'
+                );
+        }
+    }
+
     private function preparerMouvement(
         MouvementTresorerie $mouvement
     ): void {

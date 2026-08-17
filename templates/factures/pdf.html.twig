@@ -7,7 +7,7 @@
 		<meta charset="UTF-8">
 
 		<title>
-			{{ devis.numero|default('Devis') }}
+			{{ facture.numero|default('Facture') }}
 		</title>
 
 		<style>
@@ -68,12 +68,12 @@
 			}
 
 			.logo-mdg {
-				max-width: 100px;
+				max-width: 82px;
 				max-height: 60px;
 			}
 
 			.logo-success {
-				max-width: 100px;
+				max-width: 82px;
 				max-height: 60px;
 			}
 
@@ -314,6 +314,25 @@
 				color: #12346b;
 			}
 
+			.paid-row td {
+				color: #138a40;
+			}
+
+			.reste-row td {
+				color: #d23838;
+			}
+
+
+			/*
+         * =========================================================
+         * MAJORATION
+         * =========================================================
+         */
+
+			.majoration-row td {
+				color: #b16b00;
+			}
+
 
 			/*
          * =========================================================
@@ -344,12 +363,12 @@
 			}
 
 			.signature-image {
-				max-width: 180px;
-				max-height: 80px;
+				max-width: 125px;
+				max-height: 68px;
 			}
 
 			.signature-title {
-				margin-bottom: 50px;
+				margin-bottom: 4px;
 
 				font-size: 8px;
 				font-weight: bold;
@@ -396,27 +415,23 @@
 
 
 		{# ================================================================
-																								   VARIABLES
-																								   ================================================================ #}
+		   VARIABLES
+		   ================================================================ #}
 
 		{% set emetteur =
-    devis.emetteur
+    facture.emetteur
     |default('mdg_success')
 %}
 
 		{% set details =
-    devis.devisDetails
+    commande.commandesDetails
     |default([])
-%}
-
-		{% set montantTvaDevis =
-    (devis.totalTtc|default(0)) - (devis.totalHt|default(0))
 %}
 
 
 		{# ================================================================
-																								   HEADER
-																								   ================================================================ #}
+		   HEADER
+		   ================================================================ #}
 
 		<table class="header-table">
 
@@ -442,19 +457,19 @@
 							<br>
 
 							Tél. :
-																																																																																				                    +223 78 47 87 42
+							                    +223 78 47 87 42
 							<br>
 
 							E-mail :
-																																																																																				                    drepatechno@gmail.com
+							                    drepatechno@gmail.com
 							<br>
 
 							RCCM :
-																																																																																				                    MA.BKO.2021.A.911
+							                    MA.BKO.2021.A.911
 							<br>
 
 							NIF :
-																																																																																				                    081137682V
+							                    081137682V
 
 						</div>
 
@@ -477,31 +492,31 @@
 							<br>
 
 							Tél. :
-																																																																																				                    +223 78 47 87 42
+							                    +223 78 47 87 42
 							<br>
 
 							RCCM :
-																																																																																				                    MA.BKO.2026.B.1404
+							                    MA.BKO.2026.B.1404
 							<br>
 
 							NIF :
-																																																																																				                    081148957D
+							                    081148957D
 
 						</div>
 
 					{% else %}
 
 						<table style="
-																																																																																																                    width: 100%;
-																																																																																																                    border-collapse: collapse;
-																																																																																																                ">
+								                    width: 100%;
+								                    border-collapse: collapse;
+								                ">
 
 							<tr>
 
 								<td style="
-																																																																																																																								                            width: 90px;
-																																																																																																																								                            vertical-align: middle;
-																																																																																																																								                        ">
+										                            width: 90px;
+										                            vertical-align: middle;
+										                        ">
 
 									{% if documents.mdg.logo %}
 
@@ -512,9 +527,9 @@
 								</td>
 
 								<td style="
-																																																																																																																								                            width: 90px;
-																																																																																																																								                            vertical-align: middle;
-																																																																																																																								                        ">
+										                            width: 90px;
+										                            vertical-align: middle;
+										                        ">
 
 									{% if documents.mdg.success_logo %}
 
@@ -536,17 +551,17 @@
 						</div>
 
 						<div style="
-																																																																																																                        font-size: 12px;
-																																																																																																                        font-weight: bold;
-																																																																																																                    ">
+								                        font-size: 12px;
+								                        font-weight: bold;
+								                    ">
 							SUCCESS IMPRIM
 						</div>
 
 						<div class="company-subtitle">
 
 							Impression -
-																																																																																				                    Communication visuelle -
-																																																																																				                    Services graphiques
+							                    Communication visuelle -
+							                    Services graphiques
 
 						</div>
 
@@ -556,15 +571,15 @@
 							<br>
 
 							Tél. :
-																																																																																				                    +223 78 47 87 42
+							                    +223 78 47 87 42
 							<br>
 
 							RCCM :
-																																																																																				                    MA.BKO.2026.B.1404
+							                    MA.BKO.2026.B.1404
 							<br>
 
 							NIF :
-																																																																																				                    081148957D
+							                    081148957D
 
 						</div>
 
@@ -578,16 +593,26 @@
 					<div class="document-title">
 
 						<div class="document-type">
-							FACTURE PRO-FORMA
+
+							{% if facture.estProforma %}
+
+								FACTURE PRO-FORMA
+
+							{% else %}
+
+								FACTURE
+
+							{% endif %}
+
 						</div>
 
 
 						<div class="document-number">
 
 							{{
-                        devis.numero
+                        facture.numero
                         |default(
-                            'DEV-' ~ devis.id
+                            'FAC-' ~ facture.id
                         )
                     }}
 
@@ -600,13 +625,32 @@
 							<strong>
 
 								{{
-                            devis.dateDevis
+                            facture.dateFacture
                             |date('d/m/Y')
                         }}
 
 							</strong>
 
 						</div>
+
+
+						{% if facture.dateEcheance %}
+
+							<div>
+
+								Échéance :
+								<strong>
+
+									{{
+                                facture.dateEcheance
+                                |date('d/m/Y')
+                            }}
+
+								</strong>
+
+							</div>
+
+						{% endif %}
 
 					</div>
 
@@ -618,8 +662,8 @@
 
 
 		{# ================================================================
-																								   CLIENT / DEVIS
-																								   ================================================================ #}
+		   CLIENT / COMMANDE
+		   ================================================================ #}
 
 		<table class="info-table">
 
@@ -627,17 +671,79 @@
 
 				<td>
 
+					{% set facturationATiers = facture.facturerAUnTiers|default(false) %}
+
 					<div class="section-label">
-						Adresse du client
+						{{ facturationATiers ? 'Adresse de facturation' : 'Adresse du client' }}
 					</div>
 
 
-					{% if client %}
+					{% if facturationATiers %}
 
 						<div class="client-name">
 
-							{{ client.raisonSociale |default( (client.prenom and client.nom) ? client.prenom ~ ' ' ~ client.nom : client.nomComplet |default( client.nom |default('Client') ) ) }}
+							{{ facture.nomFacturation|default('Payeur') }}
 
+						</div>
+
+
+						{% if facture.adresseFacturation|default('') %}
+
+							{{ facture.adresseFacturation }}
+							<br>
+
+						{% endif %}
+
+
+						{% if facture.telephoneFacturation|default('') %}
+
+							Tél. :
+							{{ facture.telephoneFacturation }}
+							<br>
+
+						{% endif %}
+
+
+						{% if facture.emailFacturation|default('') %}
+
+							E-mail :
+							{{ facture.emailFacturation }}
+
+						{% endif %}
+
+
+						{% if client %}
+
+							<div style="margin-top: 6px; font-size: 6px; color: #667085;">
+								Demandeur :
+								{{
+                            client.raisonSociale
+                            |default(
+                                client.nomComplet
+                                |default(
+                                    client.nom
+                                    |default('Client')
+                                )
+                            )
+                        }}
+							</div>
+
+						{% endif %}
+
+					{% elseif client %}
+
+						<div class="client-name">
+
+							{{
+                        client.raisonSociale
+                        |default(
+                            client.nomComplet
+                            |default(
+                                client.nom
+                                |default('Client')
+                            )
+                        )
+                    }}
 
 						</div>
 
@@ -674,7 +780,7 @@
 				<td>
 
 					<div class="section-label">
-						Devis
+						Commande
 					</div>
 
 					Référence :
@@ -682,9 +788,9 @@
 					<strong>
 
 						{{
-                    devis.numero
+                    commande.numero
                     |default(
-                        'DEV-' ~ devis.id
+                        'CMD-' ~ commande.id
                     )
                 }}
 
@@ -693,14 +799,14 @@
 					<br>
 
 
-					{% if devis.dateDevis|default(null) %}
+					{% if commande.dateCommande|default(null) %}
 
 						Date :
 
 						<strong>
 
 							{{
-                        devis.dateDevis
+                        commande.dateCommande
                         |date('d/m/Y')
                     }}
 
@@ -711,24 +817,17 @@
 					{% endif %}
 
 
-					{% if commande %}
+					Type :
 
-						Commande liée :
+					<strong>
 
-						<strong>
+						{{
+                    facture.typeDocumentLabel
+                }}
 
-							{{
-                        commande.numero
-                        |default(
-                            'CMD-' ~ commande.id
-                        )
-                    }}
+					</strong>
 
-						</strong>
-
-						<br>
-
-					{% endif %}
+					<br>
 
 
 					Émetteur :
@@ -736,7 +835,7 @@
 					<strong>
 
 						{{
-                    devis.emetteurLabel
+                    facture.emetteurLabel
                 }}
 
 					</strong>
@@ -749,8 +848,8 @@
 
 
 		{# ================================================================
-																								   DÉTAILS
-																								   ================================================================ #}
+		   DÉTAILS
+		   ================================================================ #}
 
 		<table class="details-table">
 
@@ -856,9 +955,9 @@
 
 
 						<td class="
-																																																																																																                    text-right
-																																																																																																                    font-bold
-																																																																																																                ">
+								                    text-right
+								                    font-bold
+								                ">
 
 							{{
                         totalLigne
@@ -893,8 +992,8 @@
 
 
 		{# ================================================================
-																								   BANQUE + TOTAUX
-																								   ================================================================ #}
+		   BANQUE + TOTAUX
+		   ================================================================ #}
 
 		<table class="bottom-table">
 
@@ -915,7 +1014,7 @@
 							<br>
 
 							Compte :
-																																																																																				                    ML206/01004/704040002757/27
+							                    ML206/01004/704040002757/27
 
 						{% else %}
 
@@ -923,20 +1022,20 @@
 							<br>
 
 							Compte bancaire :
-																																																																																				                    152248617001
+							                    152248617001
 
 						{% endif %}
 
 					</div>
 
 
-					{% if devis.observation|default('') %}
+					{% if facture.observation|default('') %}
 
 						<div style="
-																																																																																																                    margin-top: 10px;
-																																																																																																                    padding: 7px;
-																																																																																																                    border: 1px solid #d5dce6;
-																																																																																																                ">
+								                    margin-top: 10px;
+								                    padding: 7px;
+								                    border: 1px solid #d5dce6;
+								                ">
 
 							<strong>
 								Observation :
@@ -944,7 +1043,7 @@
 
 							<br>
 
-							{{ devis.observation }}
+							{{ facture.observation }}
 
 						</div>
 
@@ -966,7 +1065,7 @@
 							<td>
 
 								{{
-                            devis.totalHt
+                            facture.totalHt
                             |number_format(
                                 0,
                                 ',',
@@ -980,7 +1079,7 @@
 						</tr>
 
 
-						{% if devis.remise > 0 %}
+						{% if facture.remise > 0 %}
 
 							<tr>
 
@@ -992,7 +1091,7 @@
 
 									-
 									{{
-                                devis.remise
+                                facture.remise
                                 |number_format(
                                     0,
                                     ',',
@@ -1008,14 +1107,14 @@
 						{% endif %}
 
 
-						{% if montantTvaDevis > 0 %}
+						{% if facture.montantTva > 0 %}
 
 							<tr>
 
 								<td>
 									TVA
-									{% if devis.tva > 0 %}
-										({{ devis.tva }}
+									{% if facture.tva > 0 %}
+										({{ facture.tva }}
 										%)
 									{% endif %}
 								</td>
@@ -1023,7 +1122,47 @@
 								<td>
 
 									{{
-                                montantTvaDevis
+                                facture.montantTva
+                                |number_format(
+                                    0,
+                                    ',',
+                                    ' '
+                                )
+                            }}
+									F CFA
+
+								</td>
+
+							</tr>
+
+						{% endif %}
+
+
+						{% if
+                    facture.surfacturation
+                    and facture.montantSurfacturation > 0
+                %}
+
+							<tr class="majoration-row">
+
+								<td>
+
+									Majoration
+
+									{% if facture.tauxSurfacturation %}
+
+										({{ facture.tauxSurfacturation }}
+										%)
+
+									{% endif %}
+
+								</td>
+
+								<td>
+
+									+
+									{{
+                                facture.montantSurfacturation
                                 |number_format(
                                     0,
                                     ',',
@@ -1048,7 +1187,7 @@
 							<td>
 
 								{{
-                            devis.totalTtc
+                            facture.totalTtc
                             |number_format(
                                 0,
                                 ',',
@@ -1061,6 +1200,56 @@
 
 						</tr>
 
+
+						{% if facture.comptabilisee %}
+
+							<tr class="paid-row">
+
+								<td>
+									Déjà payé
+								</td>
+
+								<td>
+
+									{{
+                                facture.montantPaye
+                                |number_format(
+                                    0,
+                                    ',',
+                                    ' '
+                                )
+                            }}
+									F CFA
+
+								</td>
+
+							</tr>
+
+
+							<tr class="reste-row">
+
+								<td>
+									Reste à payer
+								</td>
+
+								<td>
+
+									{{
+                                facture.resteAPayer
+                                |number_format(
+                                    0,
+                                    ',',
+                                    ' '
+                                )
+                            }}
+									F CFA
+
+								</td>
+
+							</tr>
+
+						{% endif %}
+
 					</table>
 
 				</td>
@@ -1071,8 +1260,8 @@
 
 
 		{# ================================================================
-																								   AUTHENTICITÉ / SIGNATURE
-																								   ================================================================ #}
+		   AUTHENTICITÉ / SIGNATURE
+		   ================================================================ #}
 
 		<table class="auth-table">
 
@@ -1085,9 +1274,9 @@
 					</div>
 
 
-					{% if qrCodeDataUri %}
+					{% if qrCode %}
 
-						<img src="{{ qrCodeDataUri }}" class="qr-image" alt="QR Code">
+						<img src="{{ qrCode }}" class="qr-image" alt="QR Code">
 
 					{% endif %}
 
@@ -1095,7 +1284,7 @@
 					<div class="auth-token">
 
 						{{
-                    devis.tokenAuthenticite
+                    facture.tokenAuthenticite
                     |default('')
                 }}
 
@@ -1113,8 +1302,8 @@
 					</div>
 
 					<div style="
-																																																																								                height: 62px;
-																																																																								            "></div>
+						                height: 62px;
+						            "></div>
 
 				</td>
 
@@ -1154,27 +1343,27 @@
 
 
 		{# ================================================================
-																								   FOOTER
-																								   ================================================================ #}
+		   FOOTER
+		   ================================================================ #}
 
 		<div class="footer">
 
 			{% if emetteur == 'drepa' %}
 
 				DREPA TECHNOLOGIE -
-																																																        SOTUBA ACI -
-																																																        RCCM MA.BKO.2021.A.911 -
-																																																        NIF 081137682V -
-																																																        UBA MALI ML206/01004/704040002757/27
+				        SOTUBA ACI -
+				        RCCM MA.BKO.2021.A.911 -
+				        NIF 081137682V -
+				        UBA MALI ML206/01004/704040002757/27
 
 			{% else %}
 
 				MADIAL GROUP SARL -
-																																																        SUCCESS IMPRIM -
-																																																        SOTUBA ACI -
-																																																        RCCM MA.BKO.2026.B.1404 -
-																																																        NIF 081148957D -
-																																																        ECOBANK 152248617001
+				        SUCCESS IMPRIM -
+				        SOTUBA ACI -
+				        RCCM MA.BKO.2026.B.1404 -
+				        NIF 081148957D -
+				        ECOBANK 152248617001
 
 			{% endif %}
 

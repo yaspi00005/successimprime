@@ -891,6 +891,32 @@ class CommandesDetailsType extends AbstractType
                 }
 
                 /*
+         * Les lignes "article" et "libre" n'ont pas de
+         * configuration produit : modeConfiguration retombe
+         * sur "automatique" par défaut quand aucune valeur
+         * n'est soumise (radios masquées), il ne faut donc
+         * jamais se fier à modeConfiguration seul ici.
+         */
+                if ($detail->getTypeLigne() !== CommandesDetails::TYPE_PRODUIT) {
+                    $detail->setProduitConfiguration(null);
+
+                    return;
+                }
+
+                /*
+         * Les lignes "article" et "libre" n'ont pas de
+         * configuration produit : modeConfiguration retombe
+         * sur "automatique" par défaut quand aucune valeur
+         * n'est soumise (radios masquées), il ne faut donc
+         * jamais se fier à modeConfiguration seul ici.
+         */
+                if ($detail->getTypeLigne() !== CommandesDetails::TYPE_PRODUIT) {
+                    $detail->setProduitConfiguration(null);
+
+                    return;
+                }
+
+                /*
          * Seul le mode automatique exige et applique
          * ProduitConfiguration.
          */

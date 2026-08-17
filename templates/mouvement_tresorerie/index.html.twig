@@ -1029,6 +1029,24 @@
 												Décaissement
 											</span>
 
+											{% if estAdmin %}
+
+												{% if mouvement.verifie %}
+
+													<span class="badge badge-info" title="Vérifié">
+														<i class="fa fa-check-circle"></i>
+													</span>
+
+												{% else %}
+
+													<span class="badge badge-secondary" title="Non vérifié">
+														<i class="fa fa-question-circle"></i>
+													</span>
+
+												{% endif %}
+
+											{% endif %}
+
 
 										{% elseif mouvement.type == 'transfert' %}
 

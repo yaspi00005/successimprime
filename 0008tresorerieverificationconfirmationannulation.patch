@@ -1,0 +1,728 @@
+diff --git a/migrations/Version20260817150000.php b/migrations/Version20260817150000.php
+new file mode 100644
+index 0000000..76be273
+--- /dev/null
++++ b/migrations/Version20260817150000.php
+@@ -0,0 +1,30 @@
++<?php
++
++declare(strict_types=1);
++
++namespace DoctrineMigrations;
++
++use Doctrine\DBAL\Schema\Schema;
++use Doctrine\Migrations\AbstractMigration;
++
++final class Version20260817150000 extends AbstractMigration
++{
++    public function getDescription(): string
++    {
++        return "Ajoute la verification admin (verifie, verifie_par_id, date_verification) sur mouvement_tresorerie, sans impact sur les calculs de solde.";
++    }
++
++    public function up(Schema $schema): void
++    {
++        $this->addSql("ALTER TABLE mouvement_tresorerie ADD verifie TINYINT(1) NOT NULL DEFAULT 0, ADD verifie_par_id INT DEFAULT NULL, ADD date_verification DATETIME DEFAULT NULL");
++        $this->addSql('ALTER TABLE mouvement_tresorerie ADD CONSTRAINT FK_mouvement_tresorerie_verifie_par FOREIGN KEY (verifie_par_id) REFERENCES `user` (id) ON DELETE SET NULL');
++        $this->addSql('CREATE INDEX IDX_mouvement_tresorerie_verifie_par ON mouvement_tresorerie (verifie_par_id)');
++    }
++
++    public function down(Schema $schema): void
++    {
++        $this->addSql('ALTER TABLE mouvement_tresorerie DROP FOREIGN KEY FK_mouvement_tresorerie_verifie_par');
++        $this->addSql('DROP INDEX IDX_mouvement_tresorerie_verifie_par ON mouvement_tresorerie');
++        $this->addSql('ALTER TABLE mouvement_tresorerie DROP verifie, DROP verifie_par_id, DROP date_verification');
++    }
++}
+diff --git a/src/Controller/MouvementTresorerieController.php b/src/Controller/MouvementTresorerieController.php
+index 13fbff6..14ce1f1 100644
+--- a/src/Controller/MouvementTresorerieController.php
++++ b/src/Controller/MouvementTresorerieController.php
+@@ -1191,6 +1191,84 @@ foreach ($comptes as $compte) {
+     }
+ 
+ 
++    /*
++     * ============================================================
++     * VÉRIFICATION ADMIN
++     * ============================================================
++     *
++     * Champ purement déclaratif : aucun impact sur les soldes
++     * ni sur le statut du mouvement.
++     * ============================================================
++     */
++
++    #[Route(
++        '/{id}/verifier',
++        name: 'toggle_verification',
++        requirements: [
++            'id' => '\d+',
++        ],
++        methods: ['POST']
++    )]
++    #[IsGranted('ROLE_ADMIN')]
++    public function toggleVerification(
++        Request $request,
++        MouvementTresorerie $mouvement,
++        EntityManagerInterface $entityManager
++    ): Response {
++        $admin = $this->getUser();
++
++        if (!$admin instanceof User) {
++            throw $this->createAccessDeniedException(
++                'Utilisateur non authentifié.'
++            );
++        }
++
++        if (
++            !$this->isCsrfTokenValid(
++                'verifier-mouvement-'
++                . $mouvement->getId(),
++                (string)
++                $request
++                    ->request
++                    ->get('_token')
++            )
++        ) {
++            $this->addFlash(
++                'error',
++                'Le jeton de sécurité est invalide.'
++            );
++
++            return $this->redirectToRoute(
++                'app_mouvement_tresorerie_show',
++                ['id' => $mouvement->getId()]
++            );
++        }
++
++        if ($mouvement->isVerifie()) {
++            $mouvement->retirerVerification();
++
++            $this->addFlash(
++                'success',
++                'La vérification a été retirée.'
++            );
++        } else {
++            $mouvement->marquerCommeVerifie($admin);
++
++            $this->addFlash(
++                'success',
++                'Le mouvement a été marqué comme vérifié.'
++            );
++        }
++
++        $entityManager->flush();
++
++        return $this->redirectToRoute(
++            'app_mouvement_tresorerie_show',
++            ['id' => $mouvement->getId()]
++        );
++    }
++
++
+     /*
+      * ============================================================
+      * ANNULATION
+@@ -1292,18 +1370,64 @@ foreach ($comptes as $compte) {
+         }
+ 
+ 
++        /*
++         * ====================================================
++         * MOUVEMENT DÉJÀ VALIDÉ
++         * ====================================================
++         *
++         * Contrepasser un mouvement qui a déjà modifié les
++         * soldes est réservé à l'administrateur : c'est le
++         * mécanisme prévu pour corriger une erreur de saisie
++         * après coup (annulation + nouvelle saisie correcte).
++         * ====================================================
++         */
++
++        if (
++            $mouvement->isValide()
++            && !$this->isGranted('ROLE_ADMIN')
++        ) {
++            $this->addFlash(
++                'error',
++                'Seul un administrateur peut annuler un mouvement déjà validé.'
++            );
++
++            return $this
++                ->redirectToRoute(
++                    'app_mouvement_tresorerie_show',
++                    [
++                        'id' =>
++                            $mouvement
++                                ->getId(),
++                    ]
++                );
++        }
++
++
+         try {
+-            $service
+-                ->annulerEnAttente(
+-                    $mouvement,
+-                    $motif
++            if ($mouvement->isValide()) {
++                $service
++                    ->annulerValide(
++                        $mouvement,
++                        $motif
++                    );
++
++                $this->addFlash(
++                    'success',
++                    'Le mouvement a été annulé et les soldes ont été corrigés en conséquence.'
+                 );
++            } else {
++                $service
++                    ->annulerEnAttente(
++                        $mouvement,
++                        $motif
++                    );
+ 
+ 
+-            $this->addFlash(
+-                'success',
+-                'Le mouvement a été annulé.'
+-            );
++                $this->addFlash(
++                    'success',
++                    'Le mouvement a été annulé.'
++                );
++            }
+ 
+         } catch (
+             \InvalidArgumentException
+diff --git a/src/Entity/MouvementTresorerie.php b/src/Entity/MouvementTresorerie.php
+index 332ef3d..6514bd0 100644
+--- a/src/Entity/MouvementTresorerie.php
++++ b/src/Entity/MouvementTresorerie.php
+@@ -575,6 +575,41 @@ class MouvementTresorerie
+         null;
+ 
+ 
++    /*
++     * ============================================================
++     * VÉRIFICATION ADMIN
++     * ============================================================
++     *
++     * Champ purement déclaratif, sans aucun impact sur les
++     * calculs ni sur les soldes : il permet à un administrateur
++     * de marquer un mouvement (typiquement un décaissement)
++     * comme relu et contrôlé.
++     * ============================================================
++     */
++
++    #[ORM\Column(
++        type: Types::BOOLEAN,
++        options: [
++            'default' => false,
++        ]
++    )]
++    private bool $verifie = false;
++
++    #[ORM\ManyToOne]
++    #[ORM\JoinColumn(
++        name: 'verifie_par_id',
++        nullable: true,
++        onDelete: 'SET NULL'
++    )]
++    private ?User $verifiePar = null;
++
++    #[ORM\Column(
++        type: Types::DATETIME_IMMUTABLE,
++        nullable: true
++    )]
++    private ?\DateTimeImmutable $dateVerification = null;
++
++
+     /*
+      * ============================================================
+      * PAIEMENT
+@@ -1735,4 +1770,44 @@ class MouvementTresorerie
+ 
+         return $this;
+     }
++
++
++    /*
++     * ============================================================
++     * VÉRIFICATION ADMIN
++     * ============================================================
++     */
++
++    public function isVerifie(): bool
++    {
++        return $this->verifie;
++    }
++
++    public function getVerifiePar(): ?User
++    {
++        return $this->verifiePar;
++    }
++
++    public function getDateVerification(): ?\DateTimeImmutable
++    {
++        return $this->dateVerification;
++    }
++
++    public function marquerCommeVerifie(User $admin): static
++    {
++        $this->verifie = true;
++        $this->verifiePar = $admin;
++        $this->dateVerification = new \DateTimeImmutable();
++
++        return $this;
++    }
++
++    public function retirerVerification(): static
++    {
++        $this->verifie = false;
++        $this->verifiePar = null;
++        $this->dateVerification = null;
++
++        return $this;
++    }
+ }
+\ No newline at end of file
+diff --git a/src/Form/MouvementTresorerieType.php b/src/Form/MouvementTresorerieType.php
+index 8800f12..ff596ec 100644
+--- a/src/Form/MouvementTresorerieType.php
++++ b/src/Form/MouvementTresorerieType.php
+@@ -576,29 +576,44 @@ class MouvementTresorerieType extends AbstractType
+                          *
+                          * Autorisés dans la liste :
+                          *
+-                         * - partagé ;
+-                         * - Admin ;
+-                         * - son personnel.
++                         * - son compte personnel ;
++                         * - les comptes partagés (communs) ;
++                         * - les comptes bancaires.
+                          *
+-                         * Jamais la caisse personnelle
+-                         * d'un autre utilisateur.
++                         * Jamais :
++                         * - la caisse personnelle d'un autre agent ;
++                         * - un compte administratif non bancaire
++                         *   (ex : Caisse Administration).
+                          * ============================================
+                          */
+ 
+                         return $qb
+                             ->andWhere(
+                                 '
+-                                compte.portee = :partagee
+-                                OR
+-                                compte.portee = :admin
+-                                OR
+                                 (
+                                     compte.portee = :personnelle
+                                     AND
+                                     compte.proprietaire = :utilisateur
+                                 )
++
++                                OR
++
++                                compte.portee = :partagee
++
++                                OR
++
++                                (
++                                    compte.portee = :admin
++                                    AND
++                                    compte.type = :typeBanque
++                                )
+                                 '
+                             )
++                            ->setParameter(
++                                'personnelle',
++                                CompteTresorerie
++                                    ::PORTEE_PERSONNELLE
++                            )
+                             ->setParameter(
+                                 'partagee',
+                                 CompteTresorerie
+@@ -610,9 +625,9 @@ class MouvementTresorerieType extends AbstractType
+                                     ::PORTEE_ADMIN
+                             )
+                             ->setParameter(
+-                                'personnelle',
++                                'typeBanque',
+                                 CompteTresorerie
+-                                    ::PORTEE_PERSONNELLE
++                                    ::TYPE_BANQUE
+                             )
+                             ->setParameter(
+                                 'utilisateur',
+diff --git a/src/Service/MouvementTresorerieService.php b/src/Service/MouvementTresorerieService.php
+index eddf34e..3bf7913 100644
+--- a/src/Service/MouvementTresorerieService.php
++++ b/src/Service/MouvementTresorerieService.php
+@@ -144,6 +144,106 @@ class MouvementTresorerieService
+         );
+     }
+ 
++    /**
++     * Annule un mouvement déjà validé, en contrepassant son
++     * impact sur les soldes des comptes concernés.
++     *
++     * Réservé à l’administrateur : corriger une erreur de
++     * saisie sur un mouvement déjà appliqué se fait toujours
++     * par annulation + nouvelle saisie, jamais par modification
++     * silencieuse du montant d’un mouvement historique.
++     */
++    public function annulerValide(
++        MouvementTresorerie $mouvement,
++        string $motif
++    ): MouvementTresorerie {
++        return $this->entityManager->wrapInTransaction(
++            function () use (
++                $mouvement,
++                $motif
++            ): MouvementTresorerie {
++                if ($mouvement->getId() === null) {
++                    throw new \LogicException(
++                        'Le mouvement n’est pas enregistré.'
++                    );
++                }
++
++                $this->entityManager->lock(
++                    $mouvement,
++                    LockMode::PESSIMISTIC_WRITE
++                );
++
++                $this->entityManager->refresh($mouvement);
++
++                if (!$mouvement->isValide()) {
++                    throw new \LogicException(
++                        'Seul un mouvement validé peut être contrepassé.'
++                    );
++                }
++
++                $this->contrepasserSoldes($mouvement);
++
++                $mouvement->marquerCommeAnnule($motif);
++
++                $this->entityManager->flush();
++
++                return $mouvement;
++            }
++        );
++    }
++
++    /**
++     * Inverse exactement l’effet d’un mouvement validé
++     * sur les soldes des comptes concernés.
++     */
++    private function contrepasserSoldes(
++        MouvementTresorerie $mouvement
++    ): void {
++        $source = $mouvement->getCompteSource();
++        $destination = $mouvement->getCompteDestination();
++        $montant = $mouvement->getMontant();
++
++        $this->verrouillerComptes($source, $destination);
++
++        switch ($mouvement->getType()) {
++            case MouvementTresorerie::TYPE_ENCAISSEMENT:
++                if ($destination === null) {
++                    throw new \LogicException(
++                        'Compte destination absent.'
++                    );
++                }
++
++                $destination->debiter($montant);
++                break;
++
++            case MouvementTresorerie::TYPE_DECAISSEMENT:
++                if ($source === null) {
++                    throw new \LogicException(
++                        'Compte source absent.'
++                    );
++                }
++
++                $source->crediter($montant);
++                break;
++
++            case MouvementTresorerie::TYPE_TRANSFERT:
++                if ($source === null || $destination === null) {
++                    throw new \LogicException(
++                        'Comptes du transfert absents.'
++                    );
++                }
++
++                $destination->debiter($montant);
++                $source->crediter($montant);
++                break;
++
++            default:
++                throw new \LogicException(
++                    'Type de mouvement non pris en charge.'
++                );
++        }
++    }
++
+     private function preparerMouvement(
+         MouvementTresorerie $mouvement
+     ): void {
+diff --git a/templates/mouvement_tresorerie/_form.html.twig b/templates/mouvement_tresorerie/_form.html.twig
+index a5b9754..ee0c02a 100644
+--- a/templates/mouvement_tresorerie/_form.html.twig
++++ b/templates/mouvement_tresorerie/_form.html.twig
+@@ -1419,6 +1419,82 @@ return;
+ }
+ 
+ 
++/*
++                 * ================================================
++                 * CONFIRMATION
++                 * ================================================
++                 *
++                 * Une erreur de montant ou de compte a un impact
++                 * réel sur les soldes : on demande toujours une
++                 * confirmation récapitulative avant d'enregistrer.
++                 * ================================================
++                 */
++
++if (! formulaire.dataset.confirme) {
++
++event.preventDefault();
++
++
++const typeLabel = typeMouvement && typeMouvement.selectedIndex > -1 ? typeMouvement.options[typeMouvement.selectedIndex].text : '';
++
++
++const montantTexte = champMontant ? champMontant.value : '';
++
++
++const sourceTexte = champSource && ! champSource.disabled && champSource.selectedIndex > -1 ? champSource.options[champSource.selectedIndex].text : '';
++
++
++const destinationTexte = champDestination && ! champDestination.disabled && champDestination.selectedIndex > -1 ? champDestination.options[champDestination.selectedIndex].text : '';
++
++
++let recap = '<div class="text-left">';
++
++recap += '<strong>' + typeLabel + '</strong><br>';
++
++recap += 'Montant : <strong>' + montantTexte + ' FCFA</strong>';
++
++
++if (sourceTexte) {
++recap += '<br>Compte source : ' + sourceTexte;
++}
++
++
++if (destinationTexte) {
++recap += '<br>Compte destination : ' + destinationTexte;
++}
++
++recap += '</div>';
++
++
++Swal.fire({
++icon: 'question',
++
++title: 'Confirmer ce mouvement ?',
++
++html: recap,
++
++showCancelButton: true,
++
++confirmButtonText: 'Oui, enregistrer',
++
++cancelButtonText: 'Vérifier',
++
++confirmButtonColor: '#6259ca'
++}).then(function (resultat) {
++
++if (resultat.isConfirmed) {
++
++formulaire.dataset.confirme = '1';
++
++formulaire.requestSubmit();
++}
++});
++
++
++return;
++}
++
++
+ /*
+                  * ================================================
+                  * MONTANT
+diff --git a/templates/mouvement_tresorerie/index.html.twig b/templates/mouvement_tresorerie/index.html.twig
+index 181eca4..75448e6 100644
+--- a/templates/mouvement_tresorerie/index.html.twig
++++ b/templates/mouvement_tresorerie/index.html.twig
+@@ -1029,6 +1029,24 @@
+ 												Décaissement
+ 											</span>
+ 
++											{% if estAdmin %}
++
++												{% if mouvement.verifie %}
++
++													<span class="badge badge-info" title="Vérifié">
++														<i class="fa fa-check-circle"></i>
++													</span>
++
++												{% else %}
++
++													<span class="badge badge-secondary" title="Non vérifié">
++														<i class="fa fa-question-circle"></i>
++													</span>
++
++												{% endif %}
++
++											{% endif %}
++
+ 
+ 										{% elseif mouvement.type == 'transfert' %}
+ 
+diff --git a/templates/mouvement_tresorerie/show.html.twig b/templates/mouvement_tresorerie/show.html.twig
+index a5093cc..d4522b9 100644
+--- a/templates/mouvement_tresorerie/show.html.twig
++++ b/templates/mouvement_tresorerie/show.html.twig
+@@ -104,10 +104,80 @@
+ 							</span>
+ 						{% endif %}
+ 
++						{% if mouvement.type == 'decaissement' %}
++
++							<div class="mt-2">
++
++								{% if mouvement.verifie %}
++
++									<span class="badge badge-info">
++										<i class="fa fa-check-circle mr-1"></i>
++										Vérifié
++										{% if mouvement.verifiePar %}
++											par
++											{% if mouvement.verifiePar.employe %}
++												{{ mouvement.verifiePar.employe.prenom }}
++											{% else %}
++												{{ mouvement.verifiePar.username }}
++											{% endif %}
++										{% endif %}
++									</span>
++
++								{% else %}
++
++									<span class="badge badge-secondary">
++										<i class="fa fa-question-circle mr-1"></i>
++										Non vérifié
++									</span>
++
++								{% endif %}
++
++							</div>
++
++						{% endif %}
++
+ 					</div>
+ 
+ 				</div>
+ 
++				{% if mouvement.type == 'decaissement' and estAdmin %}
++
++					<div class="card">
++
++						<div class="card-body">
++
++							<form method="post" action="{{ path( 'app_mouvement_tresorerie_toggle_verification', {id: mouvement.id} ) }}">
++
++								<input type="hidden" name="_token" value="{{ csrf_token( 'verifier-mouvement-' ~ mouvement.id ) }}">
++
++								{% if mouvement.verifie %}
++
++									<button type="submit" class="btn btn-outline-secondary btn-block">
++										<i class="fa fa-times mr-1"></i>
++										Retirer la vérification
++									</button>
++
++								{% else %}
++
++									<button type="submit" class="btn btn-info btn-block">
++										<i class="fa fa-check mr-1"></i>
++										Marquer comme vérifié
++									</button>
++
++								{% endif %}
++
++							</form>
++
++							<small class="text-muted d-block mt-2">
++								Contrôle purement déclaratif : n’a aucun impact sur les soldes.
++							</small>
++
++						</div>
++
++					</div>
++
++				{% endif %}
++
+ 				<div class="card bg-primary text-white">
+ 
+ 					<div class="card-body text-center">
+@@ -333,6 +403,55 @@
+ 
+ 				{% endif %}
+ 
++				{% if mouvement.statut == 'valide' and estAdmin %}
++
++					<div class="card border-danger">
++
++						<div class="card-header">
++							<h3 class="card-title">
++								Annuler ce mouvement
++							</h3>
++						</div>
++
++						<div class="card-body">
++
++							<div class="alert alert-danger">
++								Ce mouvement a déjà modifié les soldes.
++																																	                            L’annulation va inverser exactement son effet
++																																	                            (le montant sera recrédité ou redébité selon
++																																	                            le type de mouvement). C’est le moyen prévu
++																																	                            pour corriger une erreur de saisie : annulez
++																																	                            puis ressaisissez le mouvement correct.
++							</div>
++
++							<form method="post" action="{{ path( 'app_mouvement_tresorerie_cancel', {id: mouvement.id} ) }}" onsubmit="return confirm(
++																																				                                'Confirmer l’annulation de ce mouvement déjà validé ? Les soldes seront corrigés.'
++																																				                            );">
++								<input type="hidden" name="_token" value="{{ csrf_token( 'cancel-mouvement-' ~ mouvement.id ) }}">
++
++								<div class="form-group">
++
++									<label for="motifValide">
++										Motif de l’annulation
++									</label>
++
++									<textarea id="motifValide" name="motif" class="form-control" rows="3" required placeholder="Expliquez pourquoi ce mouvement doit être annulé"></textarea>
++
++								</div>
++
++								<button type="submit" class="btn btn-danger">
++									<i class="fa fa-times mr-1"></i>
++									Annuler et corriger les soldes
++								</button>
++
++							</form>
++
++						</div>
++
++					</div>
++
++				{% endif %}
++
+ 			</div>
+ 
+ 		</div>

@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/gestion/tresorerie/comptes', name: 'app_compte_tresorerie_')]
-#[IsGranted('ROLE_RESPONSABLE_GESTION')]
+#[IsGranted('ROLE_ADMIN')]
 class CompteTresorerieController extends AbstractController
 {
     #[Route('', name: 'index', methods: ['GET'])]

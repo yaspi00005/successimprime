@@ -16,7 +16,8 @@ final class Version20260817000000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql("ALTER TABLE machines ADD mode_facturation VARCHAR(20) NOT NULL DEFAULT 'metre_carre', ADD prix_achat INT DEFAULT NULL, ADD duree_amortissement_mois INT DEFAULT NULL, ADD revenu_avant_suivi INT NOT NULL DEFAULT 0, ADD date_debut_suivi DATE DEFAULT NULL");
+        $this->addSql("
+        ");
 
         /*
          * Recap du classeur "Amortissement" (Traceur 1.8) : 13 243 916 F CFA

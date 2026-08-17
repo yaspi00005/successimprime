@@ -577,6 +577,41 @@ class MouvementTresorerie
 
     /*
      * ============================================================
+     * VÉRIFICATION ADMIN
+     * ============================================================
+     *
+     * Champ purement déclaratif, sans aucun impact sur les
+     * calculs ni sur les soldes : il permet à un administrateur
+     * de marquer un mouvement (typiquement un décaissement)
+     * comme relu et contrôlé.
+     * ============================================================
+     */
+
+    #[ORM\Column(
+        type: Types::BOOLEAN,
+        options: [
+            'default' => false,
+        ]
+    )]
+    private bool $verifie = false;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(
+        name: 'verifie_par_id',
+        nullable: true,
+        onDelete: 'SET NULL'
+    )]
+    private ?User $verifiePar = null;
+
+    #[ORM\Column(
+        type: Types::DATETIME_IMMUTABLE,
+        nullable: true
+    )]
+    private ?\DateTimeImmutable $dateVerification = null;
+
+
+    /*
+     * ============================================================
      * PAIEMENT
      * ============================================================
      */
@@ -1633,13 +1668,20 @@ class MouvementTresorerie
     ): static {
 
         if (
-            $this->isValide()
+            $this->isAnnule()
         ) {
 
             throw new \LogicException(
-                'Un mouvement déjà validé doit être contrepassé.'
+                'Ce mouvement est déjà annulé.'
             );
         }
+
+        /*
+         * Un mouvement validé peut être annulé : c'est au
+         * service appelant (MouvementTresorerieService::
+         * annulerValide) de contrepasser les soldes des
+         * comptes AVANT d'appeler cette méthode.
+         */
 
 
         $motif =
@@ -1732,6 +1774,46 @@ class MouvementTresorerie
 
         $this->agent =
             $agent;
+
+        return $this;
+    }
+
+
+    /*
+     * ============================================================
+     * VÉRIFICATION ADMIN
+     * ============================================================
+     */
+
+    public function isVerifie(): bool
+    {
+        return $this->verifie;
+    }
+
+    public function getVerifiePar(): ?User
+    {
+        return $this->verifiePar;
+    }
+
+    public function getDateVerification(): ?\DateTimeImmutable
+    {
+        return $this->dateVerification;
+    }
+
+    public function marquerCommeVerifie(User $admin): static
+    {
+        $this->verifie = true;
+        $this->verifiePar = $admin;
+        $this->dateVerification = new \DateTimeImmutable();
+
+        return $this;
+    }
+
+    public function retirerVerification(): static
+    {
+        $this->verifie = false;
+        $this->verifiePar = null;
+        $this->dateVerification = null;
 
         return $this;
     }

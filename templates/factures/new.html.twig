@@ -16,8 +16,8 @@
 		class="side-app">
 
 		{# ============================================================
-				           HEADER
-				           ============================================================ #}
+																														           HEADER
+																														           ============================================================ #}
 
 		<div class="page-header">
 
@@ -70,20 +70,20 @@
 
 
 		{# ============================================================
-				           FLASH
-				           ============================================================ #}
+																														           FLASH
+																														           ============================================================ #}
 
 		{% for type, messages in app.flashes %}
 
 			{% for message in messages %}
 
 				<div class="
-												                        alert
-												                        alert-{{ type == 'error' ? 'danger' : type }}
-												                        alert-dismissible
-												                        fade
-												                        show
-												                    ">
+																																																																																										                        alert
+																																																																																										                        alert-{{ type == 'error' ? 'danger' : type }}
+																																																																																										                        alert-dismissible
+																																																																																										                        fade
+																																																																																										                        show
+																																																																																										                    ">
 
 					{{ message }}
 
@@ -99,8 +99,8 @@
 
 
 		{# ============================================================
-				           FACTURE OFFICIELLE EXISTANTE
-				           ============================================================ #}
+																														           FACTURE OFFICIELLE EXISTANTE
+																														           ============================================================ #}
 
 		{% if factureComptableExistante %}
 
@@ -137,9 +137,9 @@
 						<small class="d-block mt-2">
 
 							Vous pouvez toujours créer plusieurs
-														                            pro forma / simulations, mais aucune
-														                            deuxième facture officielle comptabilisée
-														                            ne sera autorisée.
+																																																																																																									                            pro forma / simulations, mais aucune
+																																																																																																									                            deuxième facture officielle comptabilisée
+																																																																																																									                            ne sera autorisée.
 
 						</small>
 
@@ -156,15 +156,15 @@
 			class="row">
 
 			{# ========================================================
-						               COLONNE GAUCHE
-						               ======================================================== #}
+																																													               COLONNE GAUCHE
+																																													               ======================================================== #}
 
 			<div
 				class="col-xl-4 col-lg-5">
 
 				{# ====================================================
-								                   COMMANDE
-								                   ==================================================== #}
+																																																												                   COMMANDE
+																																																												                   ==================================================== #}
 
 				<div class="card">
 
@@ -278,10 +278,10 @@
 
 
 						<div class="
-																                            d-flex
-																                            justify-content-between
-																                            mb-3
-																                        ">
+																																																																																																																								                            d-flex
+																																																																																																																								                            justify-content-between
+																																																																																																																								                            mb-3
+																																																																																																																								                        ">
 
 							<span>
 								Total HT
@@ -307,10 +307,10 @@
 						{% if commandeRemise > 0 %}
 
 							<div class="
-																		                                d-flex
-																		                                justify-content-between
-																		                                mb-3
-																		                            ">
+																																																																																																																																							                                d-flex
+																																																																																																																																							                                justify-content-between
+																																																																																																																																							                                mb-3
+																																																																																																																																							                            ">
 
 								<span>
 									Remise
@@ -337,15 +337,15 @@
 
 
 						<div class="
-																                            d-flex
-																                            justify-content-between
-																                        ">
+																										d-flex
+																										justify-content-between
+																									text-white">
 
-							<strong>
+							<strong class="text-white">
 								Total TTC commande
 							</strong>
 
-							<strong class="text-primary">
+							<strong class="text-white ">
 
 								{{
                                     commandeTotalTtc
@@ -367,8 +367,8 @@
 
 
 				{# ====================================================
-								                   AIDE
-								                   ==================================================== #}
+																																																												                   AIDE
+																																																												                   ==================================================== #}
 
 				<div class="card border-info">
 
@@ -389,16 +389,16 @@
 								<small class="text-muted">
 
 									La facture officielle reprend
-																		                                    les montants réels de la commande
-																		                                    et participe à la comptabilité.
+																																																																																																																																							                                    les montants réels de la commande
+																																																																																																																																							                                    et participe à la comptabilité.
 
 									<br><br>
 
 									Une pro forma / simulation peut
-																		                                    contenir une majoration commerciale,
-																		                                    mais elle ne modifie ni la
-																		                                    comptabilité, ni les paiements,
-																		                                    ni la trésorerie.
+																																																																																																																																							                                    contenir une majoration commerciale,
+																																																																																																																																							                                    mais elle ne modifie ni la
+																																																																																																																																							                                    comptabilité, ni les paiements,
+																																																																																																																																							                                    ni la trésorerie.
 
 								</small>
 
@@ -414,8 +414,8 @@
 
 
 			{# ========================================================
-						               COLONNE DROITE
-						               ======================================================== #}
+																																													               COLONNE DROITE
+																																													               ======================================================== #}
 
 			<div class="col-xl-8 col-lg-7">
 
@@ -446,8 +446,8 @@
 
 
 				{# ====================================================
-								                   TYPE DE DOCUMENT
-								                   ==================================================== #}
+																																																												                   TYPE DE DOCUMENT
+																																																												                   ==================================================== #}
 
 				<div class="card">
 
@@ -557,8 +557,8 @@
 							<span id="document-type-message">
 
 								La facture officielle sera comptabilisée
-																                                et conservera les montants réels
-																                                de la commande.
+																																																																																																																								                                et conservera les montants réels
+																																																																																																																								                                de la commande.
 
 							</span>
 
@@ -570,8 +570,8 @@
 
 
 				{# ====================================================
-								                   FACTURATION À UN TIERS
-								                   ==================================================== #}
+																																																												                   FACTURATION À UN TIERS
+																																																												                   ==================================================== #}
 
 				<div class="card">
 
@@ -616,8 +616,8 @@
 
 						<small class="form-text text-muted mb-3 d-block">
 							Le demandeur n'est pas toujours celui qui paie.
-							Cochez pour indiquer les coordonnées du payeur ;
-							elles remplaceront celles du client sur le PDF.
+																																																																																																		Cochez pour indiquer les coordonnées du payeur ;
+																																																																																																		elles remplaceront celles du client sur le PDF.
 						</small>
 
 						<div class="row js-zone-facturer-a-un-tiers" style="display:none;">
@@ -670,8 +670,8 @@
 
 
 				{# ====================================================
-								                   MAJORATION
-								                   ==================================================== #}
+																																																												                   MAJORATION
+																																																												                   ==================================================== #}
 
 				<div class="card" id="majoration-card">
 
@@ -725,7 +725,7 @@
 								<i class="fa fa-exclamation-triangle mr-1"></i>
 
 								Utilisez soit un pourcentage,
-																                                soit un montant fixe.
+																																																																																																																								                                soit un montant fixe.
 
 							</div>
 
@@ -872,8 +872,8 @@
 
 
 				{# ====================================================
-								                   APERÇU FINANCIER
-								                   ==================================================== #}
+																																																												                   APERÇU FINANCIER
+																																																												                   ==================================================== #}
 
 				<div class="card">
 
@@ -894,10 +894,10 @@
 								<div class="facture-preview-box">
 
 									<div class="
-																						                                        d-flex
-																						                                        justify-content-between
-																						                                        mb-3
-																						                                    ">
+																																																																																																																																																																					                                        d-flex
+																																																																																																																																																																					                                        justify-content-between
+																																																																																																																																																																					                                        mb-3
+																																																																																																																																																																					                                    ">
 
 										<span>
 											Montant de base
@@ -919,10 +919,10 @@
 
 
 									<div class="
-																						                                        d-flex
-																						                                        justify-content-between
-																						                                        mb-3
-																						                                    ">
+																																																																																																																																																																					                                        d-flex
+																																																																																																																																																																					                                        justify-content-between
+																																																																																																																																																																					                                        mb-3
+																																																																																																																																																																					                                    ">
 
 										<span>
 											Majoration
@@ -939,19 +939,19 @@
 
 
 									<div class="
-																						                                        d-flex
-																						                                        justify-content-between
-																						                                        align-items-center
-																						                                    ">
+																																																																																																																																																																					                                        d-flex
+																																																																																																																																																																					                                        justify-content-between
+																																																																																																																																																																					                                        align-items-center
+																																																																																																																																																																					                                    ">
 
 										<strong class="preview-total-label">
 											TOTAL DOCUMENT
 										</strong>
 
 										<strong class="
-																						                                                text-primary
-																						                                                preview-total-value
-																						                                            " id="preview-total">
+																																																																																																																																																																					                                                text-primary
+																																																																																																																																																																					                                                preview-total-value
+																																																																																																																																																																					                                            " id="preview-total">
 											{{
                                                 commandeTotalTtc
                                                 |number_format(
@@ -1006,8 +1006,8 @@
 
 
 				{# ====================================================
-								                   OBSERVATION
-								                   ==================================================== #}
+																																																												                   OBSERVATION
+																																																												                   ==================================================== #}
 
 				<div class="card">
 
@@ -1051,26 +1051,26 @@
 
 
 				{# ====================================================
-								                   ACTIONS
-								                   ==================================================== #}
+																																																												                   ACTIONS
+																																																												                   ==================================================== #}
 
 				<div class="card">
 
 					<div class="card-body">
 
 						<div class="
-																                            d-flex
-																                            justify-content-between
-																                            align-items-center
-																                            flex-wrap
-																                        ">
+																																																																																																																								                            d-flex
+																																																																																																																								                            justify-content-between
+																																																																																																																								                            align-items-center
+																																																																																																																								                            flex-wrap
+																																																																																																																								                        ">
 
 							<div class="text-muted mb-2">
 
 								<i class="fa fa-lock mr-1"></i>
 
 								Les montants seront stockés
-																                                lors de l’enregistrement.
+																																																																																																																								                                lors de l’enregistrement.
 
 							</div>
 
@@ -1121,7 +1121,7 @@
 			border-radius: 6px;
 
 			padding: 22px;
-
+			color: #1f2937;
 			background: #f8fafc;
 		}
 
@@ -1149,6 +1149,9 @@
 		.form-control::placeholder {
 			color: #94a3b8 !important;
 			-webkit-text-fill-color: #94a3b8 !important;
+		}
+		.justify-content-between {
+			color: #1f2937 !important;
 		}
 	</style>
 

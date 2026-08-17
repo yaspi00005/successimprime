@@ -1,0 +1,26 @@
+diff --git a/src/Entity/MouvementTresorerie.php b/src/Entity/MouvementTresorerie.php
+--- a/src/Entity/MouvementTresorerie.php
++++ b/src/Entity/MouvementTresorerie.php
+@@ -3,13 +3,20 @@
+     ): static {
+ 
+         if (
+-            $this->isValide()
++            $this->isAnnule()
+         ) {
+ 
+             throw new \LogicException(
+-                'Un mouvement déjà validé doit être contrepassé.'
++                'Ce mouvement est déjà annulé.'
+             );
+         }
+ 
++        /*
++         * Un mouvement validé peut être annulé : c'est au
++         * service appelant (MouvementTresorerieService::
++         * annulerValide) de contrepasser les soldes des
++         * comptes AVANT d'appeler cette méthode.
++         */
++
+ 
+         $motif =

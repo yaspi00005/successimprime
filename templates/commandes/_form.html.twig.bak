@@ -2675,10 +2675,6 @@ if (configuration) {
 configuration.required = produit && valeurModeConfiguration(detail) === 'automatique';
 }
 
-detail.querySelectorAll('[name$="[modeConfiguration]"]').forEach(function (radio) {
-radio.required = produit;
-});
-
 
 if (produit) {
 

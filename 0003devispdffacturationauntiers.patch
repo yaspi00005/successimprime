@@ -1,0 +1,63 @@
+diff --git a/templates/devis/devis_pdf.html.twig b/templates/devis/devis_pdf.html.twig
+--- a/templates/devis/devis_pdf.html.twig
++++ b/templates/devis/devis_pdf.html.twig
+@@ -627,12 +627,57 @@
+ 
+ 				<td>
+ 
++					{% set facturationATiers = devis.facturerAUnTiers|default(false) %}
++
+ 					<div class="section-label">
+-						Adresse du client
++						{{ facturationATiers ? 'Adresse de facturation' : 'Adresse du client' }}
+ 					</div>
+ 
+ 
+-					{% if client %}
++					{% if facturationATiers %}
++
++						<div class="client-name">
++
++							{{ devis.nomFacturation|default('Payeur') }}
++
++						</div>
++
++
++						{% if devis.adresseFacturation|default('') %}
++
++							{{ devis.adresseFacturation }}
++							<br>
++
++						{% endif %}
++
++
++						{% if devis.telephoneFacturation|default('') %}
++
++							Tél. :
++							{{ devis.telephoneFacturation }}
++							<br>
++
++						{% endif %}
++
++
++						{% if devis.emailFacturation|default('') %}
++
++							E-mail :
++							{{ devis.emailFacturation }}
++
++						{% endif %}
++
++
++						{% if client %}
++
++							<div style="margin-top: 6px; font-size: 6px; color: #667085;">
++								Demandeur :
++								{{ client.raisonSociale |default( (client.prenom and client.nom) ? client.prenom ~ ' ' ~ client.nom : client.nomComplet |default( client.nom |default('Client') ) ) }}
++							</div>
++
++						{% endif %}
++
++					{% elseif client %}
+ 
+ 						<div class="client-name">
+ 
