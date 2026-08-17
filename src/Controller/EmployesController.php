@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Employes;
+use App\Entity\User;
 use App\Form\EmployesType;
 use App\Repository\EmployesRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,6 +20,7 @@ final class EmployesController extends AbstractController
     {
         return $this->render('employes/index.html.twig', [
             'employes' => $employesRepository->findAll(),
+            'rolesDisponibles' => User::getLibellesRoles(),
         ]);
     }
 
