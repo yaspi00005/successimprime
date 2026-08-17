@@ -1204,13 +1204,13 @@ public function pdf(
             'logo' =>
                 $this->imageVersDataUri(
                     $projectDir
-                    . '/public/assets/images/documents/logos/drepa-logo.png'
+                    . '/public/assets/images/documents/drepa-logo.png'
                 ),
 
             'signature' =>
                 $this->imageVersDataUri(
                     $projectDir
-                    . '/public/assets/images/documents/signatures/drepa-signature-cachet.png'
+                    . '/public/assets/images/documents/drepa-signature-cachet.png'
                 ),
         ],
 
@@ -1223,19 +1223,19 @@ public function pdf(
             'logo' =>
                 $this->imageVersDataUri(
                     $projectDir
-                    . '/public/assets/images/documents/logos/mdg-logo.png'
+                    . '/public/assets/images/documents/mdg-logo.png'
                 ),
 
             'success_logo' =>
                 $this->imageVersDataUri(
                     $projectDir
-                    . '/public/assets/images/documents/logos/success-imprim-logo.png'
+                    . '/public/assets/images/documents/success-imprim-logo.png'
                 ),
 
             'signature' =>
                 $this->imageVersDataUri(
                     $projectDir
-                    . '/public/assets/images/documents/signatures/mdg-signature-cachet.png'
+                    . '/public/assets/images/documents/mdg-signature-cachet.png'
                 ),
         ],
     ];

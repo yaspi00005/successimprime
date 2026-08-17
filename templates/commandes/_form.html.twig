@@ -99,8 +99,8 @@
 		class="travail-form js-commande-detail" data-detail-verrouille="{{ commandeVerrouillee ? '1' : '0' }}">
 
 		{# ====================================================
-																										           TYPE DE LIGNE
-																										           ==================================================== #}
+																																						           TYPE DE LIGNE
+																																						           ==================================================== #}
 
 		<div class="travail-section">
 
@@ -128,19 +128,19 @@
 
 			<small class="form-text text-muted">
 				Produit / prestation :
-																																																				                travail provenant du catalogue.
-																																																				                Article en stock :
-																																																				                vente directe d’un article physique.
-																																																				                Saisie libre :
-																																																				                désignation, quantité et prix libres.
+																																																																												                travail provenant du catalogue.
+																																																																												                Article en stock :
+																																																																												                vente directe d’un article physique.
+																																																																												                Saisie libre :
+																																																																												                désignation, quantité et prix libres.
 			</small>
 
 		</div>
 
 
 		{# ====================================================
-																										           PRODUIT / ARTICLE
-																										           ==================================================== #}
+																																						           PRODUIT / ARTICLE
+																																						           ==================================================== #}
 
 		<div class="travail-section">
 
@@ -177,9 +177,9 @@
 
 						<small class="form-text text-muted">
 							Automatique :
-																																																																																											                            informations provenant du catalogue.
-																																																																																											                            Manuel :
-																																																																																											                            caractéristiques choisies manuellement.
+																																																																																																																																					                            informations provenant du catalogue.
+																																																																																																																																					                            Manuel :
+																																																																																																																																					                            caractéristiques choisies manuellement.
 						</small>
 
 					</div>
@@ -211,7 +211,7 @@
 
 
 				<div class="col-lg-6 col-md-6
-																																																																														                    js-zone-configuration-automatique">
+																																																																																																																		                    js-zone-configuration-automatique">
 
 					{{ form_row(
                         detail.produitConfiguration,
@@ -344,7 +344,7 @@
 				</div>
 
 				<small class="form-text text-muted
-																																																																														                    js-message-champs-auto">
+																																																																																																																		                    js-message-champs-auto">
 					Ces champs proviennent de la configuration sélectionnée.
 				</small>
 
@@ -354,8 +354,8 @@
 
 
 		{# ====================================================
-																										           DÉSIGNATION
-																										           ==================================================== #}
+																																						           DÉSIGNATION
+																																						           ==================================================== #}
 
 		<div class="travail-section text-black">
 
@@ -382,8 +382,8 @@
 
 
 		{# ====================================================
-																										           CIRCUIT
-																										           ==================================================== #}
+																																						           CIRCUIT
+																																						           ==================================================== #}
 
 		<div class="travail-section js-zone-circuit">
 
@@ -447,8 +447,8 @@
 
 
 		{# ====================================================
-																										           QUANTITÉ / DIMENSIONS / PRIX
-																										           ==================================================== #}
+																																						           QUANTITÉ / DIMENSIONS / PRIX
+																																						           ==================================================== #}
 
 		<div class="travail-section">
 
@@ -527,7 +527,7 @@
                     }) }}
 
 					<small class="form-text text-muted
-																																																																														                        js-message-quantite"></small>
+																																																																																																																		                        js-message-quantite"></small>
 
 				</div>
 
@@ -655,8 +655,8 @@
 
 
 		{# ====================================================
-																										           FINITIONS
-																										           ==================================================== #}
+																																						           FINITIONS
+																																						           ==================================================== #}
 
 		<div class="travail-section js-zone-finitions">
 
@@ -719,8 +719,8 @@
 
 
 		{# ====================================================
-																										           TECHNIQUE
-																										           ==================================================== #}
+																																						           TECHNIQUE
+																																						           ==================================================== #}
 
 		<div class="travail-section js-zone-technique">
 
@@ -807,8 +807,8 @@
 
 
 		{# ====================================================
-																										           FICHIERS
-																										           ==================================================== #}
+																																						           FICHIERS
+																																						           ==================================================== #}
 
 		<div class="travail-section js-zone-fichiers">
 
@@ -965,8 +965,8 @@
 	class="side-app">
 
 	{# ========================================================
-													       HEADER
-													       ======================================================== #}
+																			       HEADER
+																			       ======================================================== #}
 
 	<div class="page-header">
 
@@ -1028,8 +1028,8 @@
 
 
 	{# ========================================================
-													       CLIENT
-													       ======================================================== #}
+																			       CLIENT
+																			       ======================================================== #}
 
 	<div class="card">
 
@@ -1097,8 +1097,8 @@
 
 
 	{# ========================================================
-													       INFORMATIONS COMMANDE
-													       ======================================================== #}
+																			       INFORMATIONS COMMANDE
+																			       ======================================================== #}
 
 	<div class="card">
 
@@ -1185,15 +1185,15 @@
 
 
 	{# ========================================================
-													       DÉTAILS
-													       ======================================================== #}
+																			       DÉTAILS
+																			       ======================================================== #}
 
 	<div class="card">
 
 		<div class="card-header
-																																																				            d-flex
-																																																				            justify-content-between
-																																																				            align-items-center">
+																																																																												            d-flex
+																																																																												            justify-content-between
+																																																																												            align-items-center">
 
 			<div>
 
@@ -1207,7 +1207,7 @@
 
 				<small class="text-muted">
 					Produit catalogue,
-																																																																	                    article en stock ou saisie libre.
+																																																																																															                    article en stock ou saisie libre.
 				</small>
 
 			</div>
@@ -1247,24 +1247,24 @@
 				{% for detail in form.commandesDetails %}
 
 					<div class="
-																																																																																											                            detail-commande
-																																																																																											                            card
-																																																																																											                            border
-																																																																																											                            mb-4
-																																																																																											                            {{
-																																																																																											                                commandeVerrouillee
-																																																																																											                                    ? 'detail-commande-verrouille'
-																																																																																											                                    : ''
-																																																																																											                            }}
-																																																																																											                        ">
+																																																																																																																																					                            detail-commande
+																																																																																																																																					                            card
+																																																																																																																																					                            border
+																																																																																																																																					                            mb-4
+																																																																																																																																					                            {{
+																																																																																																																																					                                commandeVerrouillee
+																																																																																																																																					                                    ? 'detail-commande-verrouille'
+																																																																																																																																					                                    : ''
+																																																																																																																																					                            }}
+																																																																																																																																					                        ">
 
 						<div class="
-																																																																																																								                                card-header
-																																																																																																								                                bg-light
-																																																																																																								                                d-flex
-																																																																																																								                                justify-content-between
-																																																																																																								                                align-items-center
-																																																																																																								                            ">
+																																																																																																																																																								                                card-header
+																																																																																																																																																								                                bg-light
+																																																																																																																																																								                                d-flex
+																																																																																																																																																								                                justify-content-between
+																																																																																																																																																								                                align-items-center
+																																																																																																																																																								                            ">
 
 							<div class="card-title detail-title mb-0">
 								Travail
@@ -1318,8 +1318,8 @@
 
 
 	{# ========================================================
-													       RÉCAP
-													       ======================================================== #}
+																			       RÉCAP
+																			       ======================================================== #}
 
 	<div class="row">
 
@@ -1410,10 +1410,10 @@
 
 
 				<div class="
-																																																																														                        card-footer
-																																																																														                        d-flex
-																																																																														                        justify-content-between
-																																																																														                    ">
+																																																																																																																		                        card-footer
+																																																																																																																		                        d-flex
+																																																																																																																		                        justify-content-between
+																																																																																																																		                    ">
 
 					<a href="{{ path( 'app_commandes_index' ) }}" class="btn btn-primary-light">
 						Annuler
@@ -1609,7 +1609,7 @@
 	body #commande-form .travail-form,
 	body #commande-form .travail-section,
 	body #commande-form .card-body {
-		color: #1f2937 !important;
+		color: #ffffff !important;
 	}
 
 
@@ -1623,8 +1623,8 @@
 	body #commande-form .form-check-label,
 	body #commande-form legend,
 	body #commande-form .control-label {
-		color: #26364a !important;
-		-webkit-text-fill-color: #26364a !important;
+		color: #ffffff !important;
+		-webkit-text-fill-color: #ffffff !important;
 		opacity: 1 !important;
 	}
 
