@@ -200,6 +200,23 @@ class User implements
 
     /*
      * ============================================================
+     * LIVREUR
+     * ============================================================
+     *
+     * Accès uniquement à la livraison.
+     *
+     * Un livreur qui se connecte arrive directement sur la
+     * page des livraisons et n'a accès à aucune autre section
+     * de l'application.
+     * ============================================================
+     */
+
+    public const ROLE_LIVREUR =
+        'ROLE_LIVREUR';
+
+
+    /*
+     * ============================================================
      * STATISTIQUES GLOBALES
      * ============================================================
      *
@@ -580,6 +597,7 @@ class User implements
             self::ROLE_CAISSE_COMMANDE,
             self::ROLE_GRAPHISTE,
             self::ROLE_PRODUCTION,
+            self::ROLE_LIVREUR,
             self::ROLE_STATS_GLOBAL,
         ];
     }
@@ -605,6 +623,9 @@ class User implements
 
             self::ROLE_PRODUCTION =>
                 'Production',
+
+            self::ROLE_LIVREUR =>
+                'Livreur',
 
             self::ROLE_STATS_GLOBAL =>
                 'Statistiques globales',
@@ -805,6 +826,7 @@ class User implements
             self::ROLE_CAISSE_COMMANDE,
             self::ROLE_GRAPHISTE,
             self::ROLE_PRODUCTION,
+            self::ROLE_LIVREUR,
         ];
 
 
@@ -979,6 +1001,20 @@ class User implements
     {
         return $this->hasRole(
             self::ROLE_PRODUCTION
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * LIVREUR
+     * ============================================================
+     */
+
+    public function isLivreur(): bool
+    {
+        return $this->hasRole(
+            self::ROLE_LIVREUR
         );
     }
 

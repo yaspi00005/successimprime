@@ -27,6 +27,12 @@ class DevisType extends AbstractType
         array $options
     ): void {
         $builder
+            ->add('emetteur', ChoiceType::class, [
+                'label' => 'Émetteur',
+                'choices' => Devis::getEmetteursPourFormulaire(),
+                'required' => true,
+            ])
+
             ->add('clients', EntityType::class, [
                 'class' => Clients::class,
                 'choice_label' => static function (

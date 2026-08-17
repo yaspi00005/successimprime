@@ -339,7 +339,7 @@ final class LivraisonController extends AbstractController
         return $this->render(
             'livraisons/index.html.twig',
             [
-                'livraisons' => $livraisons,
+                'groupes' => $this->grouperParCommande($livraisons),
 
                 'compteurs' => $compteurs,
 
@@ -352,6 +352,65 @@ final class LivraisonController extends AbstractController
                 ],
             ]
         );
+    }
+
+    /*
+     * ============================================================
+     * REGROUPEMENT DES LIGNES PAR COMMANDE
+     * ============================================================
+     *
+     * Une commande peut avoir plusieurs lignes à livrer : les
+     * afficher éparpillées dans une liste plate fait courir le
+     * risque d'en oublier une. On les regroupe ici par commande,
+     * en conservant l'ordre de tri déjà appliqué (prêtes puis en
+     * livraison puis livrées, plus récentes d'abord).
+     *
+     * @param CommandesDetails[] $lignes
+     *
+     * @return array<int, array{
+     *     commande: \App\Entity\Commandes|null,
+     *     lignes: CommandesDetails[],
+     *     nbLignes: int,
+     *     nbLivrees: int,
+     *     toutesLivrees: bool,
+     *     aucuneLivree: bool,
+     * }>
+     */
+    private function grouperParCommande(array $lignes): array
+    {
+        $groupes = [];
+
+        foreach ($lignes as $detail) {
+            $commande = $detail->getCommande();
+            $cle = $commande?->getId() ?? 0;
+
+            if (!isset($groupes[$cle])) {
+                $groupes[$cle] = [
+                    'commande' => $commande,
+                    'lignes' => [],
+                ];
+            }
+
+            $groupes[$cle]['lignes'][] = $detail;
+        }
+
+        foreach ($groupes as &$groupe) {
+            $nbLignes = count($groupe['lignes']);
+
+            $nbLivrees = count(array_filter(
+                $groupe['lignes'],
+                static fn (CommandesDetails $ligne): bool =>
+                    $ligne->getStatutProduction() === CommandesDetails::PRODUCTION_LIVREE
+            ));
+
+            $groupe['nbLignes'] = $nbLignes;
+            $groupe['nbLivrees'] = $nbLivrees;
+            $groupe['toutesLivrees'] = $nbLivrees === $nbLignes;
+            $groupe['aucuneLivree'] = $nbLivrees === 0;
+        }
+        unset($groupe);
+
+        return array_values($groupes);
     }
 
     /*

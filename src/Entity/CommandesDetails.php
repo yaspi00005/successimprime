@@ -119,10 +119,14 @@ class CommandesDetails
 
     /*
      * La remise est un pourcentage compris entre 0 et 100.
+     * En decimal (et non arrondi a l'entier) pour que la remise B2B
+     * calculee a partir du prix catalogue (prixBase/prixB2B) donne
+     * exactement le meme total qu'en appliquant le pourcentage exact,
+     * sans ecart de quelques francs du a un arrondi premature.
      */
-    #[ORM\Column(options: ['default' => 0])]
+    #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, options: ['default' => 0])]
     #[Assert\Range(min: 0, max: 100)]
-    private int $remise = 0;
+    private string $remise = '0';
 
     /*
      * La TVA est également un pourcentage.
@@ -821,14 +825,14 @@ class CommandesDetails
         return $this;
     }
 
-    public function getRemise(): int
+    public function getRemise(): float
     {
-        return $this->remise;
+        return (float) $this->remise;
     }
 
-    public function setRemise(?int $remise): static
+    public function setRemise(string|float|int|null $remise): static
     {
-        $this->remise = min(100, max(0, $remise ?? 0));
+        $this->remise = (string) min(100, max(0, (float) ($remise ?? 0)));
 
         return $this;
     }

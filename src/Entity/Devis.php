@@ -14,6 +14,32 @@ use Doctrine\DBAL\Types\Types;
 
 class Devis
 {
+    /*
+     * ============================================================
+     * ÉMETTEURS
+     * ============================================================
+     */
+
+    public const EMETTEUR_DREPA = 'drepa';
+    public const EMETTEUR_MDG_SUCCESS = 'mdg_success';
+    public const EMETTEUR_MDG = 'mdg';
+
+    public const EMETTEURS = [
+        self::EMETTEUR_DREPA,
+        self::EMETTEUR_MDG_SUCCESS,
+        self::EMETTEUR_MDG,
+    ];
+
+    public const EMETTEURS_LABELS = [
+        self::EMETTEUR_DREPA =>
+            'DREPA TECHNOLOGIE',
+
+        self::EMETTEUR_MDG_SUCCESS =>
+            'MADIAL GROUP SARL / SUCCESS IMPRIM',
+
+        self::EMETTEUR_MDG =>
+            'MADIAL GROUP SARL',
+    ];
 
 
     #[ORM\Id]
@@ -23,6 +49,15 @@ class Devis
 
     #[ORM\Column(length: 50, unique: true, nullable: true)]
     private ?string $numero = null;
+
+    #[ORM\Column(
+        length: 30,
+        options: [
+            'default' => self::EMETTEUR_MDG_SUCCESS,
+        ]
+    )]
+    #[Assert\Choice(choices: self::EMETTEURS)]
+    private string $emetteur = self::EMETTEUR_MDG_SUCCESS;
 
     #[ORM\ManyToOne(inversedBy: 'devis')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
@@ -129,6 +164,35 @@ class Devis
         $this->numero = $numero;
 
         return $this;
+    }
+
+    public function getEmetteur(): string
+    {
+        return $this->emetteur;
+    }
+
+    public function setEmetteur(string $emetteur): static
+    {
+        if (!in_array($emetteur, self::EMETTEURS, true)) {
+            throw new \InvalidArgumentException(
+                'Émetteur invalide.'
+            );
+        }
+
+        $this->emetteur = $emetteur;
+
+        return $this;
+    }
+
+    public function getEmetteurLabel(): string
+    {
+        return self::EMETTEURS_LABELS[$this->emetteur]
+            ?? $this->emetteur;
+    }
+
+    public static function getEmetteursPourFormulaire(): array
+    {
+        return array_flip(self::EMETTEURS_LABELS);
     }
 
     public function getClients(): ?Clients

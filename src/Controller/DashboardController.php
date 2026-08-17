@@ -19,6 +19,14 @@ final class DashboardController extends AbstractController
         CommandesRepository $commandesRepository,
         ClientsRepository $clientsRepository
     ): Response {
+        /*
+         * Un livreur n'a accès qu'aux livraisons : il n'a rien
+         * à faire sur le tableau de bord général.
+         */
+        if ($this->isGranted('ROLE_LIVREUR') && !$this->isGranted('ROLE_ADMIN')) {
+            return $this->redirectToRoute('app_livraisons_index');
+        }
+
         $periode = $request->query->get('periode', 'mois');
 
         if (!\in_array($periode, self::PERIODES_VALIDES, true)) {

@@ -351,287 +351,311 @@
 
 
 		{# ==========================================================
-										       LISTE
+										       LISTE (REGROUPÉE PAR COMMANDE)
 										       ========================================================== #}
-		<div class="card">
 
-			<div class="card-header d-flex justify-content-between align-items-center">
+		{% if groupes|length == 0 %}
 
-				<div>
+			<div class="card">
+				<div class="card-body text-center text-muted py-5">
+					<i class="fa fa-truck fa-3x mb-3"></i>
+					<div>
+						Aucune livraison trouvée.
+					</div>
+				</div>
+			</div>
 
-					<h3 class="card-title mb-0">
-						Gestion des livraisons
-					</h3>
+		{% endif %}
 
-					<small class="text-muted">
-						{{ livraisons|length }}
-						résultat{{ livraisons|length > 1 ? 's' : '' }}
-					</small>
+
+		{% for groupe in groupes %}
+
+			<div class="card mb-3">
+
+				<div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+
+					<div>
+
+						<h3 class="card-title mb-0">
+
+							{% if groupe.commande %}
+
+								<a href="{{ path('app_commandes_show', { id: groupe.commande.id }) }}">
+									Commande #{{ groupe.commande.numero|default(groupe.commande.id) }}
+								</a>
+
+							{% else %}
+
+								Commande inconnue
+
+							{% endif %}
+
+						</h3>
+
+						<small class="text-muted">
+
+							{% if groupe.commande and groupe.commande.clients %}
+								{{ groupe.commande.clients.nom }}
+								·
+							{% endif %}
+
+							{{ groupe.nbLignes }}
+							ligne{{ groupe.nbLignes > 1 ? 's' : '' }}
+
+						</small>
+
+					</div>
+
+					<div>
+
+						{% if groupe.toutesLivrees %}
+
+							<span class="badge badge-success">
+								<i class="fa fa-check-circle mr-1"></i>
+								Commande entièrement livrée
+							</span>
+
+						{% elseif groupe.aucuneLivree %}
+
+							<span class="badge badge-warning">
+								Rien de livré ({{ groupe.nbLignes }} ligne{{ groupe.nbLignes > 1 ? 's' : '' }} en attente)
+							</span>
+
+						{% else %}
+
+							<span class="badge badge-info">
+								Livraison partielle : {{ groupe.nbLivrees }} / {{ groupe.nbLignes }} lignes livrées
+							</span>
+
+						{% endif %}
+
+					</div>
+
+				</div>
+
+
+				<div class="table-responsive">
+
+					<table class="table table-bordered table-hover mb-0">
+
+						<thead>
+
+							<tr>
+
+								<th>
+									Produit / Désignation
+								</th>
+
+								<th class="text-center">
+									Quantité
+								</th>
+
+								<th>
+									Origine
+								</th>
+
+								<th>
+									Support
+								</th>
+
+								<th>
+									Machine
+								</th>
+
+								<th class="text-center">
+									Statut
+								</th>
+
+								<th class="text-center">
+									Actions
+								</th>
+
+							</tr>
+
+						</thead>
+
+
+						<tbody>
+
+							{% for detail in groupe.lignes %}
+
+								<tr>
+
+									{# PRODUIT #}
+									<td class="align-middle">
+
+										<strong>
+											{{ detail.designation }}
+										</strong>
+
+										{% if detail.produit %}
+
+											<div class="small text-muted">
+												{{ detail.produit.nom }}
+											</div>
+
+										{% endif %}
+
+									</td>
+
+
+									{# QUANTITE #}
+									<td class="text-center align-middle">
+
+										{{ detail.quantite }}
+
+									</td>
+
+
+									{# ORIGINE #}
+									<td class="align-middle">
+
+										{% if detail.productionNecessaire %}
+
+											<span class="badge badge-primary">
+
+												<i class="fa fa-print mr-1"></i>
+												Production
+
+											</span>
+
+										{% else %}
+
+											<span class="badge badge-info">
+
+												<i class="fa fa-shopping-cart mr-1"></i>
+												Vente directe
+
+											</span>
+
+										{% endif %}
+
+									</td>
+
+
+									{# SUPPORT #}
+									<td class="align-middle">
+
+										{% if detail.support %}
+
+											{{ detail.support.nom }}
+
+										{% else %}
+
+											—
+
+										{% endif %}
+
+									</td>
+
+
+									{# MACHINE #}
+									<td class="align-middle">
+
+										{% if detail.machine %}
+
+											{{ detail.machine.nom }}
+
+										{% else %}
+
+											—
+
+										{% endif %}
+
+									</td>
+
+
+									{# STATUT #}
+									<td
+										class="text-center align-middle">
+
+										{% if detail.statutProduction == 'prete_livraison' %}
+
+											<span class="badge badge-primary">Prête</span>
+
+										{% elseif detail.statutProduction == 'en_livraison' %}
+
+											<span class="badge badge-warning">En livraison</span>
+
+										{% elseif detail.statutProduction == 'livree' %}
+
+											<span class="badge badge-success">Livrée</span>
+
+										{% endif %}
+
+									</td>
+
+
+									{# ACTIONS #}
+									<td class="text-center align-middle">
+
+										<div
+											class="btn-group">
+
+											{# VOIR #}
+											<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-primary-light" title="Voir">
+												<i class="fa fa-eye"></i>
+											</a>
+
+
+											{# DEMARRER LIVRAISON #}
+											{% if detail.statutProduction == 'prete_livraison' %}
+
+												<form method="post" action="{{ path( 'app_livraisons_demarrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Démarrer cette livraison ?');">
+
+													<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_demarrer_' ~ detail.id ) }}">
+
+													<button type="submit" class="btn btn-sm btn-warning-light" title="Démarrer la livraison">
+														<i class="fa fa-truck"></i>
+													</button>
+
+												</form>
+
+											{% endif %}
+
+
+											{# MARQUER LIVREE #}
+											{% if detail.statutProduction == 'en_livraison' %}
+
+												{% if detail.typeLigne == 'article' %}
+
+													<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline js-confirmer-livraison" data-designation="{{ detail.designation|e('html_attr') }}" data-quantite="{{ detail.quantite }}">
+
+														<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
+
+														<button type="submit" class="btn btn-sm btn-success-light" title="Marquer comme livré">
+															<i class="fa fa-check"></i>
+														</button>
+
+													</form>
+
+												{% else %}
+
+													<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-warning-light" title="Livraison depuis le bon de livraison">
+														<i class="fa fa-file-text-o"></i>
+													</a>
+
+												{% endif %}
+
+											{% endif %}
+
+										</div>
+
+									</td>
+
+								</tr>
+
+							{% endfor %}
+
+						</tbody>
+
+					</table>
 
 				</div>
 
 			</div>
 
-
-			<div class="table-responsive">
-
-				<table class="table table-bordered table-hover mb-0">
-
-					<thead>
-
-						<tr>
-
-							<th>
-								Commande
-							</th>
-
-							<th>
-								Produit / Désignation
-							</th>
-
-							<th class="text-center">
-								Quantité
-							</th>
-
-							<th>
-								Origine
-							</th>
-
-							<th>
-								Support
-							</th>
-
-							<th>
-								Machine
-							</th>
-
-							<th class="text-center">
-								Statut
-							</th>
-
-							<th class="text-center">
-								Actions
-							</th>
-
-						</tr>
-
-					</thead>
-
-
-					<tbody>
-
-						{% for detail in livraisons %}
-
-							<tr>
-
-								{# COMMANDE #}
-								<td class="align-middle">
-
-									{% if detail.commande %}
-
-										<strong>
-											#{{ detail.commande.id }}
-										</strong>
-
-									{% else %}
-
-										—
-
-									{% endif %}
-
-								</td>
-
-
-								{# PRODUIT #}
-								<td class="align-middle">
-
-									<strong>
-										{{ detail.designation }}
-									</strong>
-
-									{% if detail.produit %}
-
-										<div class="small text-muted">
-											{{ detail.produit.nom }}
-										</div>
-
-									{% endif %}
-
-								</td>
-
-
-								{# QUANTITE #}
-								<td class="text-center align-middle">
-
-									{{ detail.quantite }}
-
-								</td>
-
-
-								{# ORIGINE #}
-								<td class="align-middle">
-
-									{% if detail.productionNecessaire %}
-
-										<span class="badge badge-primary">
-
-											<i class="fa fa-print mr-1"></i>
-											Production
-
-										</span>
-
-									{% else %}
-
-										<span class="badge badge-info">
-
-											<i class="fa fa-shopping-cart mr-1"></i>
-											Vente directe
-
-										</span>
-
-									{% endif %}
-
-								</td>
-
-
-								{# SUPPORT #}
-								<td class="align-middle">
-
-									{% if detail.support %}
-
-										{{ detail.support.nom }}
-
-									{% else %}
-
-										—
-
-									{% endif %}
-
-								</td>
-
-
-								{# MACHINE #}
-								<td class="align-middle">
-
-									{% if detail.machine %}
-
-										{{ detail.machine.nom }}
-
-									{% else %}
-
-										—
-
-									{% endif %}
-
-								</td>
-
-
-								{# STATUT #}
-								<td
-									class="text-center align-middle">
-
-									{# MARQUER LIVRÉE #}
-									{% if detail.statutProduction == 'en_livraison' %}
-
-										{% if detail.typeLigne == 'article' %}
-
-											<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline js-confirmer-livraison" data-designation="{{ detail.designation|e('html_attr') }}" data-quantite="{{ detail.quantite }}">
-
-												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
-
-												<button type="submit" class="btn btn-sm btn-success-light" title="Confirmer la livraison">
-													<i class="fa fa-check"></i>
-												</button>
-
-											</form>
-
-										{% else %}
-
-											<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-warning-light" title="Livraison depuis le bon de livraison">
-												<i class="fa fa-file-text-o"></i>
-											</a>
-
-										{% endif %}
-
-									{% endif %}
-
-								</td>
-
-
-								{# ACTIONS #}
-								<td class="text-center align-middle">
-
-									<div
-										class="btn-group">
-
-										{# VOIR #}
-										<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-primary-light" title="Voir">
-											<i class="fa fa-eye"></i>
-										</a>
-
-
-										{# DEMARRER LIVRAISON #}
-										{% if detail.statutProduction == 'prete_livraison' %}
-
-											<form method="post" action="{{ path( 'app_livraisons_demarrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Démarrer cette livraison ?');">
-
-												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_demarrer_' ~ detail.id ) }}">
-
-												<button type="submit" class="btn btn-sm btn-warning-light" title="Démarrer la livraison">
-													<i class="fa fa-truck"></i>
-												</button>
-
-											</form>
-
-										{% endif %}
-
-
-										{# MARQUER LIVREE #}
-										{% if detail.statutProduction == 'en_livraison' %}
-
-											<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Confirmer la livraison de cet article ?');">
-
-												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
-
-												<button type="submit" class="btn btn-sm btn-success-light" title="Marquer comme livré">
-													<i class="fa fa-check"></i>
-												</button>
-
-											</form>
-
-										{% endif %}
-
-									</div>
-
-								</td>
-
-							</tr>
-
-						{% else %}
-
-							<tr>
-
-								<td colspan="8" class="text-center text-muted py-5">
-
-									<i class="fa fa-truck fa-3x mb-3"></i>
-
-									<div>
-										Aucune livraison trouvée.
-									</div>
-
-								</td>
-
-							</tr>
-
-						{% endfor %}
-
-					</tbody>
-
-				</table>
-
-			</div>
-
-		</div>
+		{% endfor %}
 
 	</div>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

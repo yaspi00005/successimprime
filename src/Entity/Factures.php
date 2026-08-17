@@ -61,10 +61,12 @@ class Factures
 
     public const EMETTEUR_DREPA = 'drepa';
     public const EMETTEUR_MDG_SUCCESS = 'mdg_success';
+    public const EMETTEUR_MDG = 'mdg';
 
     public const EMETTEURS = [
         self::EMETTEUR_DREPA,
         self::EMETTEUR_MDG_SUCCESS,
+        self::EMETTEUR_MDG,
     ];
 
     public const EMETTEURS_LABELS = [
@@ -73,6 +75,9 @@ class Factures
 
         self::EMETTEUR_MDG_SUCCESS =>
             'MADIAL GROUP SARL / SUCCESS IMPRIM',
+
+        self::EMETTEUR_MDG =>
+            'MADIAL GROUP SARL',
     ];
 
 

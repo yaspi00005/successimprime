@@ -99,8 +99,8 @@
 		class="travail-form js-commande-detail" data-detail-verrouille="{{ commandeVerrouillee ? '1' : '0' }}">
 
 		{# ====================================================
-																								           TYPE DE LIGNE
-																								           ==================================================== #}
+																										           TYPE DE LIGNE
+																										           ==================================================== #}
 
 		<div class="travail-section">
 
@@ -128,19 +128,19 @@
 
 			<small class="form-text text-muted">
 				Produit / prestation :
-																																																                travail provenant du catalogue.
-																																																                Article en stock :
-																																																                vente directe d’un article physique.
-																																																                Saisie libre :
-																																																                désignation, quantité et prix libres.
+																																																				                travail provenant du catalogue.
+																																																				                Article en stock :
+																																																				                vente directe d’un article physique.
+																																																				                Saisie libre :
+																																																				                désignation, quantité et prix libres.
 			</small>
 
 		</div>
 
 
 		{# ====================================================
-																								           PRODUIT / ARTICLE
-																								           ==================================================== #}
+																										           PRODUIT / ARTICLE
+																										           ==================================================== #}
 
 		<div class="travail-section">
 
@@ -177,9 +177,9 @@
 
 						<small class="form-text text-muted">
 							Automatique :
-																																																																																				                            informations provenant du catalogue.
-																																																																																				                            Manuel :
-																																																																																				                            caractéristiques choisies manuellement.
+																																																																																											                            informations provenant du catalogue.
+																																																																																											                            Manuel :
+																																																																																											                            caractéristiques choisies manuellement.
 						</small>
 
 					</div>
@@ -211,7 +211,7 @@
 
 
 				<div class="col-lg-6 col-md-6
-																																																																								                    js-zone-configuration-automatique">
+																																																																														                    js-zone-configuration-automatique">
 
 					{{ form_row(
                         detail.produitConfiguration,
@@ -344,7 +344,7 @@
 				</div>
 
 				<small class="form-text text-muted
-																																																																								                    js-message-champs-auto">
+																																																																														                    js-message-champs-auto">
 					Ces champs proviennent de la configuration sélectionnée.
 				</small>
 
@@ -354,8 +354,8 @@
 
 
 		{# ====================================================
-																								           DÉSIGNATION
-																								           ==================================================== #}
+																										           DÉSIGNATION
+																										           ==================================================== #}
 
 		<div class="travail-section text-black">
 
@@ -382,8 +382,8 @@
 
 
 		{# ====================================================
-																								           CIRCUIT
-																								           ==================================================== #}
+																										           CIRCUIT
+																										           ==================================================== #}
 
 		<div class="travail-section js-zone-circuit">
 
@@ -447,8 +447,8 @@
 
 
 		{# ====================================================
-																								           QUANTITÉ / DIMENSIONS / PRIX
-																								           ==================================================== #}
+																										           QUANTITÉ / DIMENSIONS / PRIX
+																										           ==================================================== #}
 
 		<div class="travail-section">
 
@@ -527,7 +527,7 @@
                     }) }}
 
 					<small class="form-text text-muted
-																																																																								                        js-message-quantite"></small>
+																																																																														                        js-message-quantite"></small>
 
 				</div>
 
@@ -655,8 +655,8 @@
 
 
 		{# ====================================================
-																								           FINITIONS
-																								           ==================================================== #}
+																										           FINITIONS
+																										           ==================================================== #}
 
 		<div class="travail-section js-zone-finitions">
 
@@ -719,8 +719,8 @@
 
 
 		{# ====================================================
-																								           TECHNIQUE
-																								           ==================================================== #}
+																										           TECHNIQUE
+																										           ==================================================== #}
 
 		<div class="travail-section js-zone-technique">
 
@@ -807,8 +807,8 @@
 
 
 		{# ====================================================
-																								           FICHIERS
-																								           ==================================================== #}
+																										           FICHIERS
+																										           ==================================================== #}
 
 		<div class="travail-section js-zone-fichiers">
 
@@ -833,7 +833,43 @@
 				Les fichiers volumineux sont envoyés automatiquement.
 			</small>
 
-			<div class="js-liste-uploads mt-3"></div>
+			<div class="js-liste-uploads mt-3">
+
+				{% for fichierExistant in detail.vars.value.fichiers|default([]) %}
+
+					<div class="d-flex align-items-center border rounded p-2 mb-2">
+
+						{% if fichierExistant.typeMime starts with 'image/' %}
+
+							<img src="{{ path('app_fichier_visualiser', {id: fichierExistant.id}) }}" alt="" class="mr-2 rounded" style="width:40px; height:40px; object-fit:cover;">
+
+						{% else %}
+
+							<i class="fa fa-file-o mr-2" style="font-size:24px;"></i>
+
+						{% endif %}
+
+						<div class="flex-grow-1">
+
+							<div class="small font-weight-bold">
+								{{ fichierExistant.nomOriginal }}
+							</div>
+
+							<div class="small text-muted">
+								Déjà envoyé
+							</div>
+
+						</div>
+
+						<a href="{{ path('app_fichier_visualiser', {id: fichierExistant.id}) }}" target="_blank" class="btn btn-sm btn-light ml-2" title="Voir le fichier">
+							<i class="fa fa-eye"></i>
+						</a>
+
+					</div>
+
+				{% endfor %}
+
+			</div>
 
 		</div>
 
@@ -929,8 +965,8 @@
 	class="side-app">
 
 	{# ========================================================
-												       HEADER
-												       ======================================================== #}
+													       HEADER
+													       ======================================================== #}
 
 	<div class="page-header">
 
@@ -992,8 +1028,8 @@
 
 
 	{# ========================================================
-												       CLIENT
-												       ======================================================== #}
+													       CLIENT
+													       ======================================================== #}
 
 	<div class="card">
 
@@ -1061,8 +1097,8 @@
 
 
 	{# ========================================================
-												       INFORMATIONS COMMANDE
-												       ======================================================== #}
+													       INFORMATIONS COMMANDE
+													       ======================================================== #}
 
 	<div class="card">
 
@@ -1149,15 +1185,15 @@
 
 
 	{# ========================================================
-												       DÉTAILS
-												       ======================================================== #}
+													       DÉTAILS
+													       ======================================================== #}
 
 	<div class="card">
 
 		<div class="card-header
-																																																            d-flex
-																																																            justify-content-between
-																																																            align-items-center">
+																																																				            d-flex
+																																																				            justify-content-between
+																																																				            align-items-center">
 
 			<div>
 
@@ -1171,7 +1207,7 @@
 
 				<small class="text-muted">
 					Produit catalogue,
-																																																												                    article en stock ou saisie libre.
+																																																																	                    article en stock ou saisie libre.
 				</small>
 
 			</div>
@@ -1211,24 +1247,24 @@
 				{% for detail in form.commandesDetails %}
 
 					<div class="
-																																																																																				                            detail-commande
-																																																																																				                            card
-																																																																																				                            border
-																																																																																				                            mb-4
-																																																																																				                            {{
-																																																																																				                                commandeVerrouillee
-																																																																																				                                    ? 'detail-commande-verrouille'
-																																																																																				                                    : ''
-																																																																																				                            }}
-																																																																																				                        ">
+																																																																																											                            detail-commande
+																																																																																											                            card
+																																																																																											                            border
+																																																																																											                            mb-4
+																																																																																											                            {{
+																																																																																											                                commandeVerrouillee
+																																																																																											                                    ? 'detail-commande-verrouille'
+																																																																																											                                    : ''
+																																																																																											                            }}
+																																																																																											                        ">
 
 						<div class="
-																																																																																																                                card-header
-																																																																																																                                bg-light
-																																																																																																                                d-flex
-																																																																																																                                justify-content-between
-																																																																																																                                align-items-center
-																																																																																																                            ">
+																																																																																																								                                card-header
+																																																																																																								                                bg-light
+																																																																																																								                                d-flex
+																																																																																																								                                justify-content-between
+																																																																																																								                                align-items-center
+																																																																																																								                            ">
 
 							<div class="card-title detail-title mb-0">
 								Travail
@@ -1282,8 +1318,8 @@
 
 
 	{# ========================================================
-												       RÉCAP
-												       ======================================================== #}
+													       RÉCAP
+													       ======================================================== #}
 
 	<div class="row">
 
@@ -1374,10 +1410,10 @@
 
 
 				<div class="
-																																																																								                        card-footer
-																																																																								                        d-flex
-																																																																								                        justify-content-between
-																																																																								                    ">
+																																																																														                        card-footer
+																																																																														                        d-flex
+																																																																														                        justify-content-between
+																																																																														                    ">
 
 					<a href="{{ path( 'app_commandes_index' ) }}" class="btn btn-primary-light">
 						Annuler
@@ -1462,7 +1498,7 @@
 	.travail-section-title {
 		margin: -18px -18px 18px;
 		padding: 11px 16px;
-		color: #17366f;
+		color: #ffffff;
 		font-size: 14px;
 		font-weight: 600;
 		background: #f1f5fb;
@@ -1962,6 +1998,14 @@ const articleCommandeUrl = "{{ path(
                 {'id': 0}
             ) }}";
 
+const uploadCsrf = form.dataset.uploadCsrf;
+
+const uploadInitialiserUrl = form.dataset.uploadInitialiserUrl;
+
+const uploadMorceauUrlModele = form.dataset.uploadMorceauUrl;
+
+const uploadStatutUrlModele = form.dataset.uploadStatutUrl;
+
 
 /*
          * ====================================================
@@ -1978,6 +2022,207 @@ function construireUrl(modele, id) { /*
  * (EntityValueResolver : "Produits introuvable").
  */
 return modele.replace(/\/0(\/|$)/, '/' + encodeURIComponent(id) + '$1');
+}
+
+
+/*
+         * ====================================================
+         * ENVOI DES FICHIERS (morceaux)
+         *
+         * Le formulaire porte deja les URLs et le jeton CSRF
+         * necessaires (data-upload-*) et le backend (chunked upload,
+         * FichierUploadController) fonctionne integralement, mais
+         * rien ne les utilisait cote client : choisir un fichier ne
+         * declenchait jamais son envoi, et le champ cache
+         * jetonsFichiers restait vide. Sans jeton, rattacherFichiers()
+         * cote serveur n'a rien a rattacher : le formulaire partait
+         * sans les fichiers.
+         * ====================================================
+         */
+
+const TAILLE_MORCEAU_UPLOAD = 5 * 1024 * 1024;
+
+function construireUrlMorceauUpload(jeton, index) {
+return uploadMorceauUrlModele.replace('__JETON__', jeton).replace('__INDEX__', String(index));
+}
+
+function echapperHtml(texte) {
+const zone = document.createElement('div');
+zone.textContent = texte;
+return zone.innerHTML;
+}
+
+function creerLigneUpload(fichier) {
+const ligne = document.createElement('div');
+
+ligne.className = 'd-flex align-items-center border rounded p-2 mb-2 js-upload-ligne';
+
+const estImage = fichier.type && fichier.type.indexOf('image/') === 0;
+
+const apercu = document.createElement(estImage ? 'img' : 'i');
+
+if (estImage) {
+apercu.className = 'mr-2 rounded js-upload-apercu';
+apercu.style.width = '40px';
+apercu.style.height = '40px';
+apercu.style.objectFit = 'cover';
+
+const lecteur = new FileReader();
+lecteur.onload = function () {
+apercu.src = lecteur.result;
+};
+lecteur.readAsDataURL(fichier);
+} else {
+apercu.className = 'fa fa-file-o mr-2 js-upload-icone';
+apercu.style.fontSize = '24px';
+}
+
+const infos = document.createElement('div');
+infos.className = 'flex-grow-1';
+
+infos.innerHTML = '<div class="small font-weight-bold">' + echapperHtml(fichier.name) + '</div>' + '<div class="progress" style="height:4px;"><div class="progress-bar js-upload-barre" style="width:0%"></div></div>' + '<div class="small text-muted js-upload-statut">En attente...</div>';
+
+ligne.appendChild(apercu);
+ligne.appendChild(infos);
+
+return ligne;
+}
+
+function ajouterJetonFichier(detail, jeton) {
+const champ = detail.querySelector('.js-jetons-fichiers');
+
+if (! champ) {
+return;
+}
+
+const valeurs = champ.value ? champ.value.split(',').map(function (v) {
+return v.trim();
+}).filter(Boolean) : [];
+
+if (valeurs.indexOf(jeton) === -1) {
+valeurs.push(jeton);
+}
+
+champ.value = valeurs.join(',');
+}
+
+async function televerserFichier(detail, fichier, ligneUpload) {
+const barre = ligneUpload.querySelector('.js-upload-barre');
+
+const statutTexte = ligneUpload.querySelector('.js-upload-statut');
+
+try {
+
+const nombreMorceaux = Math.max(1, Math.ceil(fichier.size / TAILLE_MORCEAU_UPLOAD));
+
+const reponseInit = await fetch(uploadInitialiserUrl, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRF-TOKEN': uploadCsrf,
+Accept: 'application/json'
+},
+body: JSON.stringify(
+{
+nom: fichier.name,
+typeMime: fichier.type || 'application/octet-stream',
+taille: fichier.size,
+nombreMorceaux: nombreMorceaux
+}
+)
+});
+
+const donneesInit = await reponseInit.json();
+
+if (! reponseInit.ok || ! donneesInit.jeton) {
+throw new Error(donneesInit.message || "Impossible d'initialiser l'envoi.");
+}
+
+const jeton = donneesInit.jeton;
+
+for (let index = 0; index < nombreMorceaux; index++) {
+
+const debut = index * TAILLE_MORCEAU_UPLOAD;
+
+const fin = Math.min(fichier.size, debut + TAILLE_MORCEAU_UPLOAD);
+
+const donneesFormulaire = new FormData();
+
+donneesFormulaire.append('morceau', fichier.slice(debut, fin), fichier.name);
+
+const reponseMorceau = await fetch(construireUrlMorceauUpload(jeton, index), {
+method: 'POST',
+headers: {
+'X-CSRF-TOKEN': uploadCsrf
+},
+body: donneesFormulaire
+});
+
+const donneesMorceau = await reponseMorceau.json();
+
+if (! reponseMorceau.ok) {
+throw new Error(donneesMorceau.message || "L'envoi du fichier a été interrompu.");
+}
+
+const progression = typeof donneesMorceau.progression === 'number' ? donneesMorceau.progression : Math.round(((index + 1) / nombreMorceaux) * 100);
+
+if (barre) {
+barre.style.width = progression + '%';
+}
+
+if (statutTexte) {
+statutTexte.textContent = progression + ' %';
+}
+}
+
+ajouterJetonFichier(detail, jeton);
+
+if (statutTexte) {
+statutTexte.textContent = 'Envoyé';
+}
+
+ligneUpload.classList.add('text-success');
+
+} catch (erreur) {
+
+console.error(erreur);
+
+if (statutTexte) {
+statutTexte.textContent = 'Échec : ' + erreur.message;
+}
+
+ligneUpload.classList.add('text-danger');
+}
+}
+
+function initialiserUploadFichiers(detail) {
+const champFichier = detail.querySelector('.js-fichiers-client');
+
+const zoneListe = detail.querySelector('.js-liste-uploads');
+
+if (! champFichier || ! zoneListe || ! uploadInitialiserUrl) {
+return;
+}
+
+champFichier.addEventListener('change', function () {
+
+const fichiers = Array.from(champFichier.files || []);
+
+/*
+ * Reinitialise le champ natif : sans cela, choisir a nouveau
+ * exactement le meme fichier ne redeclenche pas "change".
+ */
+champFichier.value = '';
+
+fichiers.forEach(function (fichier) {
+
+const ligne = creerLigneUpload(fichier);
+
+zoneListe.appendChild(ligne);
+
+televerserFichier(detail, fichier, ligne);
+});
+});
 }
 
 
@@ -2078,6 +2323,28 @@ zone.style.display = visible ? '' : 'none';
 
 
 /*
+ * Verrouille un champ dont la valeur provient du catalogue (prix,
+ * mode de calcul) : l'utilisateur ne doit pas pouvoir le modifier
+ * manuellement tant qu'il vient du produit/de la configuration.
+ * "readOnly" ne fonctionne pas sur un <select> : on utilise
+ * pointer-events pour bloquer l'interaction tout en laissant la
+ * valeur soumise avec le formulaire.
+ */
+function verrouillerChampCatalogue(champ, verrouille) {
+if (! champ) {
+return;
+}
+
+if (champ.tagName === 'SELECT') {
+champ.style.pointerEvents = verrouille ? 'none' : '';
+champ.tabIndex = verrouille ? -1 : 0;
+} else {
+champ.readOnly = verrouille;
+}
+}
+
+
+/*
          * ====================================================
          * SELECT2
          * ====================================================
@@ -2131,6 +2398,29 @@ return texte.indexOf(terme) > -1 ? data : null;
 });
 
 });
+}
+
+
+/*
+ * Un select transforme par Select2 notifie une selection en appelant
+ * $(element).trigger('change'), qui ne passe QUE par le systeme
+ * d'evenements interne de jQuery : un ecouteur natif
+ * addEventListener('change', ...) ne le recoit jamais. Cette fonction
+ * attache le gestionnaire via jQuery quand il est disponible (cas de
+ * tous les champs .js-select-search de ce formulaire : produit,
+ * article, configuration, client), et retombe sur addEventListener
+ * sinon.
+ */
+function attacherChangement(champ, gestionnaire) {
+if (! champ) {
+return;
+}
+
+if (window.jQuery) {
+window.jQuery(champ).on('change', gestionnaire);
+} else {
+champ.addEventListener('change', gestionnaire);
+}
 }
 
 
@@ -2312,7 +2602,7 @@ message.textContent = 'Prépresse puis livraison.';
          * ====================================================
          */
 
-function appliquerTypeLigne(detail) {
+function appliquerTypeLigne(detail, viaChangementUtilisateur) {
 const type = valeurTypeLigne(detail);
 
 const produit = type === 'produit';
@@ -2394,10 +2684,26 @@ const production = detail.querySelector('.js-production-necessaire');
 
 if (prepresse) {
 prepresse.style.pointerEvents = '';
+
+/*
+ * Prepresse/production sont cochees par defaut sur une ligne
+ * produit, sauf en saisie libre ou choix d'article. On ne force
+ * cette valeur que lors d'un vrai changement de type par
+ * l'utilisateur (pas au chargement initial d'une ligne existante,
+ * pour ne pas ecraser une case decochee manuellement et deja
+ * enregistree).
+ */
+if (viaChangementUtilisateur) {
+prepresse.checked = true;
+}
 }
 
 if (production) {
 production.style.pointerEvents = '';
+
+if (viaChangementUtilisateur) {
+production.checked = true;
+}
 }
 
 appliquerModeConfiguration(detail);
@@ -2413,6 +2719,15 @@ return;
 /*
              * ARTICLE / LIBRE
              */
+
+/*
+ * Hors mode "produit", le prix et le mode de calcul ne viennent plus
+ * du catalogue : on les redeverrouille (une ligne peut passer de
+ * "produit" a "libre" sans recharger la page).
+ */
+verrouillerChampCatalogue(champDetail(detail, 'prixUnitaire'), false);
+
+verrouillerChampCatalogue(champDetail(detail, 'modeCalcul'), false);
 
 definirValeur(detail, 'produit', '');
 
@@ -2439,13 +2754,17 @@ const prepresse = detail.querySelector('.js-prepresse-necessaire');
 const production = detail.querySelector('.js-production-necessaire');
 
 if (prepresse) {
+if (viaChangementUtilisateur) {
 prepresse.checked = false;
+}
 
 prepresse.style.pointerEvents = 'none';
 }
 
 if (production) {
+if (viaChangementUtilisateur) {
 production.checked = false;
+}
 
 production.style.pointerEvents = 'none';
 }
@@ -2502,11 +2821,14 @@ if (configuration) {
 configuration.required = auto;
 }
 
-const prix = champDetail(detail, 'prixUnitaire');
+/*
+ * Prix et mode de calcul viennent toujours du catalogue en mode
+ * "produit" (automatique ou manuel) : ils ne sont modifiables que
+ * pour une ligne en saisie libre.
+ */
+verrouillerChampCatalogue(champDetail(detail, 'prixUnitaire'), true);
 
-if (prix) {
-prix.readOnly = auto;
-}
+verrouillerChampCatalogue(champDetail(detail, 'modeCalcul'), true);
 
 const produitChamp = champDetail(detail, 'produit');
 
@@ -2785,7 +3107,7 @@ const infosProduit = json.produit || {};
 
 definirValeur(detail, 'prixUnitaire', infosProduit.prixBase || 0);
 
-definirValeur(detail, 'remise', clientEstB2B() ? Math.round(infosProduit.remiseB2B || 0) : 0);
+definirValeur(detail, 'remise', clientEstB2B() ? Math.round((infosProduit.remiseB2B || 0) * 100) / 100 : 0);
 
 definirValeur(detail, 'modeCalcul', infosProduit.modeCalcul || 'unite');
 
@@ -2861,7 +3183,7 @@ definirValeur(detail, 'format', config.format);
 
 definirValeur(detail, 'prixUnitaire', config.prixBase || 0);
 
-definirValeur(detail, 'remise', clientEstB2B() ? Math.round(config.remiseB2B || 0) : 0);
+definirValeur(detail, 'remise', clientEstB2B() ? Math.round((config.remiseB2B || 0) * 100) / 100 : 0);
 
 definirValeur(detail, 'modeCalcul', config.modeCalcul || 'unite');
 
@@ -2965,12 +3287,15 @@ return;
 }
 
 
+initialiserUploadFichiers(travail);
+
+
 /*
              * TYPE
              */
 travail.querySelectorAll('[name$="[typeLigne]"]').forEach(function (input) {
 input.addEventListener('change', function () {
-appliquerTypeLigne(travail);
+appliquerTypeLigne(travail, true);
 });
 });
 
@@ -2992,7 +3317,7 @@ const article = champDetail(travail, 'article');
 
 if (article) {
 
-article.addEventListener('change', function () {
+attacherChangement(article, function () {
 chargerArticle(travail);
 });
 
@@ -3011,7 +3336,7 @@ console.log('[DEBUG] initialiserDetail() : champ produit trouve ?', !! produit);
 
 if (produit) {
 
-produit.addEventListener('change', function () {
+attacherChangement(produit, function () {
 console.log('[DEBUG] changement produit DETECTE, valeur =', produit.value, 'mode =', valeurModeConfiguration(travail));
 
 if (valeurModeConfiguration(travail) === 'manuel') {
@@ -3030,7 +3355,7 @@ const configuration = champDetail(travail, 'configuration');
 
 if (configuration) {
 
-configuration.addEventListener('change', function () {
+attacherChangement(configuration, function () {
 chargerConfiguration(travail);
 });
 }
@@ -3257,7 +3582,7 @@ addButton.addEventListener('click', ajouterDetail);
 console.log('[DEBUG] tentative attache ecouteur client, clientSelect=', !! clientSelect, 'commandeVerrouillee=', commandeVerrouillee);
 
 if (clientSelect && ! commandeVerrouillee) {
-clientSelect.addEventListener('change', appliquerNouveauProfilClient);
+attacherChangement(clientSelect, appliquerNouveauProfilClient);
 console.log('[DEBUG] ecouteur client ATTACHE');
 } else {
 console.log('[DEBUG] ecouteur client NON attache');

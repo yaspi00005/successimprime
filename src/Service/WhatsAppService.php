@@ -14,33 +14,93 @@ final class WhatsAppService
     ) {
     }
 
+    /**
+     * true si le compte WhatsApp Business (jeton + numero) a ete
+     * renseigne dans .env.local. Permet d'afficher/desactiver le
+     * bouton d'envoi sans provoquer une erreur d'API a chaque clic.
+     */
+    public function estConfigure(): bool
+    {
+        return $this->accessToken !== ''
+            && $this->phoneNumberId !== '';
+    }
+
     public function envoyerTemplate(
         string $telephone,
         string $template,
         string $langue = 'fr',
         array $parametres = []
     ): array {
-        $telephone = $this->normaliserTelephone(
-            $telephone
-        );
-
         $components = [];
 
         if ($parametres !== []) {
-            $parameters = [];
-
-            foreach ($parametres as $parametre) {
-                $parameters[] = [
-                    'type' => 'text',
-                    'text' => (string) $parametre,
-                ];
-            }
-
             $components[] = [
                 'type' => 'body',
-                'parameters' => $parameters,
+                'parameters' => $this->parametresTexte($parametres),
             ];
         }
+
+        return $this->envoyer(
+            $telephone,
+            $template,
+            $langue,
+            $components
+        );
+    }
+
+    /**
+     * Envoie un modele avec un document en en-tete (facture/devis en
+     * PDF), reference par une URL publique et non par un fichier
+     * televerse : plus simple, pas d'appel supplementaire a l'API
+     * media de Meta.
+     */
+    public function envoyerDocument(
+        string $telephone,
+        string $template,
+        string $lienDocument,
+        string $nomFichier,
+        array $parametresTexte = [],
+        string $langue = 'fr'
+    ): array {
+        $components = [
+            [
+                'type' => 'header',
+                'parameters' => [
+                    [
+                        'type' => 'document',
+                        'document' => [
+                            'link' => $lienDocument,
+                            'filename' => $nomFichier,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        if ($parametresTexte !== []) {
+            $components[] = [
+                'type' => 'body',
+                'parameters' => $this->parametresTexte($parametresTexte),
+            ];
+        }
+
+        return $this->envoyer(
+            $telephone,
+            $template,
+            $langue,
+            $components
+        );
+    }
+
+    private function envoyer(
+        string $telephone,
+        string $template,
+        string $langue,
+        array $components
+    ): array {
+        $telephone = $this->normaliserTelephone(
+            $telephone
+        );
 
         $response = $this->httpClient->request(
             'POST',
@@ -90,6 +150,16 @@ final class WhatsAppService
         return $response->toArray(false);
     }
 
+    private function parametresTexte(array $parametres): array
+    {
+        return array_map(
+            static fn($parametre): array => [
+                'type' => 'text',
+                'text' => (string) $parametre,
+            ],
+            $parametres
+        );
+    }
 
     private function normaliserTelephone(
         string $telephone

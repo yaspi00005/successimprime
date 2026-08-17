@@ -12,6 +12,7 @@ use App\Entity\Fournisseurs;
 use App\Entity\JournalActivite;
 use App\Entity\Paiements;
 use App\Entity\Produits;
+use App\Entity\Reclamation;
 use App\Entity\User;
 use Doctrine\Common\EventSubscriber;
 use Doctrine\ORM\EntityManagerInterface;
@@ -47,6 +48,7 @@ final class AuditSubscriber implements EventSubscriber
         Produits::class,
         Devis::class,
         Factures::class,
+        Reclamation::class,
     ];
 
     /** @var JournalActivite[] */

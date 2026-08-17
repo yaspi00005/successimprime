@@ -1,0 +1,927 @@
+From 708ae4e4ce61163624e4c83bf564f9703178597c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 17 Aug 2026 00:34:11 +0000
+Subject: [PATCH] =?UTF-8?q?Ajoute=20le=20suivi=20de=20rentabilit=C3=A9/amo?=
+ =?UTF-8?q?rtissement=20par=20machine?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Machines: mode de facturation (metre_carre/feuille), prix d'achat,
+  duree d'amortissement, revenu recap avant suivi applicatif
+- MachineRentabiliteService: revenu (recap + commandes liees a la
+  machine) moins charges amortissement/maintenance
+- Page /machines/rentabilite listant marge nette par machine
+- Migration + seed du recap Traceur 1.8 (classeur Amortissement)
+---
+ migrations/Version20260817000000.php      |  34 +++
+ src/Controller/MachinesController.php     |  77 ++++++-
+ src/Entity/Machines.php                   | 147 ++++++++++++-
+ src/Service/MachineRentabiliteService.php | 143 +++++++++++++
+ templates/machines/index.html.twig        | 246 ++++++++++++++++++++++
+ templates/machines/rentabilite.html.twig  | 108 ++++++++++
+ 6 files changed, 752 insertions(+), 3 deletions(-)
+ create mode 100644 migrations/Version20260817000000.php
+ create mode 100644 src/Service/MachineRentabiliteService.php
+ create mode 100644 templates/machines/rentabilite.html.twig
+
+diff --git a/migrations/Version20260817000000.php b/migrations/Version20260817000000.php
+new file mode 100644
+index 0000000..87cd4d3
+--- /dev/null
++++ b/migrations/Version20260817000000.php
+@@ -0,0 +1,34 @@
++<?php
++
++declare(strict_types=1);
++
++namespace DoctrineMigrations;
++
++use Doctrine\DBAL\Schema\Schema;
++use Doctrine\Migrations\AbstractMigration;
++
++final class Version20260817000000 extends AbstractMigration
++{
++    public function getDescription(): string
++    {
++        return "Ajoute le suivi de rentabilite/amortissement sur machines (mode de facturation metre_carre/feuille, prix d'achat, duree d'amortissement, revenu recapitule avant suivi applicatif) et seed le recap Traceur 1.8 issu du classeur Amortissement.";
++    }
++
++    public function up(Schema $schema): void
++    {
++        $this->addSql("ALTER TABLE machines ADD mode_facturation VARCHAR(20) NOT NULL DEFAULT 'metre_carre', ADD prix_achat INT DEFAULT NULL, ADD duree_amortissement_mois INT DEFAULT NULL, ADD revenu_avant_suivi INT NOT NULL DEFAULT 0, ADD date_debut_suivi DATE DEFAULT NULL");
++
++        /*
++         * Recap du classeur "Amortissement" (Traceur 1.8) : 13 243 916 F CFA
++         * factures entre janvier et aout 2026, avant le debut du suivi
++         * applicatif via les commandes liees a la machine. Sans effet si
++         * aucune machine "Traceur 1.8" n'existe encore.
++         */
++        $this->addSql("UPDATE machines SET mode_facturation = 'metre_carre', revenu_avant_suivi = 13243916, date_debut_suivi = '2026-08-17' WHERE nom LIKE '%Traceur 1.8%'");
++    }
++
++    public function down(Schema $schema): void
++    {
++        $this->addSql('ALTER TABLE machines DROP mode_facturation, DROP prix_achat, DROP duree_amortissement_mois, DROP revenu_avant_suivi, DROP date_debut_suivi');
++    }
++}
+diff --git a/src/Controller/MachinesController.php b/src/Controller/MachinesController.php
+index 3273d5f..9327c18 100644
+--- a/src/Controller/MachinesController.php
++++ b/src/Controller/MachinesController.php
+@@ -4,6 +4,7 @@ namespace App\Controller;
+ 
+ use App\Entity\Machines;
+ use App\Repository\MachinesRepository;
++use App\Service\MachineRentabiliteService;
+ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+ use Doctrine\ORM\EntityManagerInterface;
+ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+@@ -35,6 +36,23 @@ final class MachinesController extends AbstractController
+         );
+     }
+ 
++    /*
++     * ============================================================
++     * RENTABILITÉ DES MACHINES
++     * ============================================================
++     */
++    #[Route('/rentabilite', name: 'rentabilite', methods: ['GET'])]
++    public function rentabilite(
++        MachineRentabiliteService $machineRentabiliteService
++    ): Response {
++        return $this->render(
++            'machines/rentabilite.html.twig',
++            [
++                'rentabilites' => $machineRentabiliteService->calculerToutes(),
++            ]
++        );
++    }
++
+     /*
+      * ============================================================
+      * CRÉATION AJAX
+@@ -428,6 +446,49 @@ final class MachinesController extends AbstractController
+             'dateMiseService'
+         );
+ 
++        /*
++         * Rentabilité / amortissement.
++         */
++        $modeFacturation = trim(
++            (string) $request->request->get(
++                'modeFacturation',
++                Machines::MODE_FACTURATION_METRE_CARRE
++            )
++        );
++
++        if ($modeFacturation === '') {
++            $modeFacturation = Machines::MODE_FACTURATION_METRE_CARRE;
++        }
++
++        if (!in_array($modeFacturation, Machines::MODES_FACTURATION, true)) {
++            throw new \InvalidArgumentException(
++                'Le mode de facturation de la machine est invalide.'
++            );
++        }
++
++        $prixAchatValeur = trim(
++            (string) $request->request->get('prixAchat')
++        );
++        $prixAchat = $prixAchatValeur === '' ? null : $this->recupererEntier($request, 'prixAchat');
++
++        $dureeAmortissementValeur = trim(
++            (string) $request->request->get('dureeAmortissementMois')
++        );
++        $dureeAmortissementMois = $dureeAmortissementValeur === ''
++            ? null
++            : $this->recupererEntier($request, 'dureeAmortissementMois');
++
++        $revenuAvantSuivi = $this->recupererEntier(
++            $request,
++            'revenuAvantSuivi',
++            0
++        );
++
++        $dateDebutSuivi = $this->recupererDate(
++            $request,
++            'dateDebutSuivi'
++        );
++
+         /*
+          * Affectation.
+          */
+@@ -442,7 +503,12 @@ final class MachinesController extends AbstractController
+             ->setNbTetes($nbTetes)
+             ->setCompteurM2($compteurM2)
+             ->setCompteurHeures($compteurHeures)
+-            ->setEtat($etat);
++            ->setEtat($etat)
++            ->setModeFacturation($modeFacturation)
++            ->setPrixAchat($prixAchat)
++            ->setDureeAmortissementMois($dureeAmortissementMois)
++            ->setRevenuAvantSuivi($revenuAvantSuivi)
++            ->setDateDebutSuivi($dateDebutSuivi);
+ 
+         if ($dateAchat !== null) {
+             $machine->setDateAchat(
+@@ -570,6 +636,15 @@ final class MachinesController extends AbstractController
+                 $machine->getCompteurHeures(),
+ 
+             'etat' => $machine->getEtat(),
++
++            'modeFacturation' => $machine->getModeFacturation(),
++            'prixAchat' => $machine->getPrixAchat(),
++            'dureeAmortissementMois' => $machine->getDureeAmortissementMois(),
++            'revenuAvantSuivi' => $machine->getRevenuAvantSuivi(),
++
++            'dateDebutSuivi' => $machine->getDateDebutSuivi()
++                ? $machine->getDateDebutSuivi()->format('Y-m-d')
++                : null,
+         ];
+     }
+ 
+diff --git a/src/Entity/Machines.php b/src/Entity/Machines.php
+index e0fff41..31c7c80 100644
+--- a/src/Entity/Machines.php
++++ b/src/Entity/Machines.php
+@@ -11,6 +11,31 @@ use Doctrine\ORM\Mapping as ORM;
+ #[ORM\Entity(repositoryClass: MachinesRepository::class)]
+ class Machines
+ {
++    /*
++     * ============================================================
++     * MODES DE FACTURATION (RENTABILITÉ)
++     * ============================================================
++     *
++     * metre_carre : machines facturées à la surface (largeur x
++     * longueur), ex. traceurs / grand format.
++     *
++     * feuille : machines facturées à la feuille A4/A3, ex.
++     * photocopieurs, impression de thèses/mémoires.
++     */
++    public const MODE_FACTURATION_METRE_CARRE = 'metre_carre';
++
++    public const MODE_FACTURATION_FEUILLE = 'feuille';
++
++    public const MODES_FACTURATION = [
++        self::MODE_FACTURATION_METRE_CARRE,
++        self::MODE_FACTURATION_FEUILLE,
++    ];
++
++    public const MODES_FACTURATION_LABELS = [
++        self::MODE_FACTURATION_METRE_CARRE => 'Au mètre carré',
++        self::MODE_FACTURATION_FEUILLE => 'À la feuille (A4/A3)',
++    ];
++
+     #[ORM\Id]
+     #[ORM\GeneratedValue]
+     #[ORM\Column]
+@@ -58,6 +83,27 @@ class Machines
+     #[ORM\Column(length: 45, unique: true)]
+     private ?string $adresseIp = null;
+ 
++    /*
++     * ============================================================
++     * RENTABILITÉ / AMORTISSEMENT
++     * ============================================================
++     */
++
++    #[ORM\Column(length: 20, options: ['default' => self::MODE_FACTURATION_METRE_CARRE])]
++    private string $modeFacturation = self::MODE_FACTURATION_METRE_CARRE;
++
++    #[ORM\Column(nullable: true)]
++    private ?int $prixAchat = null;
++
++    #[ORM\Column(nullable: true)]
++    private ?int $dureeAmortissementMois = null;
++
++    #[ORM\Column(options: ['default' => 0])]
++    private int $revenuAvantSuivi = 0;
++
++    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
++    private ?\DateTime $dateDebutSuivi = null;
++
+     /**
+      * @var Collection<int, CommandesDetails>
+      */
+@@ -359,8 +405,105 @@ public function setAdresseIp(string $adresseIp): static
+     public function __toString(): string
+     {
+         return $this->nom ?? 'Machine';
+-        return $this->nom ?? 'Machine';
+     }
+ 
+-    
++    /*
++     * ============================================================
++     * RENTABILITÉ / AMORTISSEMENT
++     * ============================================================
++     */
++
++    public function getModeFacturation(): string
++    {
++        return $this->modeFacturation;
++    }
++
++    public function setModeFacturation(string $modeFacturation): static
++    {
++        if (!in_array($modeFacturation, self::MODES_FACTURATION, true)) {
++            throw new \InvalidArgumentException(
++                'Le mode de facturation de la machine est invalide.'
++            );
++        }
++
++        $this->modeFacturation = $modeFacturation;
++
++        return $this;
++    }
++
++    public function getModeFacturationLabel(): string
++    {
++        return self::MODES_FACTURATION_LABELS[$this->modeFacturation] ?? $this->modeFacturation;
++    }
++
++    public function utiliseSurface(): bool
++    {
++        return $this->modeFacturation === self::MODE_FACTURATION_METRE_CARRE;
++    }
++
++    public function utiliseFeuille(): bool
++    {
++        return $this->modeFacturation === self::MODE_FACTURATION_FEUILLE;
++    }
++
++    public function getPrixAchat(): ?int
++    {
++        return $this->prixAchat;
++    }
++
++    public function setPrixAchat(?int $prixAchat): static
++    {
++        $this->prixAchat = $prixAchat;
++
++        return $this;
++    }
++
++    public function getDureeAmortissementMois(): ?int
++    {
++        return $this->dureeAmortissementMois;
++    }
++
++    public function setDureeAmortissementMois(?int $dureeAmortissementMois): static
++    {
++        $this->dureeAmortissementMois = $dureeAmortissementMois;
++
++        return $this;
++    }
++
++    public function getRevenuAvantSuivi(): int
++    {
++        return $this->revenuAvantSuivi;
++    }
++
++    public function setRevenuAvantSuivi(int $revenuAvantSuivi): static
++    {
++        $this->revenuAvantSuivi = $revenuAvantSuivi;
++
++        return $this;
++    }
++
++    public function getDateDebutSuivi(): ?\DateTime
++    {
++        return $this->dateDebutSuivi;
++    }
++
++    public function setDateDebutSuivi(?\DateTime $dateDebutSuivi): static
++    {
++        $this->dateDebutSuivi = $dateDebutSuivi;
++
++        return $this;
++    }
++
++    /**
++     * Charge d'amortissement mensuelle (prix d'achat étalé sur la durée
++     * d'amortissement), ou null si l'un des deux n'est pas renseigné.
++     */
++    public function getChargeAmortissementMensuelle(): ?float
++    {
++        if ($this->prixAchat === null || !$this->dureeAmortissementMois) {
++            return null;
++        }
++
++        return $this->prixAchat / $this->dureeAmortissementMois;
++    }
+ }
+diff --git a/src/Service/MachineRentabiliteService.php b/src/Service/MachineRentabiliteService.php
+new file mode 100644
+index 0000000..04c15ed
+--- /dev/null
++++ b/src/Service/MachineRentabiliteService.php
+@@ -0,0 +1,143 @@
++<?php
++
++namespace App\Service;
++
++use App\Entity\CommandesDetails;
++use App\Entity\Machines;
++use App\Repository\MachinesRepository;
++use Doctrine\ORM\EntityManagerInterface;
++
++/**
++ * Calcule, pour chaque machine, ce qu'elle rapporte réellement :
++ * revenu facturé (commandes liées + recap historique éventuel)
++ * moins charges d'amortissement et de maintenance.
++ */
++class MachineRentabiliteService
++{
++    public function __construct(
++        private readonly EntityManagerInterface $entityManager,
++        private readonly MachinesRepository $machinesRepository
++    ) {
++    }
++
++    /**
++     * @return array<int, array<string, mixed>>
++     */
++    public function calculerToutes(): array
++    {
++        $machines = $this->machinesRepository->findBy([], ['nom' => 'ASC']);
++
++        return array_map(
++            fn (Machines $machine): array => $this->calculer($machine),
++            $machines
++        );
++    }
++
++    /**
++     * @return array<string, mixed>
++     */
++    public function calculer(Machines $machine): array
++    {
++        $revenuCommandes = $this->revenuCommandes($machine);
++        $revenuTotal = $machine->getRevenuAvantSuivi() + $revenuCommandes;
++
++        $chargeMaintenance = $this->chargeMaintenance($machine);
++        $chargeAmortissement = $this->chargeAmortissementCumulee($machine);
++
++        return [
++            'machine' => $machine,
++            'revenuAvantSuivi' => $machine->getRevenuAvantSuivi(),
++            'revenuCommandes' => $revenuCommandes,
++            'revenuTotal' => $revenuTotal,
++            'chargeAmortissement' => $chargeAmortissement,
++            'chargeMaintenance' => $chargeMaintenance,
++            'margeNette' => $revenuTotal - $chargeAmortissement - $chargeMaintenance,
++        ];
++    }
++
++    /**
++     * Somme des lignes de commande facturées sur cette machine, à
++     * partir de la date de début de suivi si elle est renseignée
++     * (pour ne pas doubler ce qui est déjà couvert par le recap
++     * historique).
++     */
++    private function revenuCommandes(Machines $machine): int
++    {
++        $qb = $this->entityManager->createQueryBuilder()
++            ->select('COALESCE(SUM(cd.totalHt), 0)')
++            ->from(CommandesDetails::class, 'cd')
++            ->join('cd.commande', 'c')
++            ->where('cd.machine = :machine')
++            ->setParameter('machine', $machine);
++
++        if ($machine->getDateDebutSuivi() !== null) {
++            $qb
++                ->andWhere('c.dateCommande >= :dateDebutSuivi')
++                ->setParameter('dateDebutSuivi', $machine->getDateDebutSuivi());
++        }
++
++        return (int) $qb->getQuery()->getSingleScalarResult();
++    }
++
++    private function chargeMaintenance(Machines $machine): float
++    {
++        $total = 0.0;
++
++        foreach ($machine->getMaintenances() as $maintenance) {
++            $total += $this->nettoyerMontant($maintenance->getCout());
++        }
++
++        return $total;
++    }
++
++    /**
++     * Charge d'amortissement déjà "consommée" depuis la mise en
++     * service (ou l'achat), plafonnée au prix d'achat total.
++     */
++    private function chargeAmortissementCumulee(Machines $machine): float
++    {
++        $chargeMensuelle = $machine->getChargeAmortissementMensuelle();
++
++        if ($chargeMensuelle === null) {
++            return 0.0;
++        }
++
++        $depart = $machine->getDateMiseService() ?? $machine->getDateAchat();
++
++        if ($depart === null) {
++            return 0.0;
++        }
++
++        $maintenant = new \DateTime();
++        $moisEcoules = $this->moisEcoules($depart, $maintenant);
++        $moisEcoules = max(0, min($moisEcoules, $machine->getDureeAmortissementMois()));
++
++        return $chargeMensuelle * $moisEcoules;
++    }
++
++    private function moisEcoules(\DateTime $depart, \DateTime $maintenant): int
++    {
++        if ($depart > $maintenant) {
++            return 0;
++        }
++
++        $intervalle = $depart->diff($maintenant);
++
++        return ($intervalle->y * 12) + $intervalle->m;
++    }
++
++    private function nettoyerMontant(?string $valeur): float
++    {
++        if ($valeur === null) {
++            return 0.0;
++        }
++
++        $nettoye = str_replace(
++            [' ', "\xC2\xA0", 'F CFA', 'FCFA', ','],
++            ['', '', '', '', '.'],
++            $valeur
++        );
++
++        return is_numeric($nettoye) ? (float) $nettoye : 0.0;
++    }
++}
+diff --git a/templates/machines/index.html.twig b/templates/machines/index.html.twig
+index 161d631..e6e2631 100644
+--- a/templates/machines/index.html.twig
++++ b/templates/machines/index.html.twig
+@@ -25,6 +25,11 @@
+ 			</ol>
+ 
+ 			<div>
++				<a href="{{ path('app_machines_rentabilite') }}" class="btn btn-outline-primary mr-2">
++					<i class="fa fa-line-chart mr-1"></i>
++					Rentabilité
++				</a>
++
+ 				<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#machineCreateModal">
+ 					<i class="fa fa-plus mr-1"></i>
+ 					Ajouter une machine
+@@ -710,6 +715,108 @@
+ 
+ 						</div>
+ 
++
++						<div class="col-12">
++							<hr>
++							<h6 class="text-muted">Rentabilité / amortissement</h6>
++						</div>
++
++
++						{# MODE FACTURATION #}
++						<div class="col-md-4">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineCreateModeFacturation">
++									Mode de facturation
++								</label>
++
++								<select id="machineCreateModeFacturation" class="form-control">
++									<option value="metre_carre" selected>
++										Au mètre carré
++									</option>
++
++									<option value="feuille">
++										À la feuille (A4/A3)
++									</option>
++								</select>
++
++							</div>
++
++						</div>
++
++
++						{# PRIX ACHAT #}
++						<div class="col-md-4">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineCreatePrixAchat">
++									Prix d'achat (F CFA)
++								</label>
++
++								<input type="number" id="machineCreatePrixAchat" class="form-control" min="0" step="1">
++
++							</div>
++
++						</div>
++
++
++						{# DURÉE AMORTISSEMENT #}
++						<div class="col-md-4">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineCreateDureeAmortissementMois">
++									Durée d'amortissement (mois)
++								</label>
++
++								<input type="number" id="machineCreateDureeAmortissementMois" class="form-control" min="0" step="1">
++
++							</div>
++
++						</div>
++
++
++						{# REVENU AVANT SUIVI #}
++						<div class="col-md-6">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineCreateRevenuAvantSuivi">
++									Revenu recap (avant suivi dans l'appli)
++								</label>
++
++								<input type="number" id="machineCreateRevenuAvantSuivi" class="form-control" min="0" step="1" value="0">
++
++								<small class="form-text text-muted">
++									Total déjà facturé par cette machine avant le début du suivi via les commandes (ex : classeur d'amortissement existant).
++								</small>
++
++							</div>
++
++						</div>
++
++
++						{# DATE DÉBUT SUIVI #}
++						<div class="col-md-6">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineCreateDateDebutSuivi">
++									Date de début du suivi
++								</label>
++
++								<input type="date" id="machineCreateDateDebutSuivi" class="form-control">
++
++								<small class="form-text text-muted">
++									Seules les commandes à partir de cette date seront comptées (pour ne pas doubler le revenu recap).
++								</small>
++
++							</div>
++
++						</div>
++
+ 					</div>
+ 
+ 				</div>
+@@ -1024,6 +1131,95 @@
+ 
+ 						</div>
+ 
++
++						<div class="col-12">
++							<hr>
++							<h6 class="text-muted">Rentabilité / amortissement</h6>
++						</div>
++
++
++						<div class="col-md-4">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineEditModeFacturation">
++									Mode de facturation
++								</label>
++
++								<select id="machineEditModeFacturation" class="form-control">
++									<option value="metre_carre">
++										Au mètre carré
++									</option>
++
++									<option value="feuille">
++										À la feuille (A4/A3)
++									</option>
++								</select>
++
++							</div>
++
++						</div>
++
++
++						<div class="col-md-4">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineEditPrixAchat">
++									Prix d'achat (F CFA)
++								</label>
++
++								<input type="number" id="machineEditPrixAchat" class="form-control" min="0" step="1">
++
++							</div>
++
++						</div>
++
++
++						<div class="col-md-4">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineEditDureeAmortissementMois">
++									Durée d'amortissement (mois)
++								</label>
++
++								<input type="number" id="machineEditDureeAmortissementMois" class="form-control" min="0" step="1">
++
++							</div>
++
++						</div>
++
++
++						<div class="col-md-6">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineEditRevenuAvantSuivi">
++									Revenu recap (avant suivi dans l'appli)
++								</label>
++
++								<input type="number" id="machineEditRevenuAvantSuivi" class="form-control" min="0" step="1">
++
++							</div>
++
++						</div>
++
++
++						<div class="col-md-6">
++
++							<div class="form-group">
++
++								<label class="form-label" for="machineEditDateDebutSuivi">
++									Date de début du suivi
++								</label>
++
++								<input type="date" id="machineEditDateDebutSuivi" class="form-control">
++
++							</div>
++
++						</div>
++
+ 					</div>
+ 
+ 				</div>
+@@ -1274,6 +1470,16 @@ const compteurHeures = valeur('machineCreateCompteurHeures');
+ 
+ const etat = valeur('machineCreateEtat');
+ 
++const modeFacturation = valeur('machineCreateModeFacturation');
++
++const prixAchat = valeur('machineCreatePrixAchat');
++
++const dureeAmortissementMois = valeur('machineCreateDureeAmortissementMois');
++
++const revenuAvantSuivi = valeur('machineCreateRevenuAvantSuivi');
++
++const dateDebutSuivi = valeur('machineCreateDateDebutSuivi');
++
+ /*
+ 		                 * Validation rapide côté navigateur.
+ 		                 */
+@@ -1391,6 +1597,16 @@ formData.append('compteurHeures', compteurHeures || '0');
+ 
+ formData.append('etat', etat || 'disponible');
+ 
++formData.append('modeFacturation', modeFacturation || 'metre_carre');
++
++formData.append('prixAchat', prixAchat);
++
++formData.append('dureeAmortissementMois', dureeAmortissementMois);
++
++formData.append('revenuAvantSuivi', revenuAvantSuivi || '0');
++
++formData.append('dateDebutSuivi', dateDebutSuivi);
++
+ const response = await fetch(createUrl, {
+ method: 'POST',
+ body: formData,
+@@ -1549,6 +1765,16 @@ definirValeur('machineEditCompteurHeures', machine.compteurHeures ?? 0);
+ 
+ definirValeur('machineEditEtat', machine.etat || 'disponible');
+ 
++definirValeur('machineEditModeFacturation', machine.modeFacturation || 'metre_carre');
++
++definirValeur('machineEditPrixAchat', machine.prixAchat);
++
++definirValeur('machineEditDureeAmortissementMois', machine.dureeAmortissementMois);
++
++definirValeur('machineEditRevenuAvantSuivi', machine.revenuAvantSuivi ?? 0);
++
++definirValeur('machineEditDateDebutSuivi', machine.dateDebutSuivi);
++
+ } catch (error) {
+ 
+ Swal.close();
+@@ -1601,6 +1827,16 @@ const compteurHeures = valeur('machineEditCompteurHeures');
+ 
+ const etat = valeur('machineEditEtat');
+ 
++const modeFacturation = valeur('machineEditModeFacturation');
++
++const prixAchat = valeur('machineEditPrixAchat');
++
++const dureeAmortissementMois = valeur('machineEditDureeAmortissementMois');
++
++const revenuAvantSuivi = valeur('machineEditRevenuAvantSuivi');
++
++const dateDebutSuivi = valeur('machineEditDateDebutSuivi');
++
+ if (! updateUrl) {
+ afficherErreur('URL de modification introuvable.');
+ return;
+@@ -1719,6 +1955,16 @@ formData.append('compteurHeures', compteurHeures || '0');
+ 
+ formData.append('etat', etat || 'disponible');
+ 
++formData.append('modeFacturation', modeFacturation || 'metre_carre');
++
++formData.append('prixAchat', prixAchat);
++
++formData.append('dureeAmortissementMois', dureeAmortissementMois);
++
++formData.append('revenuAvantSuivi', revenuAvantSuivi || '0');
++
++formData.append('dateDebutSuivi', dateDebutSuivi);
++
+ const response = await fetch(updateUrl, {
+ method: 'POST',
+ body: formData,
+diff --git a/templates/machines/rentabilite.html.twig b/templates/machines/rentabilite.html.twig
+new file mode 100644
+index 0000000..892b8c9
+--- /dev/null
++++ b/templates/machines/rentabilite.html.twig
+@@ -0,0 +1,108 @@
++{% extends 'base.html.twig' %}
++
++{% block title %}
++	Rentabilité des machines
++{% endblock %}
++
++{% block body %}
++
++	<div class="side-app">
++
++		<div class="page-header">
++
++			<ol class="breadcrumb">
++				<li class="breadcrumb-item">
++					<a href="{{ path('app_machines_index') }}">Machines</a>
++				</li>
++
++				<li class="breadcrumb-item active" aria-current="page">
++					Rentabilité
++				</li>
++			</ol>
++
++			<div>
++				<a href="{{ path('app_machines_index') }}" class="btn btn-secondary">
++					<i class="fa fa-arrow-left mr-1"></i>
++					Retour aux machines
++				</a>
++			</div>
++
++		</div>
++
++		<div class="card">
++
++			<div class="card-header">
++				<h3 class="card-title">
++					Ce que rapporte chaque machine
++				</h3>
++			</div>
++
++			<div class="table-responsive">
++				<table class="table table-hover mb-0">
++					<thead>
++						<tr>
++							<th>Machine</th>
++							<th>Mode de facturation</th>
++							<th class="text-right">Revenu recap</th>
++							<th class="text-right">Revenu commandes</th>
++							<th class="text-right">Revenu total</th>
++							<th class="text-right">Charge amortissement</th>
++							<th class="text-right">Charge maintenance</th>
++							<th class="text-right">Marge nette</th>
++						</tr>
++					</thead>
++					<tbody>
++						{% for r in rentabilites %}
++							<tr>
++								<td>
++									<strong>{{ r.machine.nom }}</strong>
++									<div class="text-muted small">{{ r.machine.marque }} {{ r.machine.modeles }}</div>
++								</td>
++								<td>
++									<span class="badge badge-info">{{ r.machine.modeFacturationLabel }}</span>
++								</td>
++								<td class="text-right">{{ r.revenuAvantSuivi|number_format(0, ',', ' ') }} F CFA</td>
++								<td class="text-right">{{ r.revenuCommandes|number_format(0, ',', ' ') }} F CFA</td>
++								<td class="text-right font-weight-bold">{{ r.revenuTotal|number_format(0, ',', ' ') }} F CFA</td>
++								<td class="text-right text-danger">
++									{% if r.machine.chargeAmortissementMensuelle is not null %}
++										- {{ r.chargeAmortissement|number_format(0, ',', ' ') }} F CFA
++										<div class="text-muted small">({{ r.machine.chargeAmortissementMensuelle|number_format(0, ',', ' ') }} F CFA / mois)</div>
++									{% else %}
++										<span class="text-muted">Non renseigné</span>
++									{% endif %}
++								</td>
++								<td class="text-right text-danger">
++									{% if r.chargeMaintenance > 0 %}
++										- {{ r.chargeMaintenance|number_format(0, ',', ' ') }} F CFA
++									{% else %}
++										<span class="text-muted">0 F CFA</span>
++									{% endif %}
++								</td>
++								<td class="text-right font-weight-bold {{ r.margeNette >= 0 ? 'text-success' : 'text-danger' }}">
++									{{ r.margeNette|number_format(0, ',', ' ') }} F CFA
++								</td>
++							</tr>
++						{% else %}
++							<tr>
++								<td colspan="8" class="text-center text-muted py-4">
++									Aucune machine enregistrée.
++								</td>
++							</tr>
++						{% endfor %}
++					</tbody>
++				</table>
++			</div>
++
++		</div>
++
++		<p class="text-muted small mt-2">
++			<i class="fa fa-info-circle mr-1"></i>
++			« Revenu recap » = total facturé par la machine avant le début du suivi applicatif (import du classeur d'amortissement).
++			« Revenu commandes » = somme des commandes liées à cette machine dans l'application depuis sa date de début de suivi.
++			La charge d'amortissement est calculée au prorata des mois écoulés depuis la mise en service, plafonnée à la durée d'amortissement.
++		</p>
++
++	</div>
++
++{% endblock %}
+-- 
+2.43.0
+

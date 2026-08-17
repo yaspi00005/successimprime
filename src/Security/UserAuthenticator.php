@@ -158,6 +158,29 @@ final class UserAuthenticator extends AbstractLoginFormAuthenticator
 
         /*
          * ========================================================
+         * LIVREUR
+         * ========================================================
+         *
+         * Un livreur n'a accès qu'à la livraison : il arrive
+         * toujours directement sur cette page, sans tenir compte
+         * d'une éventuelle page demandée avant la connexion.
+         * ========================================================
+         */
+
+        $utilisateur = $token->getUser();
+
+        if (
+            $utilisateur instanceof User
+            && $utilisateur->isLivreur()
+            && !$utilisateur->isAdmin()
+        ) {
+            return new RedirectResponse(
+                $this->urlGenerator->generate('app_livraisons_index')
+            );
+        }
+
+        /*
+         * ========================================================
          * PAGE DEMANDÉE AVANT LOGIN
          * ========================================================
          *

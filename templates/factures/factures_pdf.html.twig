@@ -474,6 +474,36 @@
 						</div>
 
 
+					{% elseif emetteur == 'mdg' %}
+
+						{% if documents.mdg.logo %}
+
+							<img src="{{ documents.mdg.logo }}" class="logo-mdg" alt="Madial Group">
+
+						{% endif %}
+
+						<div class="company-name">
+							MADIAL GROUP SARL
+						</div>
+
+						<div class="company-info">
+
+							Bamako, Sotuba ACI
+							<br>
+
+							Tél. :
+							                    +223 78 47 87 42
+							<br>
+
+							RCCM :
+							                    MA.BKO.2026.B.1404
+							<br>
+
+							NIF :
+							                    081148957D
+
+						</div>
+
 					{% else %}
 
 						<table style="

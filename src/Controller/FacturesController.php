@@ -6,9 +6,11 @@ use App\Entity\Commandes;
 use App\Entity\Factures;
 use App\Form\FacturesType;
 use App\Repository\FacturesRepository;
+use App\Service\WhatsAppService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -1581,6 +1583,127 @@ public function pdf(
         ]
     );
 }
+
+    /*
+     * Version publique du PDF, accessible sans connexion via le
+     * jeton d'authenticite de la facture (deja genere au PrePersist).
+     * Sert de lien a partager par WhatsApp/e-mail au client : ce
+     * dernier n'a pas de compte sur l'application.
+     */
+    #[Route(
+        '/{id}/pdf-public/{token}',
+        name: 'app_factures_pdf_public',
+        requirements: [
+            'id' => '\d+',
+        ],
+        methods: ['GET']
+    )]
+    public function pdfPublic(
+        Factures $facture,
+        string $token,
+        EntityManagerInterface $entityManager
+    ): Response {
+        $tokenAttendu = (string) $facture->getTokenAuthenticite();
+
+        if (
+            $tokenAttendu === ''
+            || !hash_equals($tokenAttendu, $token)
+        ) {
+            throw $this->createNotFoundException(
+                'Document introuvable.'
+            );
+        }
+
+        return $this->pdf($facture, $entityManager);
+    }
+
+    /*
+     * Envoie la facture par WhatsApp au client (API WhatsApp Business
+     * de Meta), sous forme de modele avec le PDF en lien de
+     * telechargement (route publique pdf-public ci-dessus).
+     */
+    #[Route(
+        '/{id}/whatsapp',
+        name: 'app_factures_whatsapp',
+        requirements: [
+            'id' => '\d+',
+        ],
+        methods: ['POST']
+    )]
+    public function envoyerWhatsapp(
+        Factures $facture,
+        Request $request,
+        WhatsAppService $whatsAppService
+    ): JsonResponse {
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        if (!$this->isCsrfTokenValid(
+            'whatsapp_facture_' . $facture->getId(),
+            $data['_token'] ?? null
+        )) {
+            return $this->json(
+                ['success' => false, 'message' => 'Jeton de sécurité invalide.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        if (!$whatsAppService->estConfigure()) {
+            return $this->json(
+                [
+                    'success' => false,
+                    'message' => "L'envoi WhatsApp n'est pas configuré : "
+                        . "le compte Meta Business (jeton, numéro) n'a pas été renseigné.",
+                ],
+                Response::HTTP_SERVICE_UNAVAILABLE
+            );
+        }
+
+        $client = $facture->getCommande()?->getClients();
+        $telephone = $client?->getTelephone();
+
+        if (!$client || !$telephone) {
+            return $this->json(
+                ['success' => false, 'message' => "Ce client n'a pas de numéro de téléphone enregistré."],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $lienDocument = $this->generateUrl(
+            'app_factures_pdf_public',
+            [
+                'id' => $facture->getId(),
+                'token' => $facture->getTokenAuthenticite(),
+            ],
+            UrlGeneratorInterface::ABSOLUTE_URL
+        );
+
+        $numero = $facture->getNumero() ?? ('#' . $facture->getId());
+
+        $nomClient = trim((string) $client->getRaisonSociale())
+            ?: trim(trim((string) $client->getPrenom()) . ' ' . trim((string) $client->getNom()))
+            ?: 'Client';
+
+        try {
+            $whatsAppService->envoyerDocument(
+                $telephone,
+                $this->getParameter('app.whatsapp_template_document'),
+                $lienDocument,
+                $numero . '.pdf',
+                [$nomClient, 'facture', $numero]
+            );
+        } catch (\Throwable $exception) {
+            return $this->json(
+                ['success' => false, 'message' => "L'envoi a échoué : " . $exception->getMessage()],
+                Response::HTTP_BAD_GATEWAY
+            );
+        }
+
+        return $this->json([
+            'success' => true,
+            'message' => 'La facture a été envoyée par WhatsApp.',
+        ]);
+    }
+
     private function imageVersDataUri(
         string $chemin
     ): ?string {

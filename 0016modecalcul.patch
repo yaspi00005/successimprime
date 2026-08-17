@@ -1,0 +1,75 @@
+From c8632655a67a5ac53a95c1c0409402ca5491427c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 15 Aug 2026 23:48:10 +0000
+Subject: [PATCH] Corriger les valeurs de mode_calcul dans le modal
+ produit_configuration
+
+Les listes deroulantes utilisaient forfait/unitaire/surface/longueur,
+des valeurs que ProduitConfiguration::setModeCalcul() et
+ProduitConfigurationFinition::setModeCalcul() ne reconnaissent pas et
+retombent silencieusement sur 'forfait'. Alignement sur les enums reels
+des entites, et ajout d'une classe stable sur le badge de statut pour
+la mise a jour JS.
+---
+ .../produit_configuration/index.html.twig     | 23 +++++++++++--------
+ 1 file changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/templates/produit_configuration/index.html.twig b/templates/produit_configuration/index.html.twig
+index 2f945ec..c91d70a 100644
+--- a/templates/produit_configuration/index.html.twig
++++ b/templates/produit_configuration/index.html.twig
+@@ -295,17 +295,17 @@
+ 
+                                 </td>
+ 
+-                                <td class="text-center align-middle">
++                                <td class="text-center align-middle configuration-status-cell">
+ 
+                                     {% if configuration.active %}
+ 
+-                                        <span class="badge badge-success">
++                                        <span class="badge badge-success configuration-status-badge">
+                                             Publié
+                                         </span>
+ 
+                                     {% else %}
+ 
+-                                        <span class="badge badge-danger">
++                                        <span class="badge badge-danger configuration-status-badge">
+                                             Non publié
+                                         </span>
+ 
+@@ -571,9 +571,10 @@
+                         <label for="configurationModeCalcul">Mode de calcul</label>
+                         <select class="form-control" id="configurationModeCalcul">
+                             <option value="forfait">Forfait</option>
+-                            <option value="unitaire">Unitaire</option>
+-                            <option value="surface">Surface</option>
+-                            <option value="longueur">Longueur</option>
++                            <option value="unite">À l’unité</option>
++                            <option value="metre">Au mètre</option>
++                            <option value="metre_carre">Au mètre carré</option>
++                            <option value="heure">À l’heure</option>
+                         </select>
+                     </div>
+ 
+@@ -704,9 +705,13 @@
+                 <label>Mode de calcul</label>
+                 <select class="form-control finition-mode">
+                     <option value="forfait">Forfait</option>
+-                    <option value="unitaire">Unitaire</option>
+-                    <option value="surface">Surface</option>
+-                    <option value="longueur">Longueur</option>
++                    <option value="unite">À l’unité</option>
++                    <option value="feuille">À la feuille</option>
++                    <option value="exemplaire">Par exemplaire</option>
++                    <option value="metre">Au mètre</option>
++                    <option value="metre_carre">Au mètre carré</option>
++                    <option value="point">Au point</option>
++                    <option value="face">Par face</option>
+                 </select>
+             </div>
+ 
+-- 
+2.43.0
+

@@ -23,8 +23,8 @@
 		class="side-app">
 
 		{# =====================================================
-																								           EN-TÊTE
-																								           ===================================================== #}
+																										           EN-TÊTE
+																										           ===================================================== #}
 
 		<div class="page-header">
 
@@ -52,8 +52,8 @@
 
 
 				{# =============================================
-																																																                   CONVERSION DU DEVIS EN COMMANDE
-																																																                   ============================================= #}
+																																																				                   CONVERSION DU DEVIS EN COMMANDE
+																																																				                   ============================================= #}
 
 				{% if
                     devis.statut == 'accepte'
@@ -61,10 +61,10 @@
                 %}
 
 					<form method="post" action="{{ path( 'app_devis_convertir_commande', { id: devis.id } ) }}" class="d-inline mr-2 mb-1" onsubmit="
-																																																																																				                            return confirm(
-																																																																																				                                'Valider ce devis et créer définitivement la commande ?'
-																																																																																				                            );
-																																																																																				                        ">
+																																																																																											                            return confirm(
+																																																																																											                                'Valider ce devis et créer définitivement la commande ?'
+																																																																																											                            );
+																																																																																											                        ">
 
 						<input type="hidden" name="_token" value="{{ csrf_token( 'convertir-devis-' ~ devis.id ) }}">
 
@@ -86,8 +86,8 @@
 
 
 				{# =============================================
-																																																                   MODIFIER
-																																																                   ============================================= #}
+																																																				                   MODIFIER
+																																																				                   ============================================= #}
 
 				<a href="{{ path( 'app_devis_edit', { id: devis.id } ) }}" class="btn btn-sm btn-primary mr-2 mb-1">
 					<i class="fe fe-edit-2 mr-1"></i>
@@ -96,8 +96,8 @@
 
 
 				{# =============================================
-																																																                   IMPRIMER
-																																																                   ============================================= #}
+																																																				                   IMPRIMER
+																																																				                   ============================================= #}
 
 				<button type="button" class="btn btn-sm btn-secondary mb-1" onclick="window.print()">
 					<i class="fe fe-printer mr-1"></i>
@@ -107,26 +107,31 @@
 					<i class="fa fa-file-pdf-o mr-1"></i>
 					Télécharger PDF
 				</a>
+
+				<button type="button" class="btn btn-sm btn-success mb-1 js-envoyer-whatsapp" data-url="{{ path( 'app_devis_whatsapp', { id: devis.id } ) }}" data-token="{{ csrf_token( 'whatsapp_devis_' ~ devis.id ) }}" data-numero="{{ devis.numero|default( '#' ~ devis.id ) }}">
+					<i class="fa fa-whatsapp mr-1"></i>
+					Envoyer par WhatsApp
+				</button>
 			</div>
 
 		</div>
 
 
 		{# =====================================================
-																								           MESSAGES FLASH
-																								           ===================================================== #}
+																										           MESSAGES FLASH
+																										           ===================================================== #}
 
 		{% for type, messages in app.flashes %}
 
 			{% for message in messages %}
 
 				<div class="
-																																																																								                        alert
-																																																																								                        alert-{{ type == 'error' ? 'danger' : type }}
-																																																																								                        alert-dismissible
-																																																																								                        fade
-																																																																								                        show
-																																																																								                    ">
+																																																																														                        alert
+																																																																														                        alert-{{ type == 'error' ? 'danger' : type }}
+																																																																														                        alert-dismissible
+																																																																														                        fade
+																																																																														                        show
+																																																																														                    ">
 
 					{{ message }}
 
@@ -145,19 +150,19 @@
 			class="row">
 
 			{# =================================================
-																																				               COLONNE PRINCIPALE
-																																				               ================================================= #}
+																																							               COLONNE PRINCIPALE
+																																							               ================================================= #}
 
 			<div class="col-xl-8 col-lg-8">
 
 				<div class="card">
 
 					<div class="
-																																																																																				                            card-header
-																																																																																				                            d-flex
-																																																																																				                            justify-content-between
-																																																																																				                            align-items-center
-																																																																																				                        ">
+																																																																																											                            card-header
+																																																																																											                            d-flex
+																																																																																											                            justify-content-between
+																																																																																											                            align-items-center
+																																																																																											                        ">
 
 						<div>
 
@@ -195,12 +200,12 @@
 
 
 						<span class="
-																																																																																																                                badge
-																																																																																																                                badge-{{
-																																																																																																                                    statutClasses[statut]
-																																																																																																                                    |default('secondary')
-																																																																																																                                }}
-																																																																																																                            ">
+																																																																																																								                                badge
+																																																																																																								                                badge-{{
+																																																																																																								                                    statutClasses[statut]
+																																																																																																								                                    |default('secondary')
+																																																																																																								                                }}
+																																																																																																								                            ">
 							{{
                                 statutLibelles[statut]
                                 |default(
@@ -253,26 +258,26 @@
 									class="detail-devis-show border rounded mb-4">
 
 									{# =====================================
-																																																																																																												                                       EN-TÊTE DU TRAVAIL
-																																																																																																												                                       ===================================== #}
+																																																																																																																					                                       EN-TÊTE DU TRAVAIL
+																																																																																																																					                                       ===================================== #}
 
 									<div class="
-																																																																																																																																				                                            bg-light
-																																																																																																																																				                                            border-bottom
-																																																																																																																																				                                            p-3
-																																																																																																																																				                                            d-flex
-																																																																																																																																				                                            justify-content-between
-																																																																																																																																				                                            align-items-center
-																																																																																																																																				                                        ">
+																																																																																																																																															                                            bg-light
+																																																																																																																																															                                            border-bottom
+																																																																																																																																															                                            p-3
+																																																																																																																																															                                            d-flex
+																																																																																																																																															                                            justify-content-between
+																																																																																																																																															                                            align-items-center
+																																																																																																																																															                                        ">
 
 										<div>
 
 											<div class="text-primary
-																																																																																																																																																												                                                    d-flex
-																																																																																																																																																												                                                    flex-wrap
-																																																																																																																																																												                                                    align-items-center
-																																																																																																																																																												                                                    mb-1
-																																																																																																																																																												                                                ">
+																																																																																																																																																																									                                                    d-flex
+																																																																																																																																																																									                                                    flex-wrap
+																																																																																																																																																																									                                                    align-items-center
+																																																																																																																																																																									                                                    mb-1
+																																																																																																																																																																									                                                ">
 
 												<h5 class="mb-0 mr-2">
 
@@ -352,8 +357,8 @@
 										class="p-3 ">
 
 										{# =================================
-																																																																																																																								                                           ARTICLE EN STOCK
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           ARTICLE EN STOCK
+																																																																																																																																		                                           ================================= #}
 
 										{% if typeLigne == 'article' %}
 
@@ -415,8 +420,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           PRODUIT / PRESTATION
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           PRODUIT / PRESTATION
+																																																																																																																																		                                           ================================= #}
 
 										{% if typeLigne == 'produit' %}
 
@@ -529,8 +534,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           SAISIE LIBRE
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           SAISIE LIBRE
+																																																																																																																																		                                           ================================= #}
 
 										{% if typeLigne == 'libre' %}
 
@@ -539,8 +544,8 @@
 												<i class="fa fa-edit mr-1"></i>
 
 												Cette ligne a été saisie librement
-																																																																																																																																																                                                et ne dépend pas d’un produit
-																																																																																																																																																                                                ou d’un article du catalogue.
+																																																																																																																																																												                                                et ne dépend pas d’un produit
+																																																																																																																																																												                                                ou d’un article du catalogue.
 
 											</div>
 
@@ -548,8 +553,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           QUANTITÉ / PRIX / MODE
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           QUANTITÉ / PRIX / MODE
+																																																																																																																																		                                           ================================= #}
 
 										<div class="row">
 
@@ -651,8 +656,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           DIMENSIONS
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           DIMENSIONS
+																																																																																																																																		                                           ================================= #}
 
 										{% if
                                             detail.largeur|default(null)
@@ -758,8 +763,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           FINITIONS
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           FINITIONS
+																																																																																																																																		                                           ================================= #}
 
 										{% if
                                             typeLigne == 'produit'
@@ -777,11 +782,11 @@
 												<div class="table-responsive">
 
 													<table class="
-																																																																																																																																																																																				                                                            table
-																																																																																																																																																																																				                                                            table-sm
-																																																																																																																																																																																				                                                            table-bordered
-																																																																																																																																																																																				                                                            mb-0
-																																																																																																																																																																																				                                                        ">
+																																																																																																																																																																																																			                                                            table
+																																																																																																																																																																																																			                                                            table-sm
+																																																																																																																																																																																																			                                                            table-bordered
+																																																																																																																																																																																																			                                                            mb-0
+																																																																																																																																																																																																			                                                        ">
 
 														<thead class="bg-light">
 
@@ -875,9 +880,9 @@
 
 
 																	<td class="
-																																																																																																																																																																																																																																				                                                                            text-right
-																																																																																																																																																																																																																																				                                                                            font-weight-bold
-																																																																																																																																																																																																																																				                                                                        ">
+																																																																																																																																																																																																																																																							                                                                            text-right
+																																																																																																																																																																																																																																																							                                                                            font-weight-bold
+																																																																																																																																																																																																																																																							                                                                        ">
 
 																		{{
                                                                             finition.montant
@@ -908,8 +913,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           CARACTÉRISTIQUES TECHNIQUES
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           CARACTÉRISTIQUES TECHNIQUES
+																																																																																																																																		                                           ================================= #}
 
 										{% if typeLigne == 'produit' %}
 
@@ -1082,8 +1087,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           PRIORITÉ / TEMPS / BAT
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           PRIORITÉ / TEMPS / BAT
+																																																																																																																																		                                           ================================= #}
 
 										{% if typeLigne == 'produit' %}
 
@@ -1106,15 +1111,15 @@
 
 
 														<span class="
-																																																																																																																																																																																																                                                                badge
-																																																																																																																																																																																																                                                                badge-{{
-																																																																																																																																																																																																                                                                    prioriteClasses[
-																																																																																																																																																																																																                                                                        detail.priorite
-																																																																																																																																																																																																                                                                        |default('normale')
-																																																																																																																																																																																																                                                                    ]
-																																																																																																																																																																																																                                                                    |default('primary')
-																																																																																																																																																																																																                                                                }}
-																																																																																																																																																																																																                                                            ">
+																																																																																																																																																																																																																                                                                badge
+																																																																																																																																																																																																																                                                                badge-{{
+																																																																																																																																																																																																																                                                                    prioriteClasses[
+																																																																																																																																																																																																																                                                                        detail.priorite
+																																																																																																																																																																																																																                                                                        |default('normale')
+																																																																																																																																																																																																																                                                                    ]
+																																																																																																																																																																																																																                                                                    |default('primary')
+																																																																																																																																																																																																																                                                                }}
+																																																																																																																																																																																																																                                                            ">
 
 															{{
                                                                 detail.priorite
@@ -1191,8 +1196,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           OBSERVATION
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           OBSERVATION
+																																																																																																																																		                                           ================================= #}
 
 										{% if detail.observation|default('') %}
 
@@ -1217,8 +1222,8 @@
 
 
 										{# =================================
-																																																																																																																								                                           TOTAUX LIGNE
-																																																																																																																								                                           ================================= #}
+																																																																																																																																		                                           TOTAUX LIGNE
+																																																																																																																																		                                           ================================= #}
 
 										<div class="border-top pt-3 mt-3">
 
@@ -1264,10 +1269,10 @@
 
 
 												<div class="
-																																																																																																																																																																								                                                        col-md-4
-																																																																																																																																																																								                                                        text-md-right
-																																																																																																																																																																								                                                        mb-2
-																																																																																																																																																																								                                                    ">
+																																																																																																																																																																																						                                                        col-md-4
+																																																																																																																																																																																						                                                        text-md-right
+																																																																																																																																																																																						                                                        mb-2
+																																																																																																																																																																																						                                                    ">
 
 													<small class="text-muted d-block">
 														Total TTC
@@ -1310,15 +1315,15 @@
 
 
 			{# =================================================
-																																				               COLONNE DROITE
-																																				               ================================================= #}
+																																							               COLONNE DROITE
+																																							               ================================================= #}
 
 			<div
 				class="col-xl-4 col-lg-4">
 
 				{# =============================================
-																																																                   CLIENT
-																																																                   ============================================= #}
+																																																				                   CLIENT
+																																																				                   ============================================= #}
 
 				<div class="card">
 
@@ -1405,8 +1410,8 @@
 
 
 				{# =============================================
-																																																                   INFORMATIONS DU DEVIS
-																																																                   ============================================= #}
+																																																				                   INFORMATIONS DU DEVIS
+																																																				                   ============================================= #}
 
 				<div class="card">
 
@@ -1497,8 +1502,8 @@
 
 
 				{# =============================================
-																																																                   RÉCAPITULATIF
-																																																                   ============================================= #}
+																																																				                   RÉCAPITULATIF
+																																																				                   ============================================= #}
 
 				<div class="card">
 
@@ -1630,8 +1635,8 @@
 
 
 				{# =============================================
-																																																                   OBSERVATION GÉNÉRALE
-																																																                   ============================================= #}
+																																																				                   OBSERVATION GÉNÉRALE
+																																																				                   ============================================= #}
 
 				{% if devis.observation|default('') %}
 
@@ -1820,5 +1825,67 @@
 			color: #212529 !important;
 		}
 	</style>
+
+{% endblock %}
+
+{% block javascripts %}
+
+	{{ parent() }}
+
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+	<script>
+
+		document.addEventListener('DOMContentLoaded', function () {
+
+document.querySelectorAll('.js-envoyer-whatsapp').forEach(function (bouton) {
+
+bouton.addEventListener('click', function () {
+
+const numero = bouton.dataset.numero || 'ce document';
+
+Swal.fire({
+icon: 'question',
+title: 'Envoyer ' + numero + ' par WhatsApp ?',
+text: 'Le PDF sera envoyé au numéro WhatsApp enregistré pour ce client.',
+showCancelButton: true,
+confirmButtonText: 'Envoyer',
+cancelButtonText: 'Annuler'
+}).then(function (resultat) {
+
+if (! resultat.isConfirmed) {
+return;
+}
+
+bouton.disabled = true;
+
+fetch(bouton.dataset.url, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+Accept: 'application/json',
+'X-Requested-With': 'XMLHttpRequest'
+},
+body: JSON.stringify(
+{_token: bouton.dataset.token}
+)
+}).then(function (reponse) {
+return reponse.json();
+}).then(function (donnees) {
+Swal.fire({
+icon: donnees.success ? 'success' : 'error',
+title: donnees.success ? 'Envoyé' : 'Erreur',
+text: donnees.message
+});
+}).catch(function () {
+Swal.fire({icon: 'error', title: 'Erreur', text: "La requête n'a pas pu aboutir."});
+}). finally(function () {
+bouton.disabled = false;
+});
+});
+});
+});
+});
+	</script>
 
 {% endblock %}

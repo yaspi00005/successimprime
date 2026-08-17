@@ -51,9 +51,7 @@ final class SecurityController extends AbstractController
             instanceof User
         ) {
 
-            return $this->redirect(
-                '/'
-            );
+            return $this->redirectionApresConnexion();
         }
 
 
@@ -203,9 +201,7 @@ final class SecurityController extends AbstractController
             instanceof User
         ) {
 
-            return $this->redirect(
-                '/'
-            );
+            return $this->redirectionApresConnexion();
         }
 
 
@@ -390,5 +386,30 @@ final class SecurityController extends AbstractController
         throw new \LogicException(
             'Cette méthode est interceptée par le firewall Symfony.'
         );
+    }
+
+    /*
+     * ============================================================
+     * REDIRECTION APRÈS CONNEXION (UTILISATEUR DÉJÀ AUTHENTIFIÉ)
+     * ============================================================
+     *
+     * Un livreur revenant sur /login ou /lockscreen une fois
+     * connecté doit atterrir directement sur les livraisons,
+     * comme lors d'une connexion normale.
+     * ============================================================
+     */
+    private function redirectionApresConnexion(): Response
+    {
+        $utilisateur = $this->getUser();
+
+        if (
+            $utilisateur instanceof User
+            && $utilisateur->isLivreur()
+            && !$utilisateur->isAdmin()
+        ) {
+            return $this->redirectToRoute('app_livraisons_index');
+        }
+
+        return $this->redirect('/');
     }
 }

@@ -25,6 +25,11 @@
 			</ol>
 
 			<div>
+				<a href="{{ path('app_machines_rentabilite') }}" class="btn btn-outline-primary mr-2">
+					<i class="fa fa-line-chart mr-1"></i>
+					Rentabilité
+				</a>
+
 				<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#machineCreateModal">
 					<i class="fa fa-plus mr-1"></i>
 					Ajouter une machine
@@ -710,6 +715,108 @@
 
 						</div>
 
+
+						<div class="col-12">
+							<hr>
+							<h6 class="text-muted">Rentabilité / amortissement</h6>
+						</div>
+
+
+						{# MODE FACTURATION #}
+						<div class="col-md-4">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineCreateModeFacturation">
+									Mode de facturation
+								</label>
+
+								<select id="machineCreateModeFacturation" class="form-control">
+									<option value="metre_carre" selected>
+										Au mètre carré
+									</option>
+
+									<option value="feuille">
+										À la feuille (A4/A3)
+									</option>
+								</select>
+
+							</div>
+
+						</div>
+
+
+						{# PRIX ACHAT #}
+						<div class="col-md-4">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineCreatePrixAchat">
+									Prix d'achat (F CFA)
+								</label>
+
+								<input type="number" id="machineCreatePrixAchat" class="form-control" min="0" step="1">
+
+							</div>
+
+						</div>
+
+
+						{# DURÉE AMORTISSEMENT #}
+						<div class="col-md-4">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineCreateDureeAmortissementMois">
+									Durée d'amortissement (mois)
+								</label>
+
+								<input type="number" id="machineCreateDureeAmortissementMois" class="form-control" min="0" step="1">
+
+							</div>
+
+						</div>
+
+
+						{# REVENU AVANT SUIVI #}
+						<div class="col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineCreateRevenuAvantSuivi">
+									Revenu recap (avant suivi dans l'appli)
+								</label>
+
+								<input type="number" id="machineCreateRevenuAvantSuivi" class="form-control" min="0" step="1" value="0">
+
+								<small class="form-text text-muted">
+									Total déjà facturé par cette machine avant le début du suivi via les commandes (ex : classeur d'amortissement existant).
+								</small>
+
+							</div>
+
+						</div>
+
+
+						{# DATE DÉBUT SUIVI #}
+						<div class="col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineCreateDateDebutSuivi">
+									Date de début du suivi
+								</label>
+
+								<input type="date" id="machineCreateDateDebutSuivi" class="form-control">
+
+								<small class="form-text text-muted">
+									Seules les commandes à partir de cette date seront comptées (pour ne pas doubler le revenu recap).
+								</small>
+
+							</div>
+
+						</div>
+
 					</div>
 
 				</div>
@@ -1024,6 +1131,95 @@
 
 						</div>
 
+
+						<div class="col-12">
+							<hr>
+							<h6 class="text-muted">Rentabilité / amortissement</h6>
+						</div>
+
+
+						<div class="col-md-4">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineEditModeFacturation">
+									Mode de facturation
+								</label>
+
+								<select id="machineEditModeFacturation" class="form-control">
+									<option value="metre_carre">
+										Au mètre carré
+									</option>
+
+									<option value="feuille">
+										À la feuille (A4/A3)
+									</option>
+								</select>
+
+							</div>
+
+						</div>
+
+
+						<div class="col-md-4">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineEditPrixAchat">
+									Prix d'achat (F CFA)
+								</label>
+
+								<input type="number" id="machineEditPrixAchat" class="form-control" min="0" step="1">
+
+							</div>
+
+						</div>
+
+
+						<div class="col-md-4">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineEditDureeAmortissementMois">
+									Durée d'amortissement (mois)
+								</label>
+
+								<input type="number" id="machineEditDureeAmortissementMois" class="form-control" min="0" step="1">
+
+							</div>
+
+						</div>
+
+
+						<div class="col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineEditRevenuAvantSuivi">
+									Revenu recap (avant suivi dans l'appli)
+								</label>
+
+								<input type="number" id="machineEditRevenuAvantSuivi" class="form-control" min="0" step="1">
+
+							</div>
+
+						</div>
+
+
+						<div class="col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineEditDateDebutSuivi">
+									Date de début du suivi
+								</label>
+
+								<input type="date" id="machineEditDateDebutSuivi" class="form-control">
+
+							</div>
+
+						</div>
+
 					</div>
 
 				</div>
@@ -1274,6 +1470,16 @@ const compteurHeures = valeur('machineCreateCompteurHeures');
 
 const etat = valeur('machineCreateEtat');
 
+const modeFacturation = valeur('machineCreateModeFacturation');
+
+const prixAchat = valeur('machineCreatePrixAchat');
+
+const dureeAmortissementMois = valeur('machineCreateDureeAmortissementMois');
+
+const revenuAvantSuivi = valeur('machineCreateRevenuAvantSuivi');
+
+const dateDebutSuivi = valeur('machineCreateDateDebutSuivi');
+
 /*
 		                 * Validation rapide côté navigateur.
 		                 */
@@ -1390,6 +1596,16 @@ formData.append('compteurM2', compteurM2 || '0');
 formData.append('compteurHeures', compteurHeures || '0');
 
 formData.append('etat', etat || 'disponible');
+
+formData.append('modeFacturation', modeFacturation || 'metre_carre');
+
+formData.append('prixAchat', prixAchat);
+
+formData.append('dureeAmortissementMois', dureeAmortissementMois);
+
+formData.append('revenuAvantSuivi', revenuAvantSuivi || '0');
+
+formData.append('dateDebutSuivi', dateDebutSuivi);
 
 const response = await fetch(createUrl, {
 method: 'POST',
@@ -1549,6 +1765,16 @@ definirValeur('machineEditCompteurHeures', machine.compteurHeures ?? 0);
 
 definirValeur('machineEditEtat', machine.etat || 'disponible');
 
+definirValeur('machineEditModeFacturation', machine.modeFacturation || 'metre_carre');
+
+definirValeur('machineEditPrixAchat', machine.prixAchat);
+
+definirValeur('machineEditDureeAmortissementMois', machine.dureeAmortissementMois);
+
+definirValeur('machineEditRevenuAvantSuivi', machine.revenuAvantSuivi ?? 0);
+
+definirValeur('machineEditDateDebutSuivi', machine.dateDebutSuivi);
+
 } catch (error) {
 
 Swal.close();
@@ -1600,6 +1826,16 @@ const compteurM2 = valeur('machineEditCompteurM2');
 const compteurHeures = valeur('machineEditCompteurHeures');
 
 const etat = valeur('machineEditEtat');
+
+const modeFacturation = valeur('machineEditModeFacturation');
+
+const prixAchat = valeur('machineEditPrixAchat');
+
+const dureeAmortissementMois = valeur('machineEditDureeAmortissementMois');
+
+const revenuAvantSuivi = valeur('machineEditRevenuAvantSuivi');
+
+const dateDebutSuivi = valeur('machineEditDateDebutSuivi');
 
 if (! updateUrl) {
 afficherErreur('URL de modification introuvable.');
@@ -1718,6 +1954,16 @@ formData.append('compteurM2', compteurM2 || '0');
 formData.append('compteurHeures', compteurHeures || '0');
 
 formData.append('etat', etat || 'disponible');
+
+formData.append('modeFacturation', modeFacturation || 'metre_carre');
+
+formData.append('prixAchat', prixAchat);
+
+formData.append('dureeAmortissementMois', dureeAmortissementMois);
+
+formData.append('revenuAvantSuivi', revenuAvantSuivi || '0');
+
+formData.append('dateDebutSuivi', dateDebutSuivi);
 
 const response = await fetch(updateUrl, {
 method: 'POST',

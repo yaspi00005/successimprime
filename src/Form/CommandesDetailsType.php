@@ -313,18 +313,24 @@ class CommandesDetailsType extends AbstractType
             ])
 
             /*
-             * La remise est un pourcentage.
+             * La remise est un pourcentage. En decimal (pas
+             * uniquement des entiers) pour que la remise B2B calculee
+             * a partir du prix catalogue s'applique exactement, sans
+             * ecart de quelques francs du a un arrondi premature du
+             * pourcentage.
              */
-            ->add('remise', IntegerType::class, [
+            ->add('remise', NumberType::class, [
                 'label' => 'Remise (%)',
                 'required' => false,
                 'empty_data' => '0',
+                'scale' => 2,
+                'html5' => true,
                 'attr' => [
                     'class' => 'form-control js-remise-detail '
                         . 'js-calcul-detail',
                     'min' => 0,
                     'max' => 100,
-                    'step' => 1,
+                    'step' => 0.01,
                     'data-detail-field' => 'remise',
                 ],
                 'constraints' => [

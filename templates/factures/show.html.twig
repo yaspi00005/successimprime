@@ -43,8 +43,8 @@
 		class="side-app">
 
 		{# ============================================================
-																								           HEADER
-																								           ============================================================ #}
+																										           HEADER
+																										           ============================================================ #}
 
 		<div class="page-header">
 
@@ -174,20 +174,20 @@
 
 
 		{# ============================================================
-																								           MESSAGES FLASH
-																								           ============================================================ #}
+																										           MESSAGES FLASH
+																										           ============================================================ #}
 
 		{% for type, messages in app.flashes %}
 
 			{% for message in messages %}
 
 				<div class="
-																																																																								                        alert
-																																																																								                        alert-{{ type == 'error' ? 'danger' : type }}
-																																																																								                        alert-dismissible
-																																																																								                        fade
-																																																																								                        show
-																																																																								                    ">
+																																																																														                        alert
+																																																																														                        alert-{{ type == 'error' ? 'danger' : type }}
+																																																																														                        alert-dismissible
+																																																																														                        fade
+																																																																														                        show
+																																																																														                    ">
 
 					{{ message }}
 
@@ -203,8 +203,8 @@
 
 
 		{# ============================================================
-																								           BANDEAU TYPE DOCUMENT
-																								           ============================================================ #}
+																										           BANDEAU TYPE DOCUMENT
+																										           ============================================================ #}
 
 		{% if facture.comptabilisee %}
 
@@ -222,11 +222,11 @@
 
 						<small>
 							Ce document fait partie de la facturation réelle
-																																																																																				                            de l'entreprise.
+																																																																																											                            de l'entreprise.
 						</small>
 						{# ============================================================
-																																																												   ÉTAT DU PDF
-																																																												   ============================================================ #}
+																																																																		   ÉTAT DU PDF
+																																																																		   ============================================================ #}
 
 						{% if facture.pdfFichier %}
 
@@ -253,8 +253,8 @@
 										<div>
 
 											Ce document possède une version PDF
-																																																																																																														                    enregistrée et protégée contre toute
-																																																																																																														                    régénération automatique.
+																																																																																																																									                    enregistrée et protégée contre toute
+																																																																																																																									                    régénération automatique.
 
 										</div>
 
@@ -356,8 +356,8 @@
 											<small>
 
 												Le premier clic sur « Générer le PDF »
-																																																																																																																								                        créera et conservera définitivement
-																																																																																																																								                        la version PDF de cette facture.
+																																																																																																																																				                        créera et conservera définitivement
+																																																																																																																																				                        la version PDF de cette facture.
 
 											</small>
 
@@ -392,7 +392,7 @@
 
 						<small>
 							Ce document n'est pas comptabilisé et ne reçoit
-																																																																																				                            aucun paiement.
+																																																																																											                            aucun paiement.
 						</small>
 
 					</div>
@@ -405,8 +405,8 @@
 
 
 		{# ============================================================
-																								           RÉSUMÉ FINANCIER
-																								           ============================================================ #}
+																										           RÉSUMÉ FINANCIER
+																										           ============================================================ #}
 
 		<div
 			class="row">
@@ -461,9 +461,9 @@
 							</small>
 
 							<strong class="
-																																																																																																												                                    facture-stat-value
-																																																																																																												                                    text-success
-																																																																																																												                                ">
+																																																																																																																					                                    facture-stat-value
+																																																																																																																					                                    text-success
+																																																																																																																					                                ">
 
 								{{
                                     montantPaye
@@ -501,14 +501,14 @@
 							</small>
 
 							<strong class="
-																																																																																																												                                    facture-stat-value
+																																																																																																																					                                    facture-stat-value
 									
-																																																																																																												                                    {{
-																																																																																																												                                        resteAPayer > 0
-																																																																																																												                                        ? 'text-danger'
-																																																																																																												                                        : 'text-success'
-																																																																																																												                                    }}
-																																																																																																												                                ">
+																																																																																																																					                                    {{
+																																																																																																																					                                        resteAPayer > 0
+																																																																																																																					                                        ? 'text-danger'
+																																																																																																																					                                        : 'text-success'
+																																																																																																																					                                    }}
+																																																																																																																					                                ">
 
 								{{
                                     resteAPayer
@@ -546,15 +546,15 @@
 							</small>
 
 							<span class="
-																																																																																																												                                    badge
-																																																																																																												                                    badge-{{
-																																																																																																												                                        statutClasses[
-																																																																																																												                                            statutPaiement
-																																																																																																												                                        ]
-																																																																																																												                                        |default('secondary')
-																																																																																																												                                    }}
-																																																																																																												                                    facture-badge-lg
-																																																																																																												                                ">
+																																																																																																																					                                    badge
+																																																																																																																					                                    badge-{{
+																																																																																																																					                                        statutClasses[
+																																																																																																																					                                            statutPaiement
+																																																																																																																					                                        ]
+																																																																																																																					                                        |default('secondary')
+																																																																																																																					                                    }}
+																																																																																																																					                                    facture-badge-lg
+																																																																																																																					                                ">
 
 								{{
                                     statutLibelles[
@@ -647,8 +647,8 @@
 
 
 			{# ========================================================
-																																				               COLONNE GAUCHE
-																																				               ======================================================== #}
+																																							               COLONNE GAUCHE
+																																							               ======================================================== #}
 
 			<div
 				class="col-xl-4">
@@ -772,14 +772,14 @@
 							</span>
 
 							<span class="
-																																																																																																												                                    badge
-																																																																																																												                                    badge-{{
-																																																																																																												                                        etatClasses[
-																																																																																																												                                            facture.etat
-																																																																																																												                                        ]
-																																																																																																												                                        |default('secondary')
-																																																																																																												                                    }}
-																																																																																																												                                ">
+																																																																																																																					                                    badge
+																																																																																																																					                                    badge-{{
+																																																																																																																					                                        etatClasses[
+																																																																																																																					                                            facture.etat
+																																																																																																																					                                        ]
+																																																																																																																					                                        |default('secondary')
+																																																																																																																					                                    }}
+																																																																																																																					                                ">
 
 								{{
                                     etatLibelles[
@@ -902,8 +902,8 @@
 
 
 				{# ====================================================
-																																																                   CLIENT
-																																																                   ==================================================== #}
+																																																				                   CLIENT
+																																																				                   ==================================================== #}
 
 				<div class="card">
 
@@ -992,8 +992,8 @@
 
 
 				{# ====================================================
-																																																                   ACTIONS
-																																																                   ==================================================== #}
+																																																				                   ACTIONS
+																																																				                   ==================================================== #}
 
 				<div class="card">
 
@@ -1021,8 +1021,16 @@
 						</a>
 
 
+						{# ENVOI WHATSAPP #}
+
+						<button type="button" class="btn btn-success btn-block mb-3 js-envoyer-whatsapp" data-url="{{ path( 'app_factures_whatsapp', { id: facture.id } ) }}" data-token="{{ csrf_token( 'whatsapp_facture_' ~ facture.id ) }}" data-numero="{{ facture.numero|default( '#' ~ facture.id ) }}">
+							<i class="fa fa-whatsapp mr-1"></i>
+							Envoyer par WhatsApp
+						</button>
+
+
 						{# SYNCHRONISATION :
-																																																																								                           FACTURE COMPTABILISÉE UNIQUEMENT #}
+																																																																														                           FACTURE COMPTABILISÉE UNIQUEMENT #}
 
 						{% if
                             facture.comptabilisee
@@ -1047,7 +1055,7 @@
 
 
 						{# ENCAISSEMENT :
-																																																																								                           FACTURE OFFICIELLE UNIQUEMENT #}
+																																																																														                           FACTURE OFFICIELLE UNIQUEMENT #}
 
 						{% if
                             facture.comptabilisee
@@ -1096,16 +1104,16 @@
 
 
 			{# ========================================================
-																																				               COLONNE DROITE
-																																				               ======================================================== #}
+																																							               COLONNE DROITE
+																																							               ======================================================== #}
 
 			<div
 				class="col-xl-8">
 
 
 				{# ====================================================
-																																																                   COMMANDE
-																																																                   ==================================================== #}
+																																																				                   COMMANDE
+																																																				                   ==================================================== #}
 
 				<div class="card">
 
@@ -1190,8 +1198,8 @@
 
 
 				{# ====================================================
-																																																                   DÉTAIL
-																																																                   ==================================================== #}
+																																																				                   DÉTAIL
+																																																				                   ==================================================== #}
 
 				<div class="card">
 
@@ -1209,11 +1217,11 @@
 						<div class="table-responsive">
 
 							<table class="
-																																																																																																												                                    table
-																																																																																																												                                    table-bordered
-																																																																																																												                                    table-hover
-																																																																																																												                                    facture-table
-																																																																																																												                                ">
+																																																																																																																					                                    table
+																																																																																																																					                                    table-bordered
+																																																																																																																					                                    table-hover
+																																																																																																																					                                    facture-table
+																																																																																																																					                                ">
 
 								<thead>
 
@@ -1279,10 +1287,10 @@
 													{% if detail.observation|default('') %}
 
 														<div class="
-																																																																																																																																																																																																                                                                text-muted
-																																																																																																																																																																																																                                                                small
-																																																																																																																																																																																																                                                                mt-1
-																																																																																																																																																																																																                                                            ">
+																																																																																																																																																																																																																                                                                text-muted
+																																																																																																																																																																																																																                                                                small
+																																																																																																																																																																																																																                                                                mt-1
+																																																																																																																																																																																																																                                                            ">
 
 															{{ detail.observation }}
 
@@ -1320,10 +1328,10 @@
 
 
 												<td class="
-																																																																																																																																																																								                                                        text-right
-																																																																																																																																																																								                                                        font-weight-bold
-																																																																																																																																																																								                                                        nowrap
-																																																																																																																																																																								                                                    ">
+																																																																																																																																																																																						                                                        text-right
+																																																																																																																																																																																						                                                        font-weight-bold
+																																																																																																																																																																																						                                                        nowrap
+																																																																																																																																																																																						                                                    ">
 
 													{{
                                                         detail.totalTtc
@@ -1350,10 +1358,10 @@
 										<tr>
 
 											<td colspan="5" class="
-																																																																																																																																																												                                                    text-center
-																																																																																																																																																												                                                    text-muted
-																																																																																																																																																												                                                    py-4
-																																																																																																																																																												                                                ">
+																																																																																																																																																																									                                                    text-center
+																																																																																																																																																																									                                                    text-muted
+																																																																																																																																																																									                                                    py-4
+																																																																																																																																																																									                                                ">
 												Aucun détail disponible.
 											</td>
 
@@ -1373,8 +1381,8 @@
 
 
 				{# ====================================================
-																																																                   TOTAUX
-																																																                   ==================================================== #}
+																																																				                   TOTAUX
+																																																				                   ==================================================== #}
 
 				<div class="card">
 
@@ -1482,10 +1490,10 @@
 							<div class="col-lg-6">
 
 								<table class="
-																																																																																																																								                                        table
-																																																																																																																								                                        table-sm
-																																																																																																																								                                        facture-totaux
-																																																																																																																								                                    ">
+																																																																																																																																		                                        table
+																																																																																																																																		                                        table-sm
+																																																																																																																																		                                        facture-totaux
+																																																																																																																																		                                    ">
 
 									<tbody>
 
@@ -1642,10 +1650,10 @@
 												</td>
 
 												<td class="
-																																																																																																																																																																								                                                        text-right
-																																																																																																																																																																								                                                        text-success
-																																																																																																																																																																								                                                        font-weight-bold
-																																																																																																																																																																								                                                    ">
+																																																																																																																																																																																						                                                        text-right
+																																																																																																																																																																																						                                                        text-success
+																																																																																																																																																																																						                                                        font-weight-bold
+																																																																																																																																																																																						                                                    ">
 
 													{{
                                                         montantPaye
@@ -1673,14 +1681,14 @@
 												</th>
 
 												<th class="
-																																																																																																																																																																								                                                        text-right
+																																																																																																																																																																																						                                                        text-right
 														
-																																																																																																																																																																								                                                        {{
-																																																																																																																																																																								                                                            resteAPayer > 0
-																																																																																																																																																																								                                                            ? 'text-danger'
-																																																																																																																																																																								                                                            : 'text-success'
-																																																																																																																																																																								                                                        }}
-																																																																																																																																																																								                                                    ">
+																																																																																																																																																																																						                                                        {{
+																																																																																																																																																																																						                                                            resteAPayer > 0
+																																																																																																																																																																																						                                                            ? 'text-danger'
+																																																																																																																																																																																						                                                            : 'text-success'
+																																																																																																																																																																																						                                                        }}
+																																																																																																																																																																																						                                                    ">
 
 													{{
                                                         resteAPayer
@@ -1720,8 +1728,8 @@
 
 
 		{# ============================================================
-																								           HISTORIQUE PAIEMENTS
-																								           ============================================================ #}
+																										           HISTORIQUE PAIEMENTS
+																										           ============================================================ #}
 
 		{% if facture.comptabilisee %}
 
@@ -1749,11 +1757,11 @@
 					<div class="table-responsive">
 
 						<table class="
-																																																																																																                                table
-																																																																																																                                table-bordered
-																																																																																																                                table-hover
-																																																																																																                                facture-table
-																																																																																																                            ">
+																																																																																																								                                table
+																																																																																																								                                table-bordered
+																																																																																																								                                table-hover
+																																																																																																								                                facture-table
+																																																																																																								                            ">
 
 							<thead>
 
@@ -1818,10 +1826,10 @@
 
 
 										<td class="
-																																																																																																																																																                                                text-success
-																																																																																																																																																                                                font-weight-bold
-																																																																																																																																																                                                nowrap
-																																																																																																																																																                                            ">
+																																																																																																																																																												                                                text-success
+																																																																																																																																																												                                                font-weight-bold
+																																																																																																																																																												                                                nowrap
+																																																																																																																																																												                                            ">
 
 											{{
                                                 paiement.montant
@@ -1968,16 +1976,16 @@
 									<tr>
 
 										<td colspan="7" class="
-																																																																																																																																																                                                text-center
-																																																																																																																																																                                                text-muted
-																																																																																																																																																                                                py-5
-																																																																																																																																																                                            ">
+																																																																																																																																																												                                                text-center
+																																																																																																																																																												                                                text-muted
+																																																																																																																																																												                                                py-5
+																																																																																																																																																												                                            ">
 
 											<i class="
-																																																																																																																																																                                                    fa
-																																																																																																																																																                                                    fa-money
-																																																																																																																																																                                                    facture-empty-payment
-																																																																																																																																																                                                "></i>
+																																																																																																																																																												                                                    fa
+																																																																																																																																																												                                                    fa-money
+																																																																																																																																																												                                                    facture-empty-payment
+																																																																																																																																																												                                                "></i>
 
 											<strong class="d-block mt-2">
 												Aucun paiement lié à cette facture
@@ -2256,6 +2264,58 @@ form.submit();
 
 });
 
+});
+
+
+document.addEventListener('DOMContentLoaded', function () {
+
+document.querySelectorAll('.js-envoyer-whatsapp').forEach(function (bouton) {
+
+bouton.addEventListener('click', function () {
+
+const numero = bouton.dataset.numero || 'ce document';
+
+Swal.fire({
+icon: 'question',
+title: 'Envoyer ' + numero + ' par WhatsApp ?',
+text: 'Le PDF sera envoyé au numéro WhatsApp enregistré pour ce client.',
+showCancelButton: true,
+confirmButtonText: 'Envoyer',
+cancelButtonText: 'Annuler'
+}).then(function (resultat) {
+
+if (! resultat.isConfirmed) {
+return;
+}
+
+bouton.disabled = true;
+
+fetch(bouton.dataset.url, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+Accept: 'application/json',
+'X-Requested-With': 'XMLHttpRequest'
+},
+body: JSON.stringify(
+{_token: bouton.dataset.token}
+)
+}).then(function (reponse) {
+return reponse.json();
+}).then(function (donnees) {
+Swal.fire({
+icon: donnees.success ? 'success' : 'error',
+title: donnees.success ? 'Envoyé' : 'Erreur',
+text: donnees.message
+});
+}).catch(function () {
+Swal.fire({icon: 'error', title: 'Erreur', text: "La requête n'a pas pu aboutir."});
+}). finally(function () {
+bouton.disabled = false;
+});
+});
+});
+});
 });
 	</script>
 

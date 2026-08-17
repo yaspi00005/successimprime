@@ -133,6 +133,16 @@ security:
             roles: PUBLIC_ACCESS
         }
 
+        - {
+            path: ^/factures/\d+/pdf-public/,
+            roles: PUBLIC_ACCESS
+        }
+
+        - {
+            path: ^/devis/\d+/pdf-public/,
+            roles: PUBLIC_ACCESS
+        }
+
 
         # ============================================================
         # COMPTE PERSONNEL
@@ -426,7 +436,7 @@ security:
         # ============================================================
 
         - {
-            path: ^/(livraisons|bon-livraison),
+            path: ^/(livraisons|bons-livraison),
             roles: ROLE_LIVRAISON
         }
 

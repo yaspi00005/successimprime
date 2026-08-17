@@ -389,6 +389,11 @@
 														{% set badgeClass = 'badge-info' %}
 
 
+													{% elseif role == 'ROLE_LIVREUR' %}
+
+														{% set badgeClass = 'badge-secondary' %}
+
+
 													{% elseif role == 'ROLE_STATS_GLOBAL' %}
 
 														{% set badgeClass = 'badge-primary' %}
@@ -428,6 +433,10 @@
 														{% elseif role == 'ROLE_PRODUCTION' %}
 
 															<i class="fa fa-cogs mr-1"></i>
+
+														{% elseif role == 'ROLE_LIVREUR' %}
+
+															<i class="fa fa-truck mr-1"></i>
 
 														{% endif %}
 
@@ -837,6 +846,9 @@
 										{% elseif role == 'ROLE_PRODUCTION' %}
 											<i class="fa fa-cogs mr-1"></i>
 
+										{% elseif role == 'ROLE_LIVREUR' %}
+											<i class="fa fa-truck mr-1"></i>
+
 										{% elseif role == 'ROLE_STATS_GLOBAL' %}
 											<i class="fa fa-bar-chart mr-1"></i>
 										{% endif %}
@@ -1109,6 +1121,7 @@ searchInput.focus();
  *   ROLE_CAISSE_COMMANDE
  *   ROLE_GRAPHISTE
  *   ROLE_PRODUCTION
+ *   ROLE_LIVREUR
  *
  * - ROLE_STATS_GLOBAL est complémentaire.
  * ====================================================
@@ -1117,7 +1130,7 @@ searchInput.focus();
 const roleInputs = Array.from(document.querySelectorAll('.edit-role'));
 
 
-const principalRoles = ['ROLE_CAISSE_COMMANDE', 'ROLE_GRAPHISTE', 'ROLE_PRODUCTION'];
+const principalRoles = ['ROLE_CAISSE_COMMANDE', 'ROLE_GRAPHISTE', 'ROLE_PRODUCTION', 'ROLE_LIVREUR'];
 
 
 const getRoleInput = function (role) {

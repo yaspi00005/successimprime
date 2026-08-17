@@ -1,0 +1,841 @@
+From 236ceb1b4a511e1dd48ea05e22ab9d5e579283cd Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 17 Aug 2026 01:03:13 +0000
+Subject: [PATCH] =?UTF-8?q?Regroupe=20les=20livraisons=20par=20commande=20?=
+ =?UTF-8?q?et=20ajoute=20le=20r=C3=B4le=20Livreur?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- LivraisonController::index() regroupe les lignes par commande
+  (badge livraison entière/partielle/aucune) au lieu d'une liste
+  plate, pour éviter d'oublier une ligne sur une commande
+- User: nouveau profil principal ROLE_LIVREUR + isLivreur()
+- UserAuthenticator/SecurityController: un livreur atterrit
+  toujours directement sur /livraisons après connexion
+- DashboardController: redirige un livreur qui arrive sur /
+  vers les livraisons
+- security.yaml: corrige le chemin bons-livraison (mismatch
+  singulier/pluriel qui rendait la règle ROLE_LIVRAISON inopérante
+  sur cette section)
+---
+ config/packages/security.yaml          |   2 +-
+ src/Controller/DashboardController.php |   8 +
+ src/Controller/LivraisonController.php |  61 ++++-
+ src/Controller/SecurityController.php  |  33 ++-
+ src/Entity/User.php                    |  36 +++
+ src/Security/UserAuthenticator.php     |  23 ++
+ templates/livraisons/index.html.twig   | 344 +++++++++++++------------
+ templates/user/index.html.twig         |  15 +-
+ 8 files changed, 353 insertions(+), 169 deletions(-)
+
+diff --git a/config/packages/security.yaml b/config/packages/security.yaml
+index 5e29cfa..8d0f8c1 100644
+--- a/config/packages/security.yaml
++++ b/config/packages/security.yaml
+@@ -436,7 +436,7 @@ security:
+         # ============================================================
+ 
+         - {
+-            path: ^/(livraisons|bon-livraison),
++            path: ^/(livraisons|bons-livraison),
+             roles: ROLE_LIVRAISON
+         }
+ 
+diff --git a/src/Controller/DashboardController.php b/src/Controller/DashboardController.php
+index d369320..ce06693 100644
+--- a/src/Controller/DashboardController.php
++++ b/src/Controller/DashboardController.php
+@@ -19,6 +19,14 @@ final class DashboardController extends AbstractController
+         CommandesRepository $commandesRepository,
+         ClientsRepository $clientsRepository
+     ): Response {
++        /*
++         * Un livreur n'a accès qu'aux livraisons : il n'a rien
++         * à faire sur le tableau de bord général.
++         */
++        if ($this->isGranted('ROLE_LIVREUR') && !$this->isGranted('ROLE_ADMIN')) {
++            return $this->redirectToRoute('app_livraisons_index');
++        }
++
+         $periode = $request->query->get('periode', 'mois');
+ 
+         if (!\in_array($periode, self::PERIODES_VALIDES, true)) {
+diff --git a/src/Controller/LivraisonController.php b/src/Controller/LivraisonController.php
+index c5bcd17..f3a9202 100644
+--- a/src/Controller/LivraisonController.php
++++ b/src/Controller/LivraisonController.php
+@@ -339,7 +339,7 @@ final class LivraisonController extends AbstractController
+         return $this->render(
+             'livraisons/index.html.twig',
+             [
+-                'livraisons' => $livraisons,
++                'groupes' => $this->grouperParCommande($livraisons),
+ 
+                 'compteurs' => $compteurs,
+ 
+@@ -354,6 +354,65 @@ final class LivraisonController extends AbstractController
+         );
+     }
+ 
++    /*
++     * ============================================================
++     * REGROUPEMENT DES LIGNES PAR COMMANDE
++     * ============================================================
++     *
++     * Une commande peut avoir plusieurs lignes à livrer : les
++     * afficher éparpillées dans une liste plate fait courir le
++     * risque d'en oublier une. On les regroupe ici par commande,
++     * en conservant l'ordre de tri déjà appliqué (prêtes puis en
++     * livraison puis livrées, plus récentes d'abord).
++     *
++     * @param CommandesDetails[] $lignes
++     *
++     * @return array<int, array{
++     *     commande: \App\Entity\Commandes|null,
++     *     lignes: CommandesDetails[],
++     *     nbLignes: int,
++     *     nbLivrees: int,
++     *     toutesLivrees: bool,
++     *     aucuneLivree: bool,
++     * }>
++     */
++    private function grouperParCommande(array $lignes): array
++    {
++        $groupes = [];
++
++        foreach ($lignes as $detail) {
++            $commande = $detail->getCommande();
++            $cle = $commande?->getId() ?? 0;
++
++            if (!isset($groupes[$cle])) {
++                $groupes[$cle] = [
++                    'commande' => $commande,
++                    'lignes' => [],
++                ];
++            }
++
++            $groupes[$cle]['lignes'][] = $detail;
++        }
++
++        foreach ($groupes as &$groupe) {
++            $nbLignes = count($groupe['lignes']);
++
++            $nbLivrees = count(array_filter(
++                $groupe['lignes'],
++                static fn (CommandesDetails $ligne): bool =>
++                    $ligne->getStatutProduction() === CommandesDetails::PRODUCTION_LIVREE
++            ));
++
++            $groupe['nbLignes'] = $nbLignes;
++            $groupe['nbLivrees'] = $nbLivrees;
++            $groupe['toutesLivrees'] = $nbLivrees === $nbLignes;
++            $groupe['aucuneLivree'] = $nbLivrees === 0;
++        }
++        unset($groupe);
++
++        return array_values($groupes);
++    }
++
+     /*
+      * ============================================================
+      * FICHE D'UNE LIVRAISON
+diff --git a/src/Controller/SecurityController.php b/src/Controller/SecurityController.php
+index bda2c2b..9e6ddbc 100644
+--- a/src/Controller/SecurityController.php
++++ b/src/Controller/SecurityController.php
+@@ -51,9 +51,7 @@ final class SecurityController extends AbstractController
+             instanceof User
+         ) {
+ 
+-            return $this->redirect(
+-                '/'
+-            );
++            return $this->redirectionApresConnexion();
+         }
+ 
+ 
+@@ -203,9 +201,7 @@ final class SecurityController extends AbstractController
+             instanceof User
+         ) {
+ 
+-            return $this->redirect(
+-                '/'
+-            );
++            return $this->redirectionApresConnexion();
+         }
+ 
+ 
+@@ -391,4 +387,29 @@ final class SecurityController extends AbstractController
+             'Cette méthode est interceptée par le firewall Symfony.'
+         );
+     }
++
++    /*
++     * ============================================================
++     * REDIRECTION APRÈS CONNEXION (UTILISATEUR DÉJÀ AUTHENTIFIÉ)
++     * ============================================================
++     *
++     * Un livreur revenant sur /login ou /lockscreen une fois
++     * connecté doit atterrir directement sur les livraisons,
++     * comme lors d'une connexion normale.
++     * ============================================================
++     */
++    private function redirectionApresConnexion(): Response
++    {
++        $utilisateur = $this->getUser();
++
++        if (
++            $utilisateur instanceof User
++            && $utilisateur->isLivreur()
++            && !$utilisateur->isAdmin()
++        ) {
++            return $this->redirectToRoute('app_livraisons_index');
++        }
++
++        return $this->redirect('/');
++    }
+ }
+\ No newline at end of file
+diff --git a/src/Entity/User.php b/src/Entity/User.php
+index 3e81593..b0974ad 100644
+--- a/src/Entity/User.php
++++ b/src/Entity/User.php
+@@ -198,6 +198,23 @@ class User implements
+         'ROLE_PRODUCTION';
+ 
+ 
++    /*
++     * ============================================================
++     * LIVREUR
++     * ============================================================
++     *
++     * Accès uniquement à la livraison.
++     *
++     * Un livreur qui se connecte arrive directement sur la
++     * page des livraisons et n'a accès à aucune autre section
++     * de l'application.
++     * ============================================================
++     */
++
++    public const ROLE_LIVREUR =
++        'ROLE_LIVREUR';
++
++
+     /*
+      * ============================================================
+      * STATISTIQUES GLOBALES
+@@ -580,6 +597,7 @@ class User implements
+             self::ROLE_CAISSE_COMMANDE,
+             self::ROLE_GRAPHISTE,
+             self::ROLE_PRODUCTION,
++            self::ROLE_LIVREUR,
+             self::ROLE_STATS_GLOBAL,
+         ];
+     }
+@@ -606,6 +624,9 @@ class User implements
+             self::ROLE_PRODUCTION =>
+                 'Production',
+ 
++            self::ROLE_LIVREUR =>
++                'Livreur',
++
+             self::ROLE_STATS_GLOBAL =>
+                 'Statistiques globales',
+         ];
+@@ -805,6 +826,7 @@ class User implements
+             self::ROLE_CAISSE_COMMANDE,
+             self::ROLE_GRAPHISTE,
+             self::ROLE_PRODUCTION,
++            self::ROLE_LIVREUR,
+         ];
+ 
+ 
+@@ -983,6 +1005,20 @@ class User implements
+     }
+ 
+ 
++    /*
++     * ============================================================
++     * LIVREUR
++     * ============================================================
++     */
++
++    public function isLivreur(): bool
++    {
++        return $this->hasRole(
++            self::ROLE_LIVREUR
++        );
++    }
++
++
+     /*
+      * ============================================================
+      * STATISTIQUES GLOBALES
+diff --git a/src/Security/UserAuthenticator.php b/src/Security/UserAuthenticator.php
+index 9673e77..c91c0a0 100644
+--- a/src/Security/UserAuthenticator.php
++++ b/src/Security/UserAuthenticator.php
+@@ -156,6 +156,29 @@ final class UserAuthenticator extends AbstractLoginFormAuthenticator
+         string $firewallName
+     ): ?Response {
+ 
++        /*
++         * ========================================================
++         * LIVREUR
++         * ========================================================
++         *
++         * Un livreur n'a accès qu'à la livraison : il arrive
++         * toujours directement sur cette page, sans tenir compte
++         * d'une éventuelle page demandée avant la connexion.
++         * ========================================================
++         */
++
++        $utilisateur = $token->getUser();
++
++        if (
++            $utilisateur instanceof User
++            && $utilisateur->isLivreur()
++            && !$utilisateur->isAdmin()
++        ) {
++            return new RedirectResponse(
++                $this->urlGenerator->generate('app_livraisons_index')
++            );
++        }
++
+         /*
+          * ========================================================
+          * PAGE DEMANDÉE AVANT LOGIN
+diff --git a/templates/livraisons/index.html.twig b/templates/livraisons/index.html.twig
+index 4ed8dca..c85bd08 100644
+--- a/templates/livraisons/index.html.twig
++++ b/templates/livraisons/index.html.twig
+@@ -351,287 +351,311 @@
+ 
+ 
+ 		{# ==========================================================
+-										       LISTE
++										       LISTE (REGROUPÉE PAR COMMANDE)
+ 										       ========================================================== #}
+-		<div class="card">
+ 
+-			<div class="card-header d-flex justify-content-between align-items-center">
++		{% if groupes|length == 0 %}
+ 
+-				<div>
++			<div class="card">
++				<div class="card-body text-center text-muted py-5">
++					<i class="fa fa-truck fa-3x mb-3"></i>
++					<div>
++						Aucune livraison trouvée.
++					</div>
++				</div>
++			</div>
+ 
+-					<h3 class="card-title mb-0">
+-						Gestion des livraisons
+-					</h3>
++		{% endif %}
+ 
+-					<small class="text-muted">
+-						{{ livraisons|length }}
+-						résultat{{ livraisons|length > 1 ? 's' : '' }}
+-					</small>
+ 
+-				</div>
++		{% for groupe in groupes %}
+ 
+-			</div>
++			<div class="card mb-3">
++
++				<div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+ 
++					<div>
+ 
+-			<div class="table-responsive">
++						<h3 class="card-title mb-0">
+ 
+-				<table class="table table-bordered table-hover mb-0">
++							{% if groupe.commande %}
+ 
+-					<thead>
++								<a href="{{ path('app_commandes_show', { id: groupe.commande.id }) }}">
++									Commande #{{ groupe.commande.numero|default(groupe.commande.id) }}
++								</a>
+ 
+-						<tr>
++							{% else %}
+ 
+-							<th>
+-								Commande
+-							</th>
++								Commande inconnue
+ 
+-							<th>
+-								Produit / Désignation
+-							</th>
++							{% endif %}
+ 
+-							<th class="text-center">
+-								Quantité
+-							</th>
++						</h3>
+ 
+-							<th>
+-								Origine
+-							</th>
++						<small class="text-muted">
+ 
+-							<th>
+-								Support
+-							</th>
++							{% if groupe.commande and groupe.commande.clients %}
++								{{ groupe.commande.clients.nom }}
++								·
++							{% endif %}
+ 
+-							<th>
+-								Machine
+-							</th>
++							{{ groupe.nbLignes }}
++							ligne{{ groupe.nbLignes > 1 ? 's' : '' }}
+ 
+-							<th class="text-center">
+-								Statut
+-							</th>
++						</small>
+ 
+-							<th class="text-center">
+-								Actions
+-							</th>
++					</div>
+ 
+-						</tr>
++					<div>
+ 
+-					</thead>
++						{% if groupe.toutesLivrees %}
+ 
++							<span class="badge badge-success">
++								<i class="fa fa-check-circle mr-1"></i>
++								Commande entièrement livrée
++							</span>
+ 
+-					<tbody>
++						{% elseif groupe.aucuneLivree %}
+ 
+-						{% for detail in livraisons %}
++							<span class="badge badge-warning">
++								Rien de livré ({{ groupe.nbLignes }} ligne{{ groupe.nbLignes > 1 ? 's' : '' }} en attente)
++							</span>
+ 
+-							<tr>
++						{% else %}
+ 
+-								{# COMMANDE #}
+-								<td class="align-middle">
++							<span class="badge badge-info">
++								Livraison partielle : {{ groupe.nbLivrees }} / {{ groupe.nbLignes }} lignes livrées
++							</span>
+ 
+-									{% if detail.commande %}
++						{% endif %}
+ 
+-										<strong>
+-											#{{ detail.commande.id }}
+-										</strong>
++					</div>
+ 
+-									{% else %}
++				</div>
+ 
+-										—
+ 
+-									{% endif %}
++				<div class="table-responsive">
+ 
+-								</td>
++					<table class="table table-bordered table-hover mb-0">
+ 
++						<thead>
+ 
+-								{# PRODUIT #}
+-								<td class="align-middle">
++							<tr>
+ 
+-									<strong>
+-										{{ detail.designation }}
+-									</strong>
++								<th>
++									Produit / Désignation
++								</th>
+ 
+-									{% if detail.produit %}
++								<th class="text-center">
++									Quantité
++								</th>
+ 
+-										<div class="small text-muted">
+-											{{ detail.produit.nom }}
+-										</div>
++								<th>
++									Origine
++								</th>
++
++								<th>
++									Support
++								</th>
++
++								<th>
++									Machine
++								</th>
+ 
+-									{% endif %}
++								<th class="text-center">
++									Statut
++								</th>
+ 
+-								</td>
++								<th class="text-center">
++									Actions
++								</th>
+ 
++							</tr>
+ 
+-								{# QUANTITE #}
+-								<td class="text-center align-middle">
++						</thead>
+ 
+-									{{ detail.quantite }}
+ 
+-								</td>
++						<tbody>
+ 
++							{% for detail in groupe.lignes %}
+ 
+-								{# ORIGINE #}
+-								<td class="align-middle">
++								<tr>
+ 
+-									{% if detail.productionNecessaire %}
++									{# PRODUIT #}
++									<td class="align-middle">
+ 
+-										<span class="badge badge-primary">
++										<strong>
++											{{ detail.designation }}
++										</strong>
+ 
+-											<i class="fa fa-print mr-1"></i>
+-											Production
++										{% if detail.produit %}
+ 
+-										</span>
++											<div class="small text-muted">
++												{{ detail.produit.nom }}
++											</div>
+ 
+-									{% else %}
++										{% endif %}
+ 
+-										<span class="badge badge-info">
++									</td>
+ 
+-											<i class="fa fa-shopping-cart mr-1"></i>
+-											Vente directe
+ 
+-										</span>
++									{# QUANTITE #}
++									<td class="text-center align-middle">
+ 
+-									{% endif %}
++										{{ detail.quantite }}
+ 
+-								</td>
++									</td>
+ 
+ 
+-								{# SUPPORT #}
+-								<td class="align-middle">
++									{# ORIGINE #}
++									<td class="align-middle">
+ 
+-									{% if detail.support %}
++										{% if detail.productionNecessaire %}
+ 
+-										{{ detail.support.nom }}
++											<span class="badge badge-primary">
+ 
+-									{% else %}
++												<i class="fa fa-print mr-1"></i>
++												Production
+ 
+-										—
++											</span>
+ 
+-									{% endif %}
++										{% else %}
+ 
+-								</td>
++											<span class="badge badge-info">
+ 
++												<i class="fa fa-shopping-cart mr-1"></i>
++												Vente directe
+ 
+-								{# MACHINE #}
+-								<td class="align-middle">
++											</span>
+ 
+-									{% if detail.machine %}
++										{% endif %}
+ 
+-										{{ detail.machine.nom }}
++									</td>
+ 
+-									{% else %}
+ 
+-										—
++									{# SUPPORT #}
++									<td class="align-middle">
+ 
+-									{% endif %}
++										{% if detail.support %}
+ 
+-								</td>
++											{{ detail.support.nom }}
+ 
++										{% else %}
+ 
+-								{# STATUT #}
+-								<td
+-									class="text-center align-middle">
++											—
+ 
+-									{# MARQUER LIVRÉE #}
+-									{% if detail.statutProduction == 'en_livraison' %}
++										{% endif %}
+ 
+-										{% if detail.typeLigne == 'article' %}
++									</td>
+ 
+-											<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline js-confirmer-livraison" data-designation="{{ detail.designation|e('html_attr') }}" data-quantite="{{ detail.quantite }}">
+ 
+-												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
++									{# MACHINE #}
++									<td class="align-middle">
+ 
+-												<button type="submit" class="btn btn-sm btn-success-light" title="Confirmer la livraison">
+-													<i class="fa fa-check"></i>
+-												</button>
++										{% if detail.machine %}
+ 
+-											</form>
++											{{ detail.machine.nom }}
+ 
+ 										{% else %}
+ 
+-											<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-warning-light" title="Livraison depuis le bon de livraison">
+-												<i class="fa fa-file-text-o"></i>
+-											</a>
++											—
+ 
+ 										{% endif %}
+ 
+-									{% endif %}
++									</td>
+ 
+-								</td>
+ 
++									{# STATUT #}
++									<td
++										class="text-center align-middle">
+ 
+-								{# ACTIONS #}
+-								<td class="text-center align-middle">
++										{% if detail.statutProduction == 'prete_livraison' %}
+ 
+-									<div
+-										class="btn-group">
++											<span class="badge badge-primary">Prête</span>
+ 
+-										{# VOIR #}
+-										<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-primary-light" title="Voir">
+-											<i class="fa fa-eye"></i>
+-										</a>
++										{% elseif detail.statutProduction == 'en_livraison' %}
+ 
++											<span class="badge badge-warning">En livraison</span>
+ 
+-										{# DEMARRER LIVRAISON #}
+-										{% if detail.statutProduction == 'prete_livraison' %}
++										{% elseif detail.statutProduction == 'livree' %}
+ 
+-											<form method="post" action="{{ path( 'app_livraisons_demarrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Démarrer cette livraison ?');">
++											<span class="badge badge-success">Livrée</span>
+ 
+-												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_demarrer_' ~ detail.id ) }}">
++										{% endif %}
+ 
+-												<button type="submit" class="btn btn-sm btn-warning-light" title="Démarrer la livraison">
+-													<i class="fa fa-truck"></i>
+-												</button>
++									</td>
+ 
+-											</form>
+ 
+-										{% endif %}
++									{# ACTIONS #}
++									<td class="text-center align-middle">
+ 
++										<div
++											class="btn-group">
+ 
+-										{# MARQUER LIVREE #}
+-										{% if detail.statutProduction == 'en_livraison' %}
++											{# VOIR #}
++											<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-primary-light" title="Voir">
++												<i class="fa fa-eye"></i>
++											</a>
+ 
+-											<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Confirmer la livraison de cet article ?');">
+ 
+-												<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
++											{# DEMARRER LIVRAISON #}
++											{% if detail.statutProduction == 'prete_livraison' %}
+ 
+-												<button type="submit" class="btn btn-sm btn-success-light" title="Marquer comme livré">
+-													<i class="fa fa-check"></i>
+-												</button>
++												<form method="post" action="{{ path( 'app_livraisons_demarrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Démarrer cette livraison ?');">
+ 
+-											</form>
++													<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_demarrer_' ~ detail.id ) }}">
+ 
+-										{% endif %}
++													<button type="submit" class="btn btn-sm btn-warning-light" title="Démarrer la livraison">
++														<i class="fa fa-truck"></i>
++													</button>
+ 
+-									</div>
++												</form>
+ 
+-								</td>
++											{% endif %}
+ 
+-							</tr>
+ 
+-						{% else %}
++											{# MARQUER LIVREE #}
++											{% if detail.statutProduction == 'en_livraison' %}
+ 
+-							<tr>
++												{% if detail.typeLigne == 'article' %}
+ 
+-								<td colspan="8" class="text-center text-muted py-5">
++													<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline js-confirmer-livraison" data-designation="{{ detail.designation|e('html_attr') }}" data-quantite="{{ detail.quantite }}">
+ 
+-									<i class="fa fa-truck fa-3x mb-3"></i>
++														<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
+ 
+-									<div>
+-										Aucune livraison trouvée.
+-									</div>
++														<button type="submit" class="btn btn-sm btn-success-light" title="Marquer comme livré">
++															<i class="fa fa-check"></i>
++														</button>
+ 
+-								</td>
++													</form>
+ 
+-							</tr>
++												{% else %}
++
++													<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-warning-light" title="Livraison depuis le bon de livraison">
++														<i class="fa fa-file-text-o"></i>
++													</a>
++
++												{% endif %}
++
++											{% endif %}
++
++										</div>
++
++									</td>
++
++								</tr>
+ 
+-						{% endfor %}
++							{% endfor %}
+ 
+-					</tbody>
++						</tbody>
+ 
+-				</table>
++					</table>
++
++				</div>
+ 
+ 			</div>
+ 
+-		</div>
++		{% endfor %}
+ 
+ 	</div>
+ 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+diff --git a/templates/user/index.html.twig b/templates/user/index.html.twig
+index e6580d1..2f16c0d 100644
+--- a/templates/user/index.html.twig
++++ b/templates/user/index.html.twig
+@@ -389,6 +389,11 @@
+ 														{% set badgeClass = 'badge-info' %}
+ 
+ 
++													{% elseif role == 'ROLE_LIVREUR' %}
++
++														{% set badgeClass = 'badge-secondary' %}
++
++
+ 													{% elseif role == 'ROLE_STATS_GLOBAL' %}
+ 
+ 														{% set badgeClass = 'badge-primary' %}
+@@ -429,6 +434,10 @@
+ 
+ 															<i class="fa fa-cogs mr-1"></i>
+ 
++														{% elseif role == 'ROLE_LIVREUR' %}
++
++															<i class="fa fa-truck mr-1"></i>
++
+ 														{% endif %}
+ 
+ 														{{ label }}
+@@ -837,6 +846,9 @@
+ 										{% elseif role == 'ROLE_PRODUCTION' %}
+ 											<i class="fa fa-cogs mr-1"></i>
+ 
++										{% elseif role == 'ROLE_LIVREUR' %}
++											<i class="fa fa-truck mr-1"></i>
++
+ 										{% elseif role == 'ROLE_STATS_GLOBAL' %}
+ 											<i class="fa fa-bar-chart mr-1"></i>
+ 										{% endif %}
+@@ -1109,6 +1121,7 @@ searchInput.focus();
+  *   ROLE_CAISSE_COMMANDE
+  *   ROLE_GRAPHISTE
+  *   ROLE_PRODUCTION
++ *   ROLE_LIVREUR
+  *
+  * - ROLE_STATS_GLOBAL est complémentaire.
+  * ====================================================
+@@ -1117,7 +1130,7 @@ searchInput.focus();
+ const roleInputs = Array.from(document.querySelectorAll('.edit-role'));
+ 
+ 
+-const principalRoles = ['ROLE_CAISSE_COMMANDE', 'ROLE_GRAPHISTE', 'ROLE_PRODUCTION'];
++const principalRoles = ['ROLE_CAISSE_COMMANDE', 'ROLE_GRAPHISTE', 'ROLE_PRODUCTION', 'ROLE_LIVREUR'];
+ 
+ 
+ const getRoleInput = function (role) {
+-- 
+2.43.0
+

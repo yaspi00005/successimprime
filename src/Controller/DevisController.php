@@ -11,6 +11,7 @@ use App\Entity\ProduitConfigurationFinition;
 use App\Form\DevisType;
 use App\Repository\DevisRepository;
 use App\Repository\ClientsRepository;
+use App\Service\WhatsAppService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -902,13 +903,16 @@ public function pdf(
         'drepa' => [
 
             'logo' =>
-                $projectDir
-                . '/public/assets/images/documents/drepa-logo.png',
+                $this->imageVersDataUri(
+                    $projectDir
+                    . '/public/assets/images/documents/logos/drepa-logo.png'
+                ),
 
             'signature' =>
-                $projectDir
-                . '/public/assets/images/documents/drepa-signature-cachet.png',
-
+                $this->imageVersDataUri(
+                    $projectDir
+                    . '/public/assets/images/documents/signatures/drepa-signature-cachet.png'
+                ),
         ],
 
 
@@ -917,20 +921,25 @@ public function pdf(
          * MADIAL GROUP SARL / SUCCESS IMPRIM
          * -----------------------------------------------------
          */
-        'mdg_success' => [
+        'mdg' => [
 
-            'logoMdg' =>
-                $projectDir
-                . '/public/assets/images/documents/mdg-logo.png',
+            'logo' =>
+                $this->imageVersDataUri(
+                    $projectDir
+                    . '/public/assets/images/documents/logos/mdg-logo.png'
+                ),
 
-            'logoSuccess' =>
-                $projectDir
-                . '/public/assets/images/documents/success-imprim-logo.png',
+            'success_logo' =>
+                $this->imageVersDataUri(
+                    $projectDir
+                    . '/public/assets/images/documents/logos/success-imprim-logo.png'
+                ),
 
             'signature' =>
-                $projectDir
-                . '/public/assets/images/documents/mdg-signature-cachet.png',
-
+                $this->imageVersDataUri(
+                    $projectDir
+                    . '/public/assets/images/documents/signatures/mdg-signature-cachet.png'
+                ),
         ],
 
     ];
@@ -983,6 +992,12 @@ public function pdf(
         'devis/pdf.html.twig',
         [
             'devis' => $devis,
+
+            'client' =>
+                $devis->getClients(),
+
+            'commande' =>
+                $devis->getCommande(),
 
             /*
              * Logos et signatures.
@@ -1086,6 +1101,163 @@ public function pdf(
                     $nomFichier
                 ),
         ]
+    );
+}
+
+/*
+ * Version publique du PDF, accessible sans connexion via le jeton
+ * d'authenticite du devis. Sert de lien a partager par WhatsApp/
+ * e-mail au client : ce dernier n'a pas de compte sur l'application.
+ */
+#[Route(
+    '/{id}/pdf-public/{token}',
+    name: 'pdf_public',
+    requirements: ['id' => '\d+'],
+    methods: ['GET']
+)]
+public function pdfPublic(
+    Devis $devis,
+    string $token,
+    EntityManagerInterface $entityManager
+): Response {
+    $tokenAttendu = (string) $devis->getTokenAuthenticite();
+
+    if (
+        $tokenAttendu === ''
+        || !hash_equals($tokenAttendu, $token)
+    ) {
+        throw $this->createNotFoundException(
+            'Document introuvable.'
+        );
+    }
+
+    return $this->pdf($devis, $entityManager);
+}
+
+/*
+ * Envoie le devis par WhatsApp au client (API WhatsApp Business de
+ * Meta), sous forme de modele avec le PDF en lien de telechargement
+ * (route publique pdf_public ci-dessus).
+ */
+#[Route(
+    '/{id}/whatsapp',
+    name: 'whatsapp',
+    requirements: ['id' => '\d+'],
+    methods: ['POST']
+)]
+public function envoyerWhatsapp(
+    Devis $devis,
+    Request $request,
+    EntityManagerInterface $entityManager,
+    WhatsAppService $whatsAppService
+): JsonResponse {
+    $data = json_decode($request->getContent(), true) ?? [];
+
+    if (!$this->isCsrfTokenValid(
+        'whatsapp_devis_' . $devis->getId(),
+        $data['_token'] ?? null
+    )) {
+        return $this->json(
+            ['success' => false, 'message' => 'Jeton de sécurité invalide.'],
+            Response::HTTP_FORBIDDEN
+        );
+    }
+
+    if (!$whatsAppService->estConfigure()) {
+        return $this->json(
+            [
+                'success' => false,
+                'message' => "L'envoi WhatsApp n'est pas configuré : "
+                    . "le compte Meta Business (jeton, numéro) n'a pas été renseigné.",
+            ],
+            Response::HTTP_SERVICE_UNAVAILABLE
+        );
+    }
+
+    $client = $devis->getClients();
+    $telephone = $client?->getTelephone();
+
+    if (!$client || !$telephone) {
+        return $this->json(
+            ['success' => false, 'message' => "Ce client n'a pas de numéro de téléphone enregistré."],
+            Response::HTTP_BAD_REQUEST
+        );
+    }
+
+    /*
+     * Contrairement a Factures, le token d'authenticite du devis
+     * n'est pas garanti par un PrePersist : on s'assure qu'il existe
+     * avant de construire le lien public.
+     */
+    $tokenAvant = $devis->getTokenAuthenticite();
+    $this->initialiserTokenAuthenticiteDevis($devis);
+
+    if ($tokenAvant !== $devis->getTokenAuthenticite()) {
+        $entityManager->flush();
+    }
+
+    $lienDocument = $this->generateUrl(
+        'app_devis_pdf_public',
+        [
+            'id' => $devis->getId(),
+            'token' => $devis->getTokenAuthenticite(),
+        ],
+        UrlGeneratorInterface::ABSOLUTE_URL
+    );
+
+    $numero = $devis->getNumero() ?? ('#' . $devis->getId());
+
+    $nomClient = trim((string) $client->getRaisonSociale())
+        ?: trim(trim((string) $client->getPrenom()) . ' ' . trim((string) $client->getNom()))
+        ?: 'Client';
+
+    try {
+        $whatsAppService->envoyerDocument(
+            $telephone,
+            $this->getParameter('app.whatsapp_template_document'),
+            $lienDocument,
+            $numero . '.pdf',
+            [$nomClient, 'devis', $numero]
+        );
+    } catch (\Throwable $exception) {
+        return $this->json(
+            ['success' => false, 'message' => "L'envoi a échoué : " . $exception->getMessage()],
+            Response::HTTP_BAD_GATEWAY
+        );
+    }
+
+    return $this->json([
+        'success' => true,
+        'message' => 'Le devis a été envoyé par WhatsApp.',
+    ]);
+}
+
+private function imageVersDataUri(
+    string $chemin
+): ?string {
+    if (
+        !is_file($chemin)
+        || !is_readable($chemin)
+    ) {
+        return null;
+    }
+
+    $contenu = file_get_contents($chemin);
+
+    if ($contenu === false) {
+        return null;
+    }
+
+    $mime = mime_content_type($chemin);
+
+    if (!$mime) {
+        $mime = 'image/png';
+    }
+
+    return sprintf(
+        'data:%s;base64,%s',
+        $mime,
+        base64_encode($contenu)
     );
 }
 

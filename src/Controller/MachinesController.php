@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Machines;
 use App\Repository\MachinesRepository;
+use App\Service\MachineRentabiliteService;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -31,6 +32,23 @@ final class MachinesController extends AbstractController
                     [],
                     ['nom' => 'ASC']
                 ),
+            ]
+        );
+    }
+
+    /*
+     * ============================================================
+     * RENTABILITÉ DES MACHINES
+     * ============================================================
+     */
+    #[Route('/rentabilite', name: 'rentabilite', methods: ['GET'])]
+    public function rentabilite(
+        MachineRentabiliteService $machineRentabiliteService
+    ): Response {
+        return $this->render(
+            'machines/rentabilite.html.twig',
+            [
+                'rentabilites' => $machineRentabiliteService->calculerToutes(),
             ]
         );
     }
@@ -429,6 +447,49 @@ final class MachinesController extends AbstractController
         );
 
         /*
+         * Rentabilité / amortissement.
+         */
+        $modeFacturation = trim(
+            (string) $request->request->get(
+                'modeFacturation',
+                Machines::MODE_FACTURATION_METRE_CARRE
+            )
+        );
+
+        if ($modeFacturation === '') {
+            $modeFacturation = Machines::MODE_FACTURATION_METRE_CARRE;
+        }
+
+        if (!in_array($modeFacturation, Machines::MODES_FACTURATION, true)) {
+            throw new \InvalidArgumentException(
+                'Le mode de facturation de la machine est invalide.'
+            );
+        }
+
+        $prixAchatValeur = trim(
+            (string) $request->request->get('prixAchat')
+        );
+        $prixAchat = $prixAchatValeur === '' ? null : $this->recupererEntier($request, 'prixAchat');
+
+        $dureeAmortissementValeur = trim(
+            (string) $request->request->get('dureeAmortissementMois')
+        );
+        $dureeAmortissementMois = $dureeAmortissementValeur === ''
+            ? null
+            : $this->recupererEntier($request, 'dureeAmortissementMois');
+
+        $revenuAvantSuivi = $this->recupererEntier(
+            $request,
+            'revenuAvantSuivi',
+            0
+        );
+
+        $dateDebutSuivi = $this->recupererDate(
+            $request,
+            'dateDebutSuivi'
+        );
+
+        /*
          * Affectation.
          */
         $machine
@@ -442,7 +503,12 @@ final class MachinesController extends AbstractController
             ->setNbTetes($nbTetes)
             ->setCompteurM2($compteurM2)
             ->setCompteurHeures($compteurHeures)
-            ->setEtat($etat);
+            ->setEtat($etat)
+            ->setModeFacturation($modeFacturation)
+            ->setPrixAchat($prixAchat)
+            ->setDureeAmortissementMois($dureeAmortissementMois)
+            ->setRevenuAvantSuivi($revenuAvantSuivi)
+            ->setDateDebutSuivi($dateDebutSuivi);
 
         if ($dateAchat !== null) {
             $machine->setDateAchat(
@@ -570,6 +636,15 @@ final class MachinesController extends AbstractController
                 $machine->getCompteurHeures(),
 
             'etat' => $machine->getEtat(),
+
+            'modeFacturation' => $machine->getModeFacturation(),
+            'prixAchat' => $machine->getPrixAchat(),
+            'dureeAmortissementMois' => $machine->getDureeAmortissementMois(),
+            'revenuAvantSuivi' => $machine->getRevenuAvantSuivi(),
+
+            'dateDebutSuivi' => $machine->getDateDebutSuivi()
+                ? $machine->getDateDebutSuivi()->format('Y-m-d')
+                : null,
         ];
     }
 

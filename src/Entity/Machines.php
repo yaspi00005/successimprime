@@ -11,6 +11,31 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: MachinesRepository::class)]
 class Machines
 {
+    /*
+     * ============================================================
+     * MODES DE FACTURATION (RENTABILITÉ)
+     * ============================================================
+     *
+     * metre_carre : machines facturées à la surface (largeur x
+     * longueur), ex. traceurs / grand format.
+     *
+     * feuille : machines facturées à la feuille A4/A3, ex.
+     * photocopieurs, impression de thèses/mémoires.
+     */
+    public const MODE_FACTURATION_METRE_CARRE = 'metre_carre';
+
+    public const MODE_FACTURATION_FEUILLE = 'feuille';
+
+    public const MODES_FACTURATION = [
+        self::MODE_FACTURATION_METRE_CARRE,
+        self::MODE_FACTURATION_FEUILLE,
+    ];
+
+    public const MODES_FACTURATION_LABELS = [
+        self::MODE_FACTURATION_METRE_CARRE => 'Au mètre carré',
+        self::MODE_FACTURATION_FEUILLE => 'À la feuille (A4/A3)',
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -57,6 +82,27 @@ class Machines
 
     #[ORM\Column(length: 45, unique: true)]
     private ?string $adresseIp = null;
+
+    /*
+     * ============================================================
+     * RENTABILITÉ / AMORTISSEMENT
+     * ============================================================
+     */
+
+    #[ORM\Column(length: 20, options: ['default' => self::MODE_FACTURATION_METRE_CARRE])]
+    private string $modeFacturation = self::MODE_FACTURATION_METRE_CARRE;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $prixAchat = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $dureeAmortissementMois = null;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $revenuAvantSuivi = 0;
+
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    private ?\DateTime $dateDebutSuivi = null;
 
     /**
      * @var Collection<int, CommandesDetails>
@@ -359,8 +405,105 @@ public function setAdresseIp(string $adresseIp): static
     public function __toString(): string
     {
         return $this->nom ?? 'Machine';
-        return $this->nom ?? 'Machine';
     }
 
-    
+    /*
+     * ============================================================
+     * RENTABILITÉ / AMORTISSEMENT
+     * ============================================================
+     */
+
+    public function getModeFacturation(): string
+    {
+        return $this->modeFacturation;
+    }
+
+    public function setModeFacturation(string $modeFacturation): static
+    {
+        if (!in_array($modeFacturation, self::MODES_FACTURATION, true)) {
+            throw new \InvalidArgumentException(
+                'Le mode de facturation de la machine est invalide.'
+            );
+        }
+
+        $this->modeFacturation = $modeFacturation;
+
+        return $this;
+    }
+
+    public function getModeFacturationLabel(): string
+    {
+        return self::MODES_FACTURATION_LABELS[$this->modeFacturation] ?? $this->modeFacturation;
+    }
+
+    public function utiliseSurface(): bool
+    {
+        return $this->modeFacturation === self::MODE_FACTURATION_METRE_CARRE;
+    }
+
+    public function utiliseFeuille(): bool
+    {
+        return $this->modeFacturation === self::MODE_FACTURATION_FEUILLE;
+    }
+
+    public function getPrixAchat(): ?int
+    {
+        return $this->prixAchat;
+    }
+
+    public function setPrixAchat(?int $prixAchat): static
+    {
+        $this->prixAchat = $prixAchat;
+
+        return $this;
+    }
+
+    public function getDureeAmortissementMois(): ?int
+    {
+        return $this->dureeAmortissementMois;
+    }
+
+    public function setDureeAmortissementMois(?int $dureeAmortissementMois): static
+    {
+        $this->dureeAmortissementMois = $dureeAmortissementMois;
+
+        return $this;
+    }
+
+    public function getRevenuAvantSuivi(): int
+    {
+        return $this->revenuAvantSuivi;
+    }
+
+    public function setRevenuAvantSuivi(int $revenuAvantSuivi): static
+    {
+        $this->revenuAvantSuivi = $revenuAvantSuivi;
+
+        return $this;
+    }
+
+    public function getDateDebutSuivi(): ?\DateTime
+    {
+        return $this->dateDebutSuivi;
+    }
+
+    public function setDateDebutSuivi(?\DateTime $dateDebutSuivi): static
+    {
+        $this->dateDebutSuivi = $dateDebutSuivi;
+
+        return $this;
+    }
+
+    /**
+     * Charge d'amortissement mensuelle (prix d'achat étalé sur la durée
+     * d'amortissement), ou null si l'un des deux n'est pas renseigné.
+     */
+    public function getChargeAmortissementMensuelle(): ?float
+    {
+        if ($this->prixAchat === null || !$this->dureeAmortissementMois) {
+            return null;
+        }
+
+        return $this->prixAchat / $this->dureeAmortissementMois;
+    }
 }
