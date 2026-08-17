@@ -7,8 +7,11 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
+use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Form\Extension\Core\Type\TelType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -141,7 +144,53 @@ class FacturesType extends AbstractType
                             'Observation à conserver sur le document...',
                     ],
                 ]
-            );
+            )
+
+            /*
+             * Facturation à un tiers : le demandeur n'est pas
+             * toujours celui qui paie.
+             */
+
+            ->add('facturerAUnTiers', CheckboxType::class, [
+                'label' => 'Facturer à quelqu’un d’autre que le client',
+                'required' => false,
+                'attr' => [
+                    'class' => 'js-facturer-a-un-tiers',
+                ],
+            ])
+
+            ->add('nomFacturation', TextType::class, [
+                'label' => 'Nom du payeur',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                    'placeholder' => 'Ex : SOTELMA SA',
+                ],
+            ])
+
+            ->add('adresseFacturation', TextType::class, [
+                'label' => 'Adresse de facturation',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                ],
+            ])
+
+            ->add('telephoneFacturation', TelType::class, [
+                'label' => 'Téléphone du payeur',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                ],
+            ])
+
+            ->add('emailFacturation', EmailType::class, [
+                'label' => 'Email du payeur',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                ],
+            ]);
     }
 
     public function configureOptions(

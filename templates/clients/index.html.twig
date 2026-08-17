@@ -125,15 +125,19 @@
 								{{ form_row(formAjout.typeClient) }}
 							</div>
 
-							<div class="col-md-8 client-zone-b2b">
+							<div class="col-md-4">
+								{{ form_row(formAjout.typeCompte) }}
+							</div>
+
+							<div class="col-md-8 client-zone-entreprise">
 								{{ form_row(formAjout.raisonSociale) }}
 							</div>
 
-							<div class="col-md-6 client-zone-b2c">
+							<div class="col-md-6 client-zone-particulier">
 								{{ form_row(formAjout.prenom) }}
 							</div>
 
-							<div class="col-md-6 client-zone-b2c">
+							<div class="col-md-6 client-zone-particulier">
 								{{ form_row(formAjout.nom) }}
 							</div>
 
@@ -157,11 +161,11 @@
 								{{ form_row(formAjout.adresse) }}
 							</div>
 
-							<div class="col-md-6 client-zone-b2b">
+							<div class="col-md-6 client-zone-entreprise">
 								{{ form_row(formAjout.nif) }}
 							</div>
 
-							<div class="col-md-6 client-zone-b2b">
+							<div class="col-md-6 client-zone-entreprise">
 								{{ form_row(formAjout.rccm) }}
 							</div>
 
@@ -360,8 +364,8 @@ erreurGlobale.textContent = '';
 }
 
 
-function gererTypeClient(form) {
-const select = form.querySelector('[name$="[typeClient]"]');
+function gererTypeCompte(form) {
+const select = form.querySelector('[name$="[typeCompte]"]');
 
 
 if (! select) {
@@ -369,16 +373,16 @@ return;
 }
 
 
-const estB2B = select.value === 'B2B';
+const estEntreprise = select.value === 'entreprise';
 
 
-form.querySelectorAll('.client-field-b2b, .client-zone-b2b').forEach(function (element) {
-element.classList.toggle('d-none', ! estB2B);
+form.querySelectorAll('.client-field-entreprise, .client-zone-entreprise').forEach(function (element) {
+element.classList.toggle('d-none', ! estEntreprise);
 });
 
 
-form.querySelectorAll('.client-field-b2c, .client-zone-b2c').forEach(function (element) {
-element.classList.toggle('d-none', estB2B);
+form.querySelectorAll('.client-field-particulier, .client-zone-particulier').forEach(function (element) {
+element.classList.toggle('d-none', estEntreprise);
 });
 }
 
@@ -985,17 +989,17 @@ const formAjout = document.getElementById('formAjoutClient');
 
 
 if (formAjout) {
-gererTypeClient(formAjout);
+gererTypeCompte(formAjout);
 }
 
 
-$(document).on('change', '#formAjoutClient [name$="[typeClient]"]', function () {
+$(document).on('change', '#formAjoutClient [name$="[typeCompte]"]', function () {
 
 const form = document.getElementById('formAjoutClient');
 
 
 if (form) {
-gererTypeClient(form);
+gererTypeCompte(form);
 }
 
 });
@@ -1104,7 +1108,7 @@ $('#modalAjoutClient').modal('hide');
 form.reset();
 
 
-gererTypeClient(form);
+gererTypeCompte(form);
 
 
 clientsTable.ajax.reload(null, false);
@@ -1196,7 +1200,7 @@ throw new Error('Le formulaire de modification est introuvable.');
 }
 
 
-gererTypeClient(form);
+gererTypeCompte(form);
 
 } catch (error) {
 
@@ -1210,13 +1214,13 @@ await Swal.fire({icon: 'error', title: 'Chargement impossible', text: error.mess
 });
 
 
-$(document).on('change', '#formModificationClient [name$="[typeClient]"]', function () {
+$(document).on('change', '#formModificationClient [name$="[typeCompte]"]', function () {
 
 const form = document.getElementById('formModificationClient');
 
 
 if (form) {
-gererTypeClient(form);
+gererTypeCompte(form);
 }
 
 });

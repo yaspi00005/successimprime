@@ -88,6 +88,42 @@ class Clients
     )]
     private string $typeClient = 'B2C';
 
+    /*
+     * ============================================================
+     * TYPE DE COMPTE (ENTREPRISE / PARTICULIER)
+     * ============================================================
+     *
+     * Indépendant de typeClient : typeClient sert uniquement à la
+     * tarification (B2B/B2C), typeCompte détermine la nature du
+     * compte (entreprise ou particulier) et donc si les champs
+     * raison sociale/NIF/RCCM sont pertinents.
+     * ============================================================
+     */
+
+    public const TYPE_COMPTE_PARTICULIER = 'particulier';
+
+    public const TYPE_COMPTE_ENTREPRISE = 'entreprise';
+
+    public const TYPES_COMPTE = [
+        self::TYPE_COMPTE_PARTICULIER,
+        self::TYPE_COMPTE_ENTREPRISE,
+    ];
+
+    public const TYPES_COMPTE_LABELS = [
+        self::TYPE_COMPTE_PARTICULIER => 'Particulier',
+        self::TYPE_COMPTE_ENTREPRISE => 'Entreprise',
+    ];
+
+    #[ORM\Column(
+        length: 20,
+        options: ['default' => self::TYPE_COMPTE_PARTICULIER]
+    )]
+    #[Assert\Choice(
+        choices: self::TYPES_COMPTE,
+        message: 'Le type de compte doit être Particulier ou Entreprise.'
+    )]
+    private string $typeCompte = self::TYPE_COMPTE_PARTICULIER;
+
     #[ORM\Column(nullable: true)]
     #[Assert\PositiveOrZero(
         message: 'Le plafond de crédit ne peut pas être négatif.'
@@ -317,6 +353,37 @@ class Clients
         return $this->typeClient === 'B2C';
     }
 
+    public function getTypeCompte(): string
+    {
+        return $this->typeCompte;
+    }
+
+    public function setTypeCompte(string $typeCompte): static
+    {
+        $typeCompte = strtolower(trim($typeCompte));
+
+        $this->typeCompte = in_array($typeCompte, self::TYPES_COMPTE, true)
+            ? $typeCompte
+            : self::TYPE_COMPTE_PARTICULIER;
+
+        return $this;
+    }
+
+    public function getTypeCompteLabel(): string
+    {
+        return self::TYPES_COMPTE_LABELS[$this->typeCompte] ?? $this->typeCompte;
+    }
+
+    public function isEntreprise(): bool
+    {
+        return $this->typeCompte === self::TYPE_COMPTE_ENTREPRISE;
+    }
+
+    public function isParticulier(): bool
+    {
+        return $this->typeCompte === self::TYPE_COMPTE_PARTICULIER;
+    }
+
     public function getPlafondCredit(): ?int
     {
         return $this->plafondCredit;
@@ -392,7 +459,7 @@ class Clients
     public function __toString(): string
     {
         if (
-            $this->isB2B()
+            $this->isEntreprise()
             && $this->raisonSociale !== null
         ) {
             return $this->raisonSociale;

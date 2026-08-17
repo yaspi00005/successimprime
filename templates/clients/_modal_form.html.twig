@@ -18,7 +18,15 @@
 			</div>
 		</div>
 
-		<div class="col-md-8 client-field-b2b">
+		<div class="col-md-4">
+			<div class="form-group">
+				{{ form_label(form.typeCompte) }}
+				{{ form_widget(form.typeCompte) }}
+				{{ form_errors(form.typeCompte) }}
+			</div>
+		</div>
+
+		<div class="col-md-8 client-field-entreprise">
 			<div class="form-group">
 				{{ form_label(form.raisonSociale) }}
 				{{ form_widget(form.raisonSociale) }}
@@ -26,7 +34,7 @@
 			</div>
 		</div>
 
-		<div class="col-md-4 client-field-b2c">
+		<div class="col-md-4 client-field-particulier">
 			<div class="form-group">
 				{{ form_label(form.nom) }}
 				{{ form_widget(form.nom) }}
@@ -34,7 +42,7 @@
 			</div>
 		</div>
 
-		<div class="col-md-4 client-field-b2c">
+		<div class="col-md-4 client-field-particulier">
 			<div class="form-group">
 				{{ form_label(form.prenom) }}
 				{{ form_widget(form.prenom) }}
@@ -82,7 +90,7 @@
 			</div>
 		</div>
 
-		<div class="col-md-4 client-field-b2b">
+		<div class="col-md-4 client-field-entreprise">
 			<div class="form-group">
 				{{ form_label(form.nif) }}
 				{{ form_widget(form.nif) }}
@@ -90,7 +98,7 @@
 			</div>
 		</div>
 
-		<div class="col-md-4 client-field-b2b">
+		<div class="col-md-4 client-field-entreprise">
 			<div class="form-group">
 				{{ form_label(form.rccm) }}
 				{{ form_widget(form.rccm) }}

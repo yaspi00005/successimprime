@@ -41,6 +41,16 @@ class ClientsType extends AbstractType
                 'attr' => [
                     'class' => 'form-control client-type-select',
                 ],
+                'help' => 'Sert uniquement à la tarification (B2B/B2C), sans lien avec les informations d’entreprise ci-dessous.',
+            ])
+
+            ->add('typeCompte', ChoiceType::class, [
+                'label' => 'Type de compte',
+                'choices' => array_flip(Clients::TYPES_COMPTE_LABELS),
+                'attr' => [
+                    'class' => 'form-control client-account-type-select',
+                ],
+                'help' => 'Détermine si les informations d’entreprise (raison sociale, NIF, RCCM) sont demandées.',
             ])
 
             ->add('raisonSociale', TextType::class, [

@@ -141,6 +141,35 @@ class Devis
     #[ORM\Column(length: 64, unique: true, nullable: true)]
     private ?string $tokenAuthenticite = null;
 
+    /*
+     * ============================================================
+     * FACTURATION À UN TIERS
+     * ============================================================
+     *
+     * Le demandeur du devis n'est pas toujours celui qui paie
+     * (ex : un employé demande, son entreprise règle et reçoit
+     * le document). Quand facturerAUnTiers est actif, ces
+     * coordonnées remplacent celles du client sur le PDF, sans
+     * modifier la fiche client elle-même.
+     * ============================================================
+     */
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $facturerAUnTiers = false;
+
+    #[ORM\Column(length: 150, nullable: true)]
+    private ?string $nomFacturation = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $adresseFacturation = null;
+
+    #[ORM\Column(length: 30, nullable: true)]
+    private ?string $telephoneFacturation = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Assert\Email(message: 'L’adresse email de facturation n’est pas valide.')]
+    private ?string $emailFacturation = null;
+
 
 
     public function __construct()
@@ -432,6 +461,72 @@ class Devis
     public function genererTokenAuthenticite(): static
     {
         $this->tokenAuthenticite = bin2hex(random_bytes(16));
+
+        return $this;
+    }
+
+    /*
+     * ============================================================
+     * FACTURATION À UN TIERS
+     * ============================================================
+     */
+
+    public function isFacturerAUnTiers(): bool
+    {
+        return $this->facturerAUnTiers;
+    }
+
+    public function setFacturerAUnTiers(bool $facturerAUnTiers): static
+    {
+        $this->facturerAUnTiers = $facturerAUnTiers;
+
+        return $this;
+    }
+
+    public function getNomFacturation(): ?string
+    {
+        return $this->nomFacturation;
+    }
+
+    public function setNomFacturation(?string $nomFacturation): static
+    {
+        $this->nomFacturation = $nomFacturation;
+
+        return $this;
+    }
+
+    public function getAdresseFacturation(): ?string
+    {
+        return $this->adresseFacturation;
+    }
+
+    public function setAdresseFacturation(?string $adresseFacturation): static
+    {
+        $this->adresseFacturation = $adresseFacturation;
+
+        return $this;
+    }
+
+    public function getTelephoneFacturation(): ?string
+    {
+        return $this->telephoneFacturation;
+    }
+
+    public function setTelephoneFacturation(?string $telephoneFacturation): static
+    {
+        $this->telephoneFacturation = $telephoneFacturation;
+
+        return $this;
+    }
+
+    public function getEmailFacturation(): ?string
+    {
+        return $this->emailFacturation;
+    }
+
+    public function setEmailFacturation(?string $emailFacturation): static
+    {
+        $this->emailFacturation = $emailFacturation;
 
         return $this;
     }

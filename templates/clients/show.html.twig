@@ -147,7 +147,7 @@
 
 						<i class="fa fa-user mr-2"></i>
 
-						{% if client.typeClient == 'B2B'
+						{% if client.typeCompte == 'entreprise'
 						and client.raisonSociale
 					%}
 
@@ -179,6 +179,20 @@
 
 							<span class="badge badge-secondary">
 								B2C
+							</span>
+
+						{% endif %}
+
+						{% if client.typeCompte == 'entreprise' %}
+
+							<span class="badge badge-dark">
+								Entreprise
+							</span>
+
+						{% else %}
+
+							<span class="badge badge-light">
+								Particulier
 							</span>
 
 						{% endif %}
@@ -275,7 +289,7 @@
 					</div>
 
 
-					{% if client.typeClient == 'B2B' %}
+					{% if client.typeCompte == 'entreprise' %}
 
 						<div class="col-md-3 mb-3">
 

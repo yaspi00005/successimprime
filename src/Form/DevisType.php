@@ -17,6 +17,9 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\EmailType;
+use Symfony\Component\Form\Extension\Core\Type\TelType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
 use Symfony\Component\Validator\Constraints\NotNull;
 
@@ -143,6 +146,52 @@ class DevisType extends AbstractType
                     'rows' => 4,
                     'placeholder'
                         => 'Informations complémentaires...',
+                ],
+            ])
+
+            /*
+             * Facturation à un tiers : le demandeur n'est pas
+             * toujours celui qui paie.
+             */
+
+            ->add('facturerAUnTiers', CheckboxType::class, [
+                'label' => 'Facturer à quelqu’un d’autre que le client',
+                'required' => false,
+                'attr' => [
+                    'class' => 'js-facturer-a-un-tiers',
+                ],
+            ])
+
+            ->add('nomFacturation', TextType::class, [
+                'label' => 'Nom du payeur',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                    'placeholder' => 'Ex : SOTELMA SA',
+                ],
+            ])
+
+            ->add('adresseFacturation', TextType::class, [
+                'label' => 'Adresse de facturation',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                ],
+            ])
+
+            ->add('telephoneFacturation', TelType::class, [
+                'label' => 'Téléphone du payeur',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                ],
+            ])
+
+            ->add('emailFacturation', EmailType::class, [
+                'label' => 'Email du payeur',
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
                 ],
             ])
 

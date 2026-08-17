@@ -570,6 +570,106 @@
 
 
 				{# ====================================================
+								                   FACTURATION À UN TIERS
+								                   ==================================================== #}
+
+				<div class="card">
+
+					<div class="card-header">
+
+						<h3 class="card-title">
+							Facturation à un tiers
+						</h3>
+
+					</div>
+
+					<div class="card-body">
+
+						<div class="custom-control custom-checkbox mb-3">
+
+							{{
+                                form_widget(
+                                    form.facturerAUnTiers,
+                                    {
+                                        attr: {
+                                            class:
+                                                'custom-control-input js-facturer-a-un-tiers'
+                                        }
+                                    }
+                                )
+                            }}
+
+							{{
+                                form_label(
+                                    form.facturerAUnTiers,
+                                    null,
+                                    {
+                                        label_attr: {
+                                            class:
+                                                'custom-control-label'
+                                        }
+                                    }
+                                )
+                            }}
+
+						</div>
+
+						<small class="form-text text-muted mb-3 d-block">
+							Le demandeur n'est pas toujours celui qui paie.
+							Cochez pour indiquer les coordonnées du payeur ;
+							elles remplaceront celles du client sur le PDF.
+						</small>
+
+						<div class="row js-zone-facturer-a-un-tiers" style="display:none;">
+
+							<div class="col-md-6">
+
+								<div class="form-group">
+									{{ form_label(form.nomFacturation, 'Nom du payeur') }}
+									{{ form_widget(form.nomFacturation, { attr: { class: 'form-control' } }) }}
+									{{ form_errors(form.nomFacturation) }}
+								</div>
+
+							</div>
+
+							<div class="col-md-6">
+
+								<div class="form-group">
+									{{ form_label(form.adresseFacturation, 'Adresse de facturation') }}
+									{{ form_widget(form.adresseFacturation, { attr: { class: 'form-control' } }) }}
+									{{ form_errors(form.adresseFacturation) }}
+								</div>
+
+							</div>
+
+							<div class="col-md-6">
+
+								<div class="form-group">
+									{{ form_label(form.telephoneFacturation, 'Téléphone du payeur') }}
+									{{ form_widget(form.telephoneFacturation, { attr: { class: 'form-control' } }) }}
+									{{ form_errors(form.telephoneFacturation) }}
+								</div>
+
+							</div>
+
+							<div class="col-md-6">
+
+								<div class="form-group">
+									{{ form_label(form.emailFacturation, 'Email du payeur') }}
+									{{ form_widget(form.emailFacturation, { attr: { class: 'form-control' } }) }}
+									{{ form_errors(form.emailFacturation) }}
+								</div>
+
+							</div>
+
+						</div>
+
+					</div>
+
+				</div>
+
+
+				{# ====================================================
 								                   MAJORATION
 								                   ==================================================== #}
 
@@ -1391,6 +1491,31 @@ form.requestSubmit();
 }
 
 });
+}
+
+
+/*
+                 * ===================================================
+                 * FACTURATION À UN TIERS
+                 * ===================================================
+                 */
+
+const facturerAUnTiersInput = document.getElementById('{{ form.facturerAUnTiers.vars.id }}');
+
+const zoneFacturerAUnTiers = document.querySelector('.js-zone-facturer-a-un-tiers');
+
+function actualiserFacturerAUnTiers() {
+if (! facturerAUnTiersInput || ! zoneFacturerAUnTiers) {
+return;
+}
+
+zoneFacturerAUnTiers.style.display = facturerAUnTiersInput.checked ? '' : 'none';
+}
+
+if (facturerAUnTiersInput) {
+facturerAUnTiersInput.addEventListener('change', actualiserFacturerAUnTiers);
+
+actualiserFacturerAUnTiers();
 }
 
 
