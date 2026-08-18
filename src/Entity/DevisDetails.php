@@ -70,8 +70,8 @@ public const TYPE_LIBRE = 'libre';
 
     #[ORM\Column(
         type: Types::DECIMAL,
-        precision: 10,
-        scale: 2,
+        precision: 12,
+        scale: 4,
         nullable: true
     )]
     #[Assert\PositiveOrZero]
@@ -79,8 +79,8 @@ public const TYPE_LIBRE = 'libre';
 
     #[ORM\Column(
         type: Types::DECIMAL,
-        precision: 10,
-        scale: 2,
+        precision: 12,
+        scale: 4,
         nullable: true
     )]
     #[Assert\PositiveOrZero]
@@ -101,11 +101,11 @@ public const TYPE_LIBRE = 'libre';
     )]
     private int $quantite = 1;
 
-    #[ORM\Column(options: ['default' => 0])]
+    #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 4, options: ['default' => 0])]
     #[Assert\PositiveOrZero(
         message: 'Le prix unitaire ne peut pas être négatif.'
     )]
-    private int $prixUnitaire = 0;
+    private string $prixUnitaire = '0';
 
     #[ORM\Column(options: ['default' => 0])]
     #[Assert\PositiveOrZero]
@@ -113,10 +113,13 @@ public const TYPE_LIBRE = 'libre';
 
     /*
      * La remise est un pourcentage compris entre 0 et 100.
+     * En decimal (et non arrondi a l'entier), aligné sur le module
+     * commande, pour que la remise B2B calculee a partir du prix
+     * catalogue donne exactement le meme total.
      */
-    #[ORM\Column(options: ['default' => 0])]
+    #[ORM\Column(type: Types::DECIMAL, precision: 7, scale: 4, options: ['default' => 0])]
     #[Assert\Range(min: 0, max: 100)]
-    private int $remise = 0;
+    private string $remise = '0';
 
     /*
      * La TVA est également un pourcentage.
@@ -443,8 +446,11 @@ private string $modeSaisie = 'automatique';
             $this->surface = null;
         }
 
-        $this->prixUnitaire = $configuration->getPrixApplicable(
-            $clientB2B
+        $this->prixUnitaire = number_format(
+            (float) $configuration->getPrixApplicable($clientB2B),
+            4,
+            '.',
+            ''
         );
         $this->modeCalcul = $configuration->getModeCalcul();
 
@@ -501,7 +507,7 @@ private string $modeSaisie = 'automatique';
         };
 
         return (int) round(
-            $this->prixUnitaire * max(0, $facteur)
+            (float) $this->prixUnitaire * max(0, $facteur)
         );
     }
 
@@ -579,7 +585,7 @@ private string $modeSaisie = 'automatique';
     public function setLargeur(
         string|float|int|null $largeur
     ): static {
-        $this->largeur = $this->normaliserDecimal($largeur, 2);
+        $this->largeur = $this->normaliserDecimal($largeur, 4);
 
         return $this;
     }
@@ -592,7 +598,7 @@ private string $modeSaisie = 'automatique';
     public function setLongueur(
         string|float|int|null $longueur
     ): static {
-        $this->longueur = $this->normaliserDecimal($longueur, 2);
+        $this->longueur = $this->normaliserDecimal($longueur, 4);
 
         return $this;
     }
@@ -662,14 +668,18 @@ private string $modeSaisie = 'automatique';
         return $this;
     }
 
-    public function getPrixUnitaire(): int
+    public function getPrixUnitaire(): float
     {
-        return $this->prixUnitaire;
+        return (float) $this->prixUnitaire;
     }
 
-    public function setPrixUnitaire(?int $prixUnitaire): static
-    {
-        $this->prixUnitaire = max(0, $prixUnitaire ?? 0);
+    public function setPrixUnitaire(
+        string|float|int|null $prixUnitaire
+    ): static {
+        $this->prixUnitaire = $this->normaliserDecimal(
+            $prixUnitaire,
+            4
+        ) ?? '0';
 
         return $this;
     }
@@ -686,14 +696,14 @@ private string $modeSaisie = 'automatique';
         return $this;
     }
 
-    public function getRemise(): int
+    public function getRemise(): float
     {
-        return $this->remise;
+        return (float) $this->remise;
     }
 
-    public function setRemise(?int $remise): static
+    public function setRemise(string|float|int|null $remise): static
     {
-        $this->remise = min(100, max(0, $remise ?? 0));
+        $this->remise = (string) min(100, max(0, (float) ($remise ?? 0)));
 
         return $this;
     }
@@ -1099,7 +1109,7 @@ public function validerModeDevis(
                 ->addViolation();
         }
 
-        if ($this->prixUnitaire <= 0) {
+        if ((float) $this->prixUnitaire <= 0) {
             $context
                 ->buildViolation(
                     'Le prix unitaire doit être supérieur à zéro.'
@@ -1134,7 +1144,7 @@ public function validerModeDevis(
                 ->addViolation();
         }
 
-        if ($this->prixUnitaire <= 0) {
+        if ((float) $this->prixUnitaire <= 0) {
             $context
                 ->buildViolation(
                     'Le prix unitaire doit être supérieur à zéro.'
@@ -1220,7 +1230,7 @@ public function validerModeDevis(
     }
 
 
-    if ($this->prixUnitaire <= 0) {
+    if ((float) $this->prixUnitaire <= 0) {
         $context
             ->buildViolation(
                 'Le prix unitaire doit être supérieur à zéro.'

@@ -13,6 +13,7 @@ use App\Entity\Supports;
 use App\Entity\TypesImpression;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
@@ -238,7 +239,7 @@ class DevisDetailsType extends AbstractType
             ])
 
             ->add('largeur', NumberType::class, [
-                'label' => 'Largeur',
+                'label' => 'Largeur (cm)',
                 'required' => false,
                 'html5' => true,
                 'scale' => 2,
@@ -254,7 +255,7 @@ class DevisDetailsType extends AbstractType
             ])
 
             ->add('longueur', NumberType::class, [
-                'label' => 'Longueur',
+                'label' => 'Longueur (cm)',
                 'required' => false,
                 'html5' => true,
                 'scale' => 2,
@@ -315,15 +316,17 @@ class DevisDetailsType extends AbstractType
              * L’ancien champ "prix" est supprimé.
              * Le seul prix utilisé est prixUnitaire.
              */
-            ->add('prixUnitaire', IntegerType::class, [
+            ->add('prixUnitaire', NumberType::class, [
                 'label' => 'Prix unitaire',
                 'required' => false,
+                'html5' => true,
+                'scale' => 4,
                 'empty_data' => '0',
                 'attr' => [
                     'class' => 'form-control js-prix-unitaire '
                         . 'js-calcul-detail',
                     'min' => 0,
-                    'step' => 1,
+                    'step' => '0.0001',
                     'data-detail-field' => 'prixUnitaire',
                 ],
                 'constraints' => [
@@ -369,18 +372,23 @@ class DevisDetailsType extends AbstractType
             ])
 
             /*
-             * La remise est un pourcentage.
+             * La remise est un pourcentage. En decimal (pas
+             * uniquement des entiers), aligné sur le module commande,
+             * pour que la remise B2B calculee a partir du prix
+             * catalogue s'applique exactement.
              */
-            ->add('remise', IntegerType::class, [
+            ->add('remise', NumberType::class, [
                 'label' => 'Remise (%)',
                 'required' => false,
                 'empty_data' => '0',
+                'scale' => 4,
+                'html5' => true,
                 'attr' => [
                     'class' => 'form-control js-remise-detail '
                         . 'js-calcul-detail',
                     'min' => 0,
                     'max' => 100,
-                    'step' => 1,
+                    'step' => 0.0001,
                     'data-detail-field' => 'remise',
                 ],
                 'constraints' => [
@@ -688,6 +696,36 @@ class DevisDetailsType extends AbstractType
                     $event->setData($data);
                 }
             );
+
+        /*
+         * ============================================================
+         * SAISIE EN CENTIMÈTRES
+         * ============================================================
+         *
+         * En base, largeur/longueur restent stockées en mètres (pour
+         * rester compatibles avec les dimensions du catalogue et les
+         * calculs au mètre/mètre carré), aligné sur le module
+         * commande. Pour l’agent, il est bien plus naturel de saisir
+         * des dimensions en centimètres : ce transformer convertit
+         * uniquement à l’affichage/la saisie.
+         */
+        $transformerDimension = new CallbackTransformer(
+            function ($valeurMetres) {
+                return $valeurMetres === null || $valeurMetres === ''
+                    ? null
+                    : (float) $valeurMetres * 100;
+            },
+            function ($valeurCm) {
+                if ($valeurCm === null || $valeurCm === '') {
+                    return null;
+                }
+
+                return (float) str_replace(',', '.', (string) $valeurCm) / 100;
+            }
+        );
+
+        $builder->get('largeur')->addModelTransformer($transformerDimension);
+        $builder->get('longueur')->addModelTransformer($transformerDimension);
 
         /*
          * Chargement initial :

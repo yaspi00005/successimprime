@@ -15,8 +15,8 @@
 			class="container-fluid py-4">
 
 			{# ==========================================================
-																		           EN-TÊTE
-																		        ========================================================== #}
+																											           EN-TÊTE
+																											        ========================================================== #}
 			<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
 				<div>
 					<a href="{{ path('app_production_index') }}" class="btn btn-light mb-2">
@@ -70,9 +70,9 @@
 			</div>
 
 			{# ==========================================================
-																		           MESSAGES FLASH
-																		           À retirer si base.html.twig les affiche déjà.
-																		        ========================================================== #}
+																											           MESSAGES FLASH
+																											           À retirer si base.html.twig les affiche déjà.
+																											        ========================================================== #}
 			{% for message in app.flashes('success') %}
 				<div class="alert alert-success alert-dismissible fade show">
 					<i class="fa fa-check-circle mr-1"></i>
@@ -99,8 +99,8 @@
 				class="row">
 
 				{# ======================================================
-																										               INFORMATIONS GÉNÉRALES
-																										            ====================================================== #}
+																																						               INFORMATIONS GÉNÉRALES
+																																						            ====================================================== #}
 				<div class="col-lg-8">
 
 					<div class="card mb-3">
@@ -152,7 +152,7 @@
 									<small class="text-muted">Opérateur</small>
 									<div class="font-weight-bold">
 										{% if ordre.operateur %}
-											{{ ordre.operateur }}
+											{{ ordre.operateur.employe.nom }}
 										{% else %}
 											Non affecté
 										{% endif %}
@@ -173,8 +173,8 @@
 					</div>
 
 					{# ==================================================
-																																		                   FICHE TECHNIQUE DE FABRICATION
-																																		                ================================================== #}
+																																																	                   FICHE TECHNIQUE DE FABRICATION
+																																																	                ================================================== #}
 					<div class="card mb-3">
 						<div class="card-header d-flex justify-content-between align-items-center">
 							<h5 class="card-title mb-0">
@@ -339,8 +339,8 @@
 					</div>
 
 					{# ==================================================
-																																		                   CHRONOLOGIE ET DÉLAIS
-																																		                ================================================== #}
+																																																	                   CHRONOLOGIE ET DÉLAIS
+																																																	                ================================================== #}
 					<div class="card mb-3">
 						<div class="card-header d-flex justify-content-between align-items-center">
 							<h5 class="card-title mb-0">
@@ -525,10 +525,10 @@
 
 											{% if ordre.ecartDureeMinutes is not null %}
 												<h5 class="mb-0 mt-1
-																																																																																																										                                                {{ ordre.ecartDureeMinutes > 0
-																																																																																																										                                                    ? 'text-danger'
-																																																																																																										                                                    : 'text-success'
-																																																																																																										                                                }}">
+																																																																																																																																																				                                                {{ ordre.ecartDureeMinutes > 0
+																																																																																																																																																				                                                    ? 'text-danger'
+																																																																																																																																																				                                                    : 'text-success'
+																																																																																																																																																				                                                }}">
 													{{ ordre.ecartDureeMinutes > 0 ? '+' : '' }}
 													{{ ordre.ecartDureeMinutes }}
 													min
@@ -546,10 +546,10 @@
 											</small>
 
 											<h5 class="mb-0 mt-1
-																																																																																																		                                            {{ ordre.retardMinutes > 0
-																																																																																																		                                                ? 'text-danger'
-																																																																																																		                                                : 'text-success'
-																																																																																																		                                            }}">
+																																																																																																																																									                                            {{ ordre.retardMinutes > 0
+																																																																																																																																									                                                ? 'text-danger'
+																																																																																																																																									                                                : 'text-success'
+																																																																																																																																									                                            }}">
 												{{ ordre.retardMinutes }}
 												min
 											</h5>
@@ -561,8 +561,8 @@
 					</div>
 
 					{# ==================================================
-																																		                   RÉSULTATS DE PRODUCTION
-																																		                ================================================== #}
+																																																	                   RÉSULTATS DE PRODUCTION
+																																																	                ================================================== #}
 					{% if ordre.statut == 'termine' %}
 						<div class="card mb-3">
 							<div class="card-header">
@@ -620,8 +620,8 @@
 					{% endif %}
 
 					{# ==================================================
-																																		                   FICHIERS DE PRODUCTION
-																																		                ================================================== #}
+																																																	                   FICHIERS DE PRODUCTION
+																																																	                ================================================== #}
 					<div class="card mb-3">
 						<div class="card-header">
 							<h5 class="card-title mb-0">
@@ -666,8 +666,8 @@
 				</div>
 
 				{# ======================================================
-																										               PANNEAU DES ACTIONS
-																										            ====================================================== #}
+																																						               PANNEAU DES ACTIONS
+																																						            ====================================================== #}
 				<div
 					class="col-lg-4">
 
@@ -751,7 +751,7 @@
 							<div class="card-body">
 								<p class="text-muted">
 									Enregistrez la date et l’heure de transmission
-																																																																		                                de cet ordre à l’atelier.
+																																																																																													                                de cet ordre à l’atelier.
 								</p>
 
 								<form method="post" action="{{ path( 'app_production_transmettre', {id: ordre.id} ) }}" class="js-confirm-form" data-message="Confirmer la transmission de cet ordre à la production ?">

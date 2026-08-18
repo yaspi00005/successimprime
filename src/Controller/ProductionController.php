@@ -257,6 +257,33 @@ final class ProductionController extends AbstractController
             ]
         );
     }
+
+    /*
+     * ============================================================
+     * VUE D'ENSEMBLE
+     * ============================================================
+     *
+     * Liste à plat de tous les travaux actuellement en production
+     * (à produire, en cours, en pause), sans regroupement par poste
+     * ni détection de machine : consultable même sans être connecté
+     * sur une machine d'impression.
+     * ============================================================
+     */
+
+    #[Route('/apercu', name: 'apercu', methods: ['GET'])]
+    public function apercu(
+        OrdreProductionRepository $ordreProductionRepository
+    ): Response {
+        $ordres = $ordreProductionRepository->rechercherTravauxAtelier();
+
+        return $this->render(
+            'production/apercu.html.twig',
+            [
+                'ordres' => $ordres,
+            ]
+        );
+    }
+
     #[Route(
         '/{id}',
         name: 'show',

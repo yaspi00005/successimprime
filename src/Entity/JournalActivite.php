@@ -18,6 +18,7 @@ class JournalActivite
     public const ACTION_CREATION = 'creation';
     public const ACTION_MODIFICATION = 'modification';
     public const ACTION_SUPPRESSION = 'suppression';
+    public const ACTION_DOUBLON_BLOQUE = 'doublon_bloque';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

@@ -38,6 +38,17 @@ class Commandes
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeInterface $dateLivraison = null;
 
+    /*
+     * Dernière modification (y compris une modification d'une
+     * commande normalement verrouillée, faite par un administrateur).
+     */
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeInterface $modifieLe = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $modifiePar = null;
+
     #[ORM\Column(options: ['default' => 0])]
     private int $remise = 0;
 
@@ -197,6 +208,31 @@ class Commandes
         ?\DateTimeInterface $dateLivraison
     ): static {
         $this->dateLivraison = $dateLivraison;
+
+        return $this;
+    }
+
+    public function getModifieLe(): ?\DateTimeImmutable
+    {
+        return $this->modifieLe;
+    }
+
+    public function setModifieLe(
+        ?\DateTimeInterface $modifieLe
+    ): static {
+        $this->modifieLe = $modifieLe;
+
+        return $this;
+    }
+
+    public function getModifiePar(): ?User
+    {
+        return $this->modifiePar;
+    }
+
+    public function setModifiePar(?User $modifiePar): static
+    {
+        $this->modifiePar = $modifiePar;
 
         return $this;
     }

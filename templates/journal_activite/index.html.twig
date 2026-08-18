@@ -41,6 +41,7 @@
 							<option value="creation" {{ filtres.action == 'creation' ? 'selected' : '' }}>Création</option>
 							<option value="modification" {{ filtres.action == 'modification' ? 'selected' : '' }}>Modification</option>
 							<option value="suppression" {{ filtres.action == 'suppression' ? 'selected' : '' }}>Suppression</option>
+							<option value="doublon_bloque" {{ filtres.action == 'doublon_bloque' ? 'selected' : '' }}>Doublon bloqué</option>
 						</select>
 					</div>
 
@@ -112,6 +113,8 @@
 										<span class="badge badge-success">Création</span>
 									{% elseif journal.action == 'suppression' %}
 										<span class="badge badge-danger">Suppression</span>
+									{% elseif journal.action == 'doublon_bloque' %}
+										<span class="badge badge-info">Doublon bloqué</span>
 									{% else %}
 										<span class="badge badge-warning">Modification</span>
 									{% endif %}

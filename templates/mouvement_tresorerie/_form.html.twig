@@ -82,8 +82,8 @@
 			class="row">
 
 			{# ==================================================
-			               TYPE
-			               ================================================== #}
+						               TYPE
+						               ================================================== #}
 
 			<div class="col-md-4">
 
@@ -137,8 +137,8 @@
 
 
 			{# ==================================================
-			               MONTANT
-			               ================================================== #}
+						               MONTANT
+						               ================================================== #}
 
 			<div class="col-md-5">
 
@@ -210,8 +210,8 @@
 
 
 			{# ==================================================
-			               DEVISE
-			               ================================================== #}
+						               DEVISE
+						               ================================================== #}
 
 			<div class="col-md-3">
 
@@ -249,8 +249,8 @@
 
 
 		{# ======================================================
-		           COMPTES
-		           ====================================================== #}
+				           COMPTES
+				           ====================================================== #}
 
 		<div
 			class="row">
@@ -378,8 +378,8 @@
 
 
 		{# ======================================================
-		           INFORMATION SUR LE TYPE
-		           ====================================================== #}
+				           INFORMATION SUR LE TYPE
+				           ====================================================== #}
 
 		<div id="informationMouvement" class="alert alert-light border mt-2 mb-0">
 
@@ -474,8 +474,8 @@
 
 
 		{# ======================================================
-		           INFORMATION TRANSFERT
-		           ====================================================== #}
+				           INFORMATION TRANSFERT
+				           ====================================================== #}
 
 		<div id="informationTransfertNeutre" class="alert alert-info mb-0" style="display:none;">
 
@@ -486,7 +486,7 @@
 			<div class="mt-1">
 
 				Ce déplacement d'argent modifie les soldes des deux
-				                comptes mais n'est ni une recette ni une charge.
+								                comptes mais n'est ni une recette ni une charge.
 
 			</div>
 
@@ -584,9 +584,11 @@
 
 			<div class="col-md-6">
 
-				<div class="form-group">
+				{% if form.dateOperation is defined %}
 
-					{{ form_label(
+					<div class="form-group">
+
+						{{ form_label(
                         form.dateOperation,
                         null,
                         {
@@ -596,10 +598,10 @@
                         }
                     ) }}
 
-					<span class="text-danger">*</span>
+						<span class="text-danger">*</span>
 
 
-					{{ form_widget(
+						{{ form_widget(
                         form.dateOperation,
                         {
                             attr:
@@ -615,9 +617,32 @@
                         }
                     ) }}
 
-					{{ form_errors(form.dateOperation) }}
+						{% if form.dateOperation.vars.help %}
+							<small class="form-text text-muted">
+								{{ form.dateOperation.vars.help }}
+							</small>
+						{% endif %}
 
-				</div>
+						{{ form_errors(form.dateOperation) }}
+
+					</div>
+
+				{% else %}
+
+					<div class="form-group">
+
+						<label class="font-weight-bold">
+							Date de l’opération
+						</label>
+
+						<div class="alert alert-light border mb-0">
+							<i class="fa fa-lock mr-1"></i>
+							La date actuelle sera appliquée automatiquement.
+						</div>
+
+					</div>
+
+				{% endif %}
 
 			</div>
 
@@ -734,9 +759,9 @@
 
 
 		{# ======================================================
-		           CONFIDENTIEL
-		           ADMIN UNIQUEMENT
-		           ====================================================== #}
+				           CONFIDENTIEL
+				           ADMIN UNIQUEMENT
+				           ====================================================== #}
 
 		{% if estAdmin and form.confidentiel is defined %}
 
@@ -808,14 +833,14 @@
 	{% if estAdmin %}
 
 		Vous gérez les comptes administratifs et partagés.
-		        Les caisses personnelles restent sous la responsabilité
-		        de leurs propriétaires.
+				        Les caisses personnelles restent sous la responsabilité
+				        de leurs propriétaires.
 
 	{% else %}
 
 		Vous pouvez gérer votre caisse personnelle ainsi que les
-		        comptes partagés autorisés. Vous ne pouvez pas utiliser
-		        la caisse personnelle d'un autre agent.
+				        comptes partagés autorisés. Vous ne pouvez pas utiliser
+				        la caisse personnelle d'un autre agent.
 
 	{% endif %}
 

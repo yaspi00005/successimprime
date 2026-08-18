@@ -882,6 +882,25 @@ foreach ($comptes as $compte) {
 
             /*
              * ====================================================
+             * DATE DE L'OPÉRATION
+             * ====================================================
+             *
+             * Seul l'admin peut choisir une date différente
+             * de maintenant. Protection contre modification HTML
+             * même si le champ n'est pas censé être présent
+             * dans le formulaire pour un non-admin.
+             * ====================================================
+             */
+
+            if (!$estAdmin) {
+                $mouvement->setDateOperation(
+                    new \DateTimeImmutable()
+                );
+            }
+
+
+            /*
+             * ====================================================
              * TRANSFERT
              * ====================================================
              *

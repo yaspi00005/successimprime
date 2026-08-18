@@ -76,8 +76,8 @@ class CommandesDetails
 
     #[ORM\Column(
         type: Types::DECIMAL,
-        precision: 10,
-        scale: 2,
+        precision: 12,
+        scale: 4,
         nullable: true
     )]
     #[Assert\PositiveOrZero]
@@ -85,8 +85,8 @@ class CommandesDetails
 
     #[ORM\Column(
         type: Types::DECIMAL,
-        precision: 10,
-        scale: 2,
+        precision: 12,
+        scale: 4,
         nullable: true
     )]
     #[Assert\PositiveOrZero]
@@ -107,11 +107,11 @@ class CommandesDetails
     )]
     private int $quantite = 1;
 
-    #[ORM\Column(options: ['default' => 0])]
+    #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 4, options: ['default' => 0])]
     #[Assert\PositiveOrZero(
         message: 'Le prix unitaire ne peut pas être négatif.'
     )]
-    private int $prixUnitaire = 0;
+    private string $prixUnitaire = '0';
 
     #[ORM\Column(options: ['default' => 0])]
     #[Assert\PositiveOrZero]
@@ -124,7 +124,7 @@ class CommandesDetails
      * exactement le meme total qu'en appliquant le pourcentage exact,
      * sans ecart de quelques francs du a un arrondi premature.
      */
-    #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, options: ['default' => 0])]
+    #[ORM\Column(type: Types::DECIMAL, precision: 7, scale: 4, options: ['default' => 0])]
     #[Assert\Range(min: 0, max: 100)]
     private string $remise = '0';
 
@@ -572,8 +572,11 @@ class CommandesDetails
             $this->surface = null;
         }
 
-        $this->prixUnitaire = $configuration->getPrixApplicable(
-            $clientB2B
+        $this->prixUnitaire = number_format(
+            (float) $configuration->getPrixApplicable($clientB2B),
+            4,
+            '.',
+            ''
         );
         $this->modeCalcul = $configuration->getModeCalcul();
 
@@ -630,7 +633,7 @@ class CommandesDetails
         };
 
         return (int) round(
-            $this->prixUnitaire * max(0, $facteur)
+            (float) $this->prixUnitaire * max(0, $facteur)
         );
     }
 
@@ -718,7 +721,7 @@ class CommandesDetails
     public function setLargeur(
         string|float|int|null $largeur
     ): static {
-        $this->largeur = $this->normaliserDecimal($largeur, 2);
+        $this->largeur = $this->normaliserDecimal($largeur, 4);
 
         return $this;
     }
@@ -731,7 +734,7 @@ class CommandesDetails
     public function setLongueur(
         string|float|int|null $longueur
     ): static {
-        $this->longueur = $this->normaliserDecimal($longueur, 2);
+        $this->longueur = $this->normaliserDecimal($longueur, 4);
 
         return $this;
     }
@@ -801,14 +804,18 @@ class CommandesDetails
         return $this;
     }
 
-    public function getPrixUnitaire(): int
+    public function getPrixUnitaire(): float
     {
-        return $this->prixUnitaire;
+        return (float) $this->prixUnitaire;
     }
 
-    public function setPrixUnitaire(?int $prixUnitaire): static
-    {
-        $this->prixUnitaire = max(0, $prixUnitaire ?? 0);
+    public function setPrixUnitaire(
+        string|float|int|null $prixUnitaire
+    ): static {
+        $this->prixUnitaire = $this->normaliserDecimal(
+            $prixUnitaire,
+            4
+        ) ?? '0';
 
         return $this;
     }
@@ -1326,7 +1333,7 @@ public function validerModeCommande(
                 ->addViolation();
         }
 
-        if ($this->prixUnitaire <= 0) {
+        if ((float) $this->prixUnitaire <= 0) {
             $context
                 ->buildViolation(
                     'Le prix unitaire doit être supérieur à zéro.'
@@ -1361,7 +1368,7 @@ public function validerModeCommande(
                 ->addViolation();
         }
 
-        if ($this->prixUnitaire <= 0) {
+        if ((float) $this->prixUnitaire <= 0) {
             $context
                 ->buildViolation(
                     'Le prix unitaire doit être supérieur à zéro.'
@@ -1494,7 +1501,7 @@ public function validerModeCommande(
      * PRIX
      * ========================================================
      */
-    if ($this->prixUnitaire <= 0) {
+    if ((float) $this->prixUnitaire <= 0) {
         $context
             ->buildViolation(
                 'Le prix unitaire doit être supérieur à zéro.'

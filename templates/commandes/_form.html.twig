@@ -1,5 +1,14 @@
+{#
+    Une commande dont le circuit a déjà commencé (production ou
+    livraison) est normalement verrouillée. Le contrôleur autorise
+    déjà un administrateur à accéder à l'édition dans ce cas (voir
+    CommandesController::edit()) : le formulaire doit donc rester
+    modifiable pour lui, sinon l'accès autorisé ne sert à rien
+    (tous les champs restent bloqués visuellement).
+#}
 {% set commandeVerrouillee =
     circuitDejaCommence|default(false)
+    and not is_granted('ROLE_ADMIN')
 %}
 
 
@@ -927,6 +936,22 @@
 %}
 
 
+{% set modeleUrlSuppression = path(
+    'app_fichier_upload_supprimer',
+    {
+        jeton: jetonTemporaire
+    }
+) %}
+
+
+{% set modeleUrlSuppression =
+    modeleUrlSuppression|replace({
+        (jetonTemporaire):
+            '__JETON__'
+    })
+%}
+
+
 {# ============================================================
    FORMULAIRE
    ============================================================ #}
@@ -956,7 +981,22 @@
             modeleUrlMorceau,
 
         'data-upload-statut-url':
-            modeleUrlStatut
+            modeleUrlStatut,
+
+        'data-upload-supprimer-url':
+            modeleUrlSuppression,
+
+        'data-brouillon-nouvelle':
+            commande.id is null ? '1' : '0',
+
+        'data-brouillon-csrf':
+            csrf_token('brouillon-commande'),
+
+        'data-brouillon-enregistrer-url':
+            path('app_brouillon_enregistrer', {type: 'commande'}),
+
+        'data-brouillon-verifier-url':
+            path('app_brouillon_verifier', {type: 'commande'})
     }
 }) }}
 
@@ -1311,6 +1351,17 @@
 				{% endfor %}
 
 			</div>
+
+			{% if not commandeVerrouillee %}
+
+				<div class="text-center mt-2">
+					<button type="button" id="add-detail-bottom" class="btn btn-success-light">
+						<i class="fa fa-plus mr-1"></i>
+						Ajouter un détail
+					</button>
+				</div>
+
+			{% endif %}
 
 		</div>
 
@@ -1868,6 +1919,8 @@ const collection = document.getElementById('collection-details');
 
 const addButton = document.getElementById('add-detail');
 
+const addButtonBas = document.getElementById('add-detail-bottom');
+
 if (! form || ! collection) {
 return;
 }
@@ -2012,6 +2065,8 @@ const uploadMorceauUrlModele = form.dataset.uploadMorceauUrl;
 
 const uploadStatutUrlModele = form.dataset.uploadStatutUrl;
 
+const uploadSupprimerUrlModele = form.dataset.uploadSupprimerUrl;
+
 
 /*
          * ====================================================
@@ -2052,18 +2107,33 @@ function construireUrlMorceauUpload(jeton, index) {
 return uploadMorceauUrlModele.replace('__JETON__', jeton).replace('__INDEX__', String(index));
 }
 
+function construireUrlSuppressionFichier(jeton) {
+return uploadSupprimerUrlModele.replace('__JETON__', jeton);
+}
+
 function echapperHtml(texte) {
 const zone = document.createElement('div');
 zone.textContent = texte;
 return zone.innerHTML;
 }
 
+/*
+ * Au-dela de cette taille, on n'essaie plus de generer d'apercu
+ * miniature pour une image : meme via createObjectURL(), le
+ * navigateur doit decoder toute l'image (largeur/hauteur reelles)
+ * pour en afficher ne serait-ce qu'une vignette 40x40, ce qui peut
+ * geler la page un instant sur une tres grosse photo/scan.
+ */
+const LIMITE_APERCU_IMAGE = 8 * 1024 * 1024;
+
 function creerLigneUpload(fichier) {
 const ligne = document.createElement('div');
 
 ligne.className = 'd-flex align-items-center border rounded p-2 mb-2 js-upload-ligne';
 
-const estImage = fichier.type && fichier.type.indexOf('image/') === 0;
+const estImage = fichier.type
+&& fichier.type.indexOf('image/') === 0
+&& fichier.size <= LIMITE_APERCU_IMAGE;
 
 const apercu = document.createElement(estImage ? 'img' : 'i');
 
@@ -2073,11 +2143,15 @@ apercu.style.width = '40px';
 apercu.style.height = '40px';
 apercu.style.objectFit = 'cover';
 
-const lecteur = new FileReader();
-lecteur.onload = function () {
-apercu.src = lecteur.result;
-};
-lecteur.readAsDataURL(fichier);
+/*
+ * URL.createObjectURL() plutot que FileReader.readAsDataURL() :
+ * ce dernier lit et encode tout le fichier en base64 en memoire
+ * avant meme le debut de l'envoi, ce qui bloque/fait planter le
+ * navigateur sur les fichiers lourds (grosses photos, scans...).
+ * createObjectURL() ne fait qu'une reference legere geree par le
+ * navigateur, sans lire le contenu.
+ */
+apercu.src = URL.createObjectURL(fichier);
 } else {
 apercu.className = 'fa fa-file-o mr-2 js-upload-icone';
 apercu.style.fontSize = '24px';
@@ -2088,8 +2162,15 @@ infos.className = 'flex-grow-1';
 
 infos.innerHTML = '<div class="small font-weight-bold">' + echapperHtml(fichier.name) + '</div>' + '<div class="progress" style="height:4px;"><div class="progress-bar js-upload-barre" style="width:0%"></div></div>' + '<div class="small text-muted js-upload-statut">En attente...</div>';
 
+const boutonSupprimer = document.createElement('button');
+boutonSupprimer.type = 'button';
+boutonSupprimer.className = 'btn btn-sm btn-link text-danger js-upload-supprimer';
+boutonSupprimer.title = 'Supprimer ce fichier';
+boutonSupprimer.innerHTML = '<i class="fa fa-trash"></i>';
+
 ligne.appendChild(apercu);
 ligne.appendChild(infos);
+ligne.appendChild(boutonSupprimer);
 
 return ligne;
 }
@@ -2110,6 +2191,72 @@ valeurs.push(jeton);
 }
 
 champ.value = valeurs.join(',');
+}
+
+function retirerJetonFichier(detail, jeton) {
+const champ = detail.querySelector('.js-jetons-fichiers');
+
+if (! champ) {
+return;
+}
+
+const valeurs = champ.value
+? champ.value.split(',').map(function (v) { return v.trim(); }).filter(Boolean)
+: [];
+
+champ.value = valeurs.filter(function (v) { return v !== jeton; }).join(',');
+}
+
+async function supprimerFichierTeleverse(detail, ligne) {
+const jeton = ligne.dataset.jeton || '';
+
+const statutTexte = ligne.querySelector('.js-upload-statut');
+
+/*
+ * Pas encore de jeton (upload pas encore initialise cote serveur) :
+ * rien a supprimer la-bas, on retire juste la ligne localement.
+ */
+if (! jeton) {
+ligne.remove();
+
+return;
+}
+
+if (! window.confirm('Supprimer ce fichier ?')) {
+return;
+}
+
+if (statutTexte) {
+statutTexte.textContent = 'Suppression...';
+}
+
+try {
+
+const reponse = await fetch(construireUrlSuppressionFichier(jeton), {
+method: 'POST',
+headers: {
+'X-CSRF-TOKEN': uploadCsrf
+}
+});
+
+if (! reponse.ok) {
+const donnees = await reponse.json().catch(function () { return {}; });
+
+throw new Error(donnees.message || 'Impossible de supprimer ce fichier.');
+}
+
+retirerJetonFichier(detail, jeton);
+
+ligne.remove();
+
+} catch (erreur) {
+
+console.error(erreur);
+
+if (statutTexte) {
+statutTexte.textContent = 'Échec : ' + erreur.message;
+}
+}
 }
 
 async function televerserFichier(detail, fichier, ligneUpload) {
@@ -2145,6 +2292,12 @@ throw new Error(donneesInit.message || "Impossible d'initialiser l'envoi.");
 }
 
 const jeton = donneesInit.jeton;
+
+/*
+ * Rendu disponible sur la ligne pour le bouton de suppression :
+ * on peut annuler un envoi meme avant qu'il soit termine.
+ */
+ligneUpload.dataset.jeton = jeton;
 
 for (let index = 0; index < nombreMorceaux; index++) {
 
@@ -2210,7 +2363,7 @@ if (! champFichier || ! zoneListe || ! uploadInitialiserUrl) {
 return;
 }
 
-champFichier.addEventListener('change', function () {
+champFichier.addEventListener('change', async function () {
 
 const fichiers = Array.from(champFichier.files || []);
 
@@ -2220,14 +2373,28 @@ const fichiers = Array.from(champFichier.files || []);
  */
 champFichier.value = '';
 
-fichiers.forEach(function (fichier) {
+/*
+ * Envoi des fichiers un par un (et non tous en parallele) :
+ * avec plusieurs fichiers lourds selectionnes d'un coup, lancer
+ * tous les envois en meme temps multiplie la charge memoire/
+ * reseau au meme instant et peut faire planter/geler la page.
+ */
+for (const fichier of fichiers) {
 
 const ligne = creerLigneUpload(fichier);
 
 zoneListe.appendChild(ligne);
 
-televerserFichier(detail, fichier, ligne);
+const boutonSupprimer = ligne.querySelector('.js-upload-supprimer');
+
+if (boutonSupprimer) {
+boutonSupprimer.addEventListener('click', function () {
+supprimerFichierTeleverse(detail, ligne);
 });
+}
+
+await televerserFichier(detail, fichier, ligne);
+}
 });
 }
 
@@ -2245,6 +2412,17 @@ return valeurDefaut;
 const valeur = Number(String(champ.value).replace(',', '.'));
 
 return Number.isFinite(valeur) ? valeur : valeurDefaut;
+}
+
+
+/*
+ * Les champs largeur/longueur sont saisis en centimetres (voir
+ * CommandesDetailsType), mais les calculs de surface/metre lineaire
+ * ci-dessous raisonnent en metres (comme le catalogue). On convertit
+ * donc systematiquement a la lecture du champ.
+ */
+function metresDepuisChampCm(champ) {
+return Math.max(0, nombreDepuisChamp(champ)) / 100;
 }
 
 
@@ -2465,9 +2643,9 @@ return automatiques + manuelles;
 function calculerDetail(detail) {
 const quantite = Math.max(1, nombreDepuisChamp(champDetail(detail, 'quantite'), 1));
 
-const largeur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'largeur')));
+const largeur = metresDepuisChampCm(champDetail(detail, 'largeur'));
 
-const longueur = Math.max(0, nombreDepuisChamp(champDetail(detail, 'longueur')));
+const longueur = metresDepuisChampCm(champDetail(detail, 'longueur'));
 
 const surface = largeur * longueur;
 
@@ -3115,6 +3293,8 @@ throw new Error(json.message || 'Impossible de charger le produit.');
 const infosProduit = json.produit || {};
 
 
+definirValeur(detail, 'designation', infosProduit.nom || '');
+
 definirValeur(detail, 'prixUnitaire', infosProduit.prixBase || 0);
 
 definirValeur(detail, 'remise', clientEstB2B() ? Math.round((infosProduit.remiseB2B || 0) * 100) / 100 : 0);
@@ -3184,6 +3364,8 @@ console.log('[DEBUG] chargerConfiguration() : JSON recu', json);
 
 const config = json.configuration || json.data || json;
 
+
+definirValeur(detail, 'designation', config.designation || '');
 
 definirValeur(detail, 'typeImpression', config.typeImpression);
 
@@ -3588,6 +3770,10 @@ if (addButton && ! commandeVerrouillee) {
 addButton.addEventListener('click', ajouterDetail);
 }
 
+if (addButtonBas && ! commandeVerrouillee) {
+addButtonBas.addEventListener('click', ajouterDetail);
+}
+
 
 console.log('[DEBUG] tentative attache ecouteur client, clientSelect=', !! clientSelect, 'commandeVerrouillee=', commandeVerrouillee);
 
@@ -3615,6 +3801,121 @@ afficherProfilClient();
 
 rafraichirDetails();
 
+
+initialiserBrouillon();
+
+}
+
+
+/*
+ * ====================================================
+ * BROUILLON (sauvegarde automatique en session)
+ * ====================================================
+ *
+ * Uniquement pour une commande "nouvelle" (pas encore enregistrée) :
+ * la saisie est sauvegardée automatiquement en session cote serveur
+ * pendant que l'agent la remplit, pour pouvoir la restaurer si la
+ * page se ferme ou plante avant l'enregistrement definitif.
+ */
+function initialiserBrouillon() {
+
+if (form.dataset.brouillonNouvelle !== '1') {
+return;
+}
+
+const brouillonEnregistrerUrl = form.dataset.brouillonEnregistrerUrl;
+const brouillonVerifierUrl = form.dataset.brouillonVerifierUrl;
+const brouillonCsrf = form.dataset.brouillonCsrf;
+
+if (! brouillonEnregistrerUrl || ! brouillonCsrf) {
+return;
+}
+
+function serialiserFormulaireBrouillon() {
+const donnees = new FormData(form);
+const params = new URLSearchParams();
+
+for (const paire of donnees.entries()) {
+const valeur = paire[1];
+
+/*
+ * Les fichiers ont deja leur propre mecanisme de
+ * persistance (upload par morceaux + jeton) : impossible
+ * et inutile de les remettre dans un brouillon.
+ */
+if (valeur instanceof File) {
+continue;
+}
+
+params.append(paire[0], valeur);
+}
+
+return params;
+}
+
+function sauvegarderBrouillon() {
+fetch(brouillonEnregistrerUrl, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/x-www-form-urlencoded',
+'X-CSRF-TOKEN': brouillonCsrf
+},
+body: serialiserFormulaireBrouillon().toString()
+}).catch(function (erreur) {
+console.error(erreur);
+});
+}
+
+let minuteurBrouillon = null;
+
+form.addEventListener('input', function () {
+if (minuteurBrouillon) {
+clearTimeout(minuteurBrouillon);
+}
+
+minuteurBrouillon = setTimeout(sauvegarderBrouillon, 4000);
+});
+
+setInterval(sauvegarderBrouillon, 60000);
+
+/*
+ * Propose la restauration au chargement, sauf si on vient
+ * justement de restaurer (evite de reproposer en boucle).
+ */
+if (
+window.location.search.indexOf('restaurer=1') === -1
+&& brouillonVerifierUrl
+) {
+fetch(brouillonVerifierUrl)
+.then(function (reponse) {
+return reponse.json();
+})
+.then(function (donnees) {
+if (! donnees.existe || typeof window.Swal === 'undefined') {
+return;
+}
+
+window.Swal.fire({
+icon: 'question',
+title: 'Saisie non terminée trouvée',
+text: 'Une saisie de commande non enregistrée a été trouvée. Voulez-vous la restaurer ?',
+showCancelButton: true,
+confirmButtonText: 'Restaurer',
+cancelButtonText: 'Ignorer'
+}).then(function (resultat) {
+if (resultat.isConfirmed) {
+const url = new URL(window.location.href);
+
+url.searchParams.set('restaurer', '1');
+
+window.location.href = url.toString();
+}
+});
+})
+.catch(function (erreur) {
+console.error(erreur);
+});
+}
 }
 
 /*
@@ -3633,4 +3934,59 @@ document.addEventListener('DOMContentLoaded', initialiserFormulaireCommande);
 } else {
 initialiserFormulaireCommande();
 }
+</script>
+
+
+{# ============================================================
+   PROTECTION CONTRE LES DOUBLONS (protectionDoublonCommandeAjoutee)
+
+   Empêche un double clic / une double soumission d'enregistrer
+   deux fois la même commande.
+   ============================================================ #}
+
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+
+const formulaire = document.getElementById('commande-form');
+
+if (! formulaire) {
+return;
+}
+
+const bouton = formulaire.querySelector('button[type="submit"]');
+
+formulaire.addEventListener('submit', function (event) {
+
+if (formulaire.dataset.envoiEnCours === '1') {
+
+event.preventDefault();
+
+return;
+}
+
+formulaire.dataset.envoiEnCours = '1';
+
+if (bouton) {
+
+bouton.disabled = true;
+
+bouton.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Enregistrement en cours...';
+}
+
+if (typeof window.Swal !== 'undefined') {
+
+window.Swal.fire({
+icon: 'info',
+title: 'Enregistrement en cours...',
+text: 'Veuillez patienter, ne cliquez pas une seconde fois.',
+showConfirmButton: false,
+allowOutsideClick: false,
+allowEscapeKey: false,
+timer: 4000,
+timerProgressBar: true
+});
+}
+});
+
+});
 </script>

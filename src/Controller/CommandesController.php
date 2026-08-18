@@ -103,7 +103,8 @@ final class CommandesController extends AbstractController
         Request $request,
         EntityManagerInterface $entityManager,
         CommandeDetailFichierRepository $fichierRepository,
-        StockService $stockService
+        StockService $stockService,
+        CommandesRepository $commandesRepository
     ): Response {
         $commande = new Commandes();
 
@@ -111,6 +112,35 @@ final class CommandesController extends AbstractController
             CommandesType::class,
             $commande
         );
+
+        /*
+     * ============================================================
+     * RESTAURATION D'UN BROUILLON
+     * ============================================================
+     *
+     * Pré-remplit le formulaire à partir d'une saisie sauvegardée
+     * automatiquement en session (voir BrouillonSaisieController),
+     * sans jamais déclencher l'enregistrement : on affiche juste le
+     * formulaire pré-rempli, l'agent doit re-soumettre lui-même.
+     */
+        if (
+            $request->isMethod('GET')
+            && $request->query->get('restaurer') === '1'
+        ) {
+            $brouillon = $request->getSession()->get('brouillon_commande');
+
+            if (is_array($brouillon) && !empty($brouillon['champs'])) {
+                $form->submit($brouillon['champs'], false);
+            }
+
+            return $this->render(
+                'commandes/new.html.twig',
+                [
+                    'commande' => $commande,
+                    'form' => $form,
+                ]
+            );
+        }
 
         $form->handleRequest($request);
 
@@ -196,6 +226,73 @@ final class CommandesController extends AbstractController
 
                 /*
              * ====================================================
+             * PROTECTION CONTRE LES DOUBLONS
+             * ====================================================
+             *
+             * Un double clic ou une double soumission du
+             * formulaire peut créer deux commandes identiques.
+             * On refuse l'enregistrement si le même agent a déjà
+             * enregistré, il y a moins de 30 secondes, une
+             * commande pour le même client avec le même montant.
+             * ====================================================
+             */
+                if ($commande->getClients() !== null) {
+                    $doublon = $commandesRepository
+                        ->trouverDoublonRecent(
+                            $utilisateur,
+                            $commande->getClients(),
+                            $commande->getTotalTtc(),
+                            $maintenant->modify('-30 seconds')
+                        );
+
+                    if ($doublon !== null) {
+                        /*
+                     * ================================================
+                     * JOURNAL D'ACTIVITÉ
+                     * ================================================
+                     *
+                     * La création est refusée avant tout persist, donc
+                     * l'audit automatique (AuditSubscriber) ne voit
+                     * jamais passer cette tentative. On la trace donc
+                     * explicitement pour garder une trace de qui a
+                     * tenté d'enregistrer un doublon, quand et sur
+                     * quelle commande d'origine.
+                     */
+                        $journal = new \App\Entity\JournalActivite();
+                        $journal
+                            ->setEntite('Commandes')
+                            ->setEntiteId($doublon->getId())
+                            ->setAction(\App\Entity\JournalActivite::ACTION_DOUBLON_BLOQUE)
+                            ->setDonneesApres([
+                                'commandeOrigineId' => $doublon->getId(),
+                                'commandeOrigineNumero' => $doublon->getNumero(),
+                                'clientId' => $commande->getClients()?->getId(),
+                                'totalTtc' => $commande->getTotalTtc(),
+                            ])
+                            ->setUtilisateur($utilisateur);
+
+                        $entityManager->persist($journal);
+                        $entityManager->flush();
+
+                        $this->addFlash(
+                            'warning',
+                            sprintf(
+                                'Cette commande semble déjà avoir été enregistrée à l’instant (commande %s). Pour éviter un doublon, elle n’a pas été enregistrée une seconde fois.',
+                                $doublon->getNumero()
+                                    ?? ('CMD-' . $doublon->getId())
+                            )
+                        );
+
+                        return $this->redirectToRoute(
+                            'app_commandes_show',
+                            ['id' => $doublon->getId()],
+                            Response::HTTP_SEE_OTHER
+                        );
+                    }
+                }
+
+                /*
+             * ====================================================
              * ROUTAGE MÉTIER
              * ====================================================
              */
@@ -262,6 +359,8 @@ final class CommandesController extends AbstractController
                 );
 
                 $entityManager->flush();
+
+                $request->getSession()->remove('brouillon_commande');
 
                 $this->addFlash(
                     'success',
@@ -372,7 +471,7 @@ final class CommandesController extends AbstractController
 
             $this->addFlash(
                 'warning',
-                'Cette commande est verrouillée car la production ou la livraison a déjà commencé. Seul un administrateur peut encore la modifier.'
+                'Cette commande est verrouillée car la production ou la livraison a déjà commencé. '
             );
 
             return $this->redirectToRoute(
@@ -637,6 +736,10 @@ final class CommandesController extends AbstractController
              * ENREGISTREMENT
              * ========================================================
              */
+                $commande
+                    ->setModifieLe(new \DateTimeImmutable())
+                    ->setModifiePar($user);
+
                 $entityManager->flush();
 
 

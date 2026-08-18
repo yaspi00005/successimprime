@@ -2,7 +2,9 @@
 
 namespace App\Repository;
 
+use App\Entity\Clients;
 use App\Entity\Commandes;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -35,16 +37,23 @@ final class CommandesRepository extends ServiceEntityRepository
         /*
          * Affichage par défaut :
          * paiement en attente OU travaux en cours.
+         *
+         * Le champ booléen c.statut n'est jamais mis à jour après la
+         * création de la commande (aucun setStatut() n'est appelé
+         * ailleurs dans le code) : il reste bloqué à true pour
+         * toujours, ce qui rendait ce filtre inopérant et laissait
+         * apparaître les commandes déjà payées. Le paiement réel est
+         * donc recalculé ici à partir de montantAPayer/totalTtc,
+         * comme pour le filtre "paiement" plus bas.
          */
         if (!$rechercheActive && $affichage !== 'toutes') {
             $qb
                 ->andWhere(
                     $qb->expr()->orX(
-                        'c.statut = :statutActif',
+                        'COALESCE(c.montantApayer, 0) < c.totalTtc',
                         'c.etat = :etatActif'
                     )
                 )
-                ->setParameter('statutActif', true)
                 ->setParameter('etatActif', true);
         }
 
@@ -114,16 +123,16 @@ final class CommandesRepository extends ServiceEntityRepository
          */
         match ($filtres['paiement'] ?? '') {
             'impayee' => $qb->andWhere(
-                'COALESCE(c.montantAPayer, 0) = 0'
+                'COALESCE(c.montantApayer, 0) = 0'
             ),
 
             'partielle' => $qb->andWhere(
-                'COALESCE(c.montantAPayer, 0) > 0
-                 AND COALESCE(c.montantAPayer, 0) < c.totalTtc'
+                'COALESCE(c.montantApayer, 0) > 0
+                 AND COALESCE(c.montantApayer, 0) < c.totalTtc'
             ),
 
             'payee' => $qb->andWhere(
-                'COALESCE(c.montantAPayer, 0) >= c.totalTtc'
+                'COALESCE(c.montantApayer, 0) >= c.totalTtc'
             ),
 
             default => null,
@@ -296,6 +305,35 @@ final class CommandesRepository extends ServiceEntityRepository
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Détecte un doublon probable : même agent, même client,
+     * même montant TTC, enregistré il y a moins de $secondes.
+     *
+     * Sert de filet de sécurité côté serveur contre un double
+     * clic ou une double soumission du formulaire.
+     */
+    public function trouverDoublonRecent(
+        User $agent,
+        Clients $client,
+        int $totalTtc,
+        \DateTimeInterface $depuis
+    ): ?Commandes {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.deleted = false')
+            ->andWhere('c.agents = :agent')
+            ->andWhere('c.clients = :client')
+            ->andWhere('c.totalTtc = :totalTtc')
+            ->andWhere('c.dateCommande >= :depuis')
+            ->setParameter('agent', $agent)
+            ->setParameter('client', $client)
+            ->setParameter('totalTtc', $totalTtc)
+            ->setParameter('depuis', $depuis)
+            ->orderBy('c.dateCommande', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     private function rechercheEstActive(array $filtres): bool

@@ -99,6 +99,33 @@ class DevisController extends AbstractController
         $devi = new Devis();
 
         $form = $this->createForm(DevisType::class, $devi);
+
+        /*
+     * ============================================================
+     * RESTAURATION D'UN BROUILLON
+     * ============================================================
+     *
+     * Pré-remplit le formulaire à partir d'une saisie sauvegardée
+     * automatiquement en session (voir BrouillonSaisieController),
+     * sans jamais déclencher l'enregistrement : on affiche juste le
+     * formulaire pré-rempli, l'agent doit re-soumettre lui-même.
+     */
+        if (
+            $request->isMethod('GET')
+            && $request->query->get('restaurer') === '1'
+        ) {
+            $brouillon = $request->getSession()->get('brouillon_devis');
+
+            if (is_array($brouillon) && !empty($brouillon['champs'])) {
+                $form->submit($brouillon['champs'], false);
+            }
+
+            return $this->render('devis/new.html.twig', [
+                'devi' => $devi,
+                'form' => $form,
+            ]);
+        }
+
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -158,6 +185,8 @@ $this->initialiserTokenAuthenticiteDevis(
     $devi
 );
             $entityManager->flush();
+
+            $request->getSession()->remove('brouillon_devis');
 
             $this->addFlash(
                 'success',

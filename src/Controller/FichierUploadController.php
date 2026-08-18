@@ -291,6 +291,78 @@ final class FichierUploadController extends AbstractController
     }
 
     #[Route(
+        '/{jeton}/supprimer',
+        name: 'app_fichier_upload_supprimer',
+        requirements: [
+            'jeton' => '[a-f0-9]{64}',
+        ],
+        methods: ['POST']
+    )]
+    public function supprimer(
+        string $jeton,
+        Request $request,
+        CommandeDetailFichierRepository $repository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        if (!$this->isCsrfTokenValid(
+            'upload-commande',
+            $request->headers->get('X-CSRF-TOKEN')
+        )) {
+            return $this->json([
+                'message' => 'Jeton CSRF invalide.',
+            ], 403);
+        }
+
+        $fichier = $repository->findOneBy([
+            'jetonUpload' => $jeton,
+        ]);
+
+        if (!$fichier) {
+            return $this->json([
+                'message' => 'Fichier introuvable.',
+            ], 404);
+        }
+
+        /*
+         * Un fichier déjà rattaché à un détail de commande
+         * enregistré ne peut plus être supprimé par ce biais : il
+         * ne s'agit alors plus d'un envoi en attente, mais d'une
+         * pièce jointe d'une commande existante.
+         */
+        if ($fichier->getCommandeDetail() !== null) {
+            return $this->json([
+                'message' => 'Ce fichier est déjà rattaché à une commande enregistrée.',
+            ], 409);
+        }
+
+        if ($fichier->getStatut() === 'TERMINE' && $fichier->getNomStockage()) {
+            $chemin = $this->dossierFinal
+                .'/'.basename($fichier->getNomStockage());
+
+            if (is_file($chemin)) {
+                @unlink($chemin);
+            }
+        }
+
+        $dossierJeton = $this->dossierTemporaire.'/'.$jeton;
+
+        if (is_dir($dossierJeton)) {
+            foreach (glob($dossierJeton.'/*.part') ?: [] as $morceau) {
+                @unlink($morceau);
+            }
+
+            @rmdir($dossierJeton);
+        }
+
+        $entityManager->remove($fichier);
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+        ]);
+    }
+
+    #[Route(
         '/{id}/visualiser',
         name: 'app_fichier_visualiser',
         requirements: ['id' => '\\d+'],

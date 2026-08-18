@@ -932,27 +932,39 @@ class MouvementTresorerieType extends AbstractType
          * ============================================================
          * DATE OPÉRATION
          * ============================================================
+         *
+         * ADMIN UNIQUEMENT.
+         *
+         * Un utilisateur non-admin ne doit pas pouvoir antidater
+         * ou postdater un mouvement : la date est toujours celle
+         * de l'enregistrement (imposée côté contrôleur).
+         * ============================================================
          */
 
-        $builder->add(
-            'dateOperation',
-            DateTimeType::class,
-            [
-                'label' =>
-                    'Date de l’opération',
+        if ($estAdmin) {
+            $builder->add(
+                'dateOperation',
+                DateTimeType::class,
+                [
+                    'label' =>
+                        'Date de l’opération',
 
-                'widget' =>
-                    'single_text',
+                    'widget' =>
+                        'single_text',
 
-                'input' =>
-                    'datetime_immutable',
+                    'input' =>
+                        'datetime_immutable',
 
-                'attr' => [
-                    'class' =>
-                        'form-control',
-                ],
-            ]
-        );
+                    'help' =>
+                        'Réservé à l’administrateur. Pour les autres utilisateurs, la date actuelle est appliquée automatiquement.',
+
+                    'attr' => [
+                        'class' =>
+                            'form-control',
+                    ],
+                ]
+            );
+        }
 
 
         /*
