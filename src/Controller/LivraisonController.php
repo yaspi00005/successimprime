@@ -2,8 +2,11 @@
 
 namespace App\Controller;
 
+use App\Entity\Commandes;
 use App\Entity\CommandesDetails;
 use App\Entity\User;
+use App\Repository\BonLivraisonLigneRepository;
+use App\Repository\BonLivraisonRepository;
 use App\Repository\CommandesDetailsRepository;
 use App\Entity\StockSorties;
 use App\Service\StockService;
@@ -415,6 +418,74 @@ final class LivraisonController extends AbstractController
 
     /*
      * ============================================================
+     * FICHE D'UNE COMMANDE (TOUTES LES LIGNES + BONS DE LIVRAISON)
+     * ============================================================
+     *
+     * Vue de consultation d'une livraison au niveau de la commande :
+     * toutes les lignes livrables, avec leurs actions, et les bons
+     * de livraison déjà créés pour cette commande.
+     * ============================================================
+     */
+    #[Route(
+        '/commande/{id}',
+        name: 'commande',
+        requirements: [
+            'id' => '\d+',
+        ],
+        methods: ['GET']
+    )]
+    public function commande(
+        Commandes $commande,
+        CommandesDetailsRepository $commandesDetailsRepository,
+        BonLivraisonRepository $bonLivraisonRepository
+    ): Response {
+        $lignes = $commandesDetailsRepository
+            ->createQueryBuilder('detail')
+            ->leftJoin('detail.produit', 'produit')
+            ->addSelect('produit')
+            ->leftJoin('detail.support', 'support')
+            ->addSelect('support')
+            ->leftJoin('detail.machine', 'machine')
+            ->addSelect('machine')
+            ->andWhere('detail.commande = :commande')
+            ->andWhere(
+                'detail.statutProduction IN (:statutsLivraison)'
+            )
+            ->setParameter('commande', $commande)
+            ->setParameter(
+                'statutsLivraison',
+                [
+                    CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+                    CommandesDetails::PRODUCTION_EN_LIVRAISON,
+                    CommandesDetails::PRODUCTION_LIVREE,
+                ]
+            )
+            ->orderBy('detail.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $bons = $bonLivraisonRepository
+            ->createQueryBuilder('bl')
+            ->leftJoin('bl.creePar', 'creePar')
+            ->addSelect('creePar')
+            ->andWhere('bl.commande = :commande')
+            ->setParameter('commande', $commande)
+            ->orderBy('bl.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        return $this->render(
+            'livraisons/show_commande.html.twig',
+            [
+                'commande' => $commande,
+                'lignes' => $lignes,
+                'bons' => $bons,
+            ]
+        );
+    }
+
+    /*
+     * ============================================================
      * FICHE D'UNE LIVRAISON
      * ============================================================
      */
@@ -507,6 +578,276 @@ final class LivraisonController extends AbstractController
             'app_livraisons_show',
             [
                 'id' => $detail->getId(),
+            ]
+        );
+    }
+
+    /*
+     * ============================================================
+     * DÉMARRER PLUSIEURS LIGNES D'UNE COMMANDE EN UNE FOIS
+     * ============================================================
+     *
+     * Un seul formulaire/route pour deux usages :
+     * - "Démarrer toutes les livraisons" (champ caché tout=1) ;
+     * - "Démarrer la sélection" (cases à cocher lignes[]).
+     * ============================================================
+     */
+    #[Route(
+        '/commande/{id}/demarrer-masse',
+        name: 'demarrer_masse',
+        requirements: [
+            'id' => '\d+',
+        ],
+        methods: ['POST']
+    )]
+    public function demarrerMasse(
+        Commandes $commande,
+        Request $request,
+        CommandesDetailsRepository $commandesDetailsRepository,
+        EntityManagerInterface $em
+    ): Response {
+        $this->verifierJeton(
+            $request,
+            'livraison_demarrer_masse_' . $commande->getId()
+        );
+
+        $qb = $commandesDetailsRepository
+            ->createQueryBuilder('detail')
+            ->andWhere('detail.commande = :commande')
+            ->andWhere('detail.statutProduction = :statut')
+            ->setParameter('commande', $commande)
+            ->setParameter(
+                'statut',
+                CommandesDetails::PRODUCTION_PRETE_LIVRAISON
+            );
+
+        if (!$request->request->getBoolean('tout')) {
+            $ids = array_map(
+                'intval',
+                $request->request->all('lignes')
+            );
+
+            if ($ids === []) {
+                $this->addFlash(
+                    'error',
+                    'Aucune ligne sélectionnée.'
+                );
+
+                return $this->redirectToRoute(
+                    'app_livraisons_commande',
+                    [
+                        'id' => $commande->getId(),
+                    ]
+                );
+            }
+
+            $qb
+                ->andWhere('detail.id IN (:ids)')
+                ->setParameter('ids', $ids);
+        }
+
+        $lignes = $qb->getQuery()->getResult();
+
+        $nombreDemarrees = 0;
+
+        foreach ($lignes as $detail) {
+            try {
+                $detail->marquerEnLivraison();
+
+                ++$nombreDemarrees;
+            } catch (\LogicException) {
+                continue;
+            }
+        }
+
+        if ($nombreDemarrees > 0) {
+            $em->flush();
+
+            $this->addFlash(
+                'success',
+                sprintf(
+                    '%d livraison(s) démarrée(s).',
+                    $nombreDemarrees
+                )
+            );
+        } else {
+            $this->addFlash(
+                'error',
+                'Aucune ligne n’a pu être démarrée.'
+            );
+        }
+
+        return $this->redirectToRoute(
+            'app_livraisons_commande',
+            [
+                'id' => $commande->getId(),
+            ]
+        );
+    }
+
+    /*
+     * ============================================================
+     * MARQUER PLUSIEURS LIGNES COMME LIVRÉES, EN UNE FOIS
+     * ============================================================
+     *
+     * Le bon de livraison reste utile pour les clients (surtout les
+     * entreprises) qui en ont besoin comme document, mais il ne doit
+     * pas être une étape obligatoire pour livrer. La plupart des
+     * commandes sont livrées d'un coup : ce bouton marque directement
+     * les lignes comme livrées, sans passer par le circuit du bon.
+     *
+     * Une ligne déjà rattachée à un bon de livraison est ignorée ici
+     * : elle doit être finalisée depuis son bon (pour ne pas compter
+     * une sortie de stock deux fois).
+     * ============================================================
+     */
+    #[Route(
+        '/commande/{id}/livrer-masse',
+        name: 'livrer_masse',
+        requirements: [
+            'id' => '\d+',
+        ],
+        methods: ['POST']
+    )]
+    public function livrerMasse(
+        Commandes $commande,
+        Request $request,
+        CommandesDetailsRepository $commandesDetailsRepository,
+        BonLivraisonLigneRepository $bonLivraisonLigneRepository,
+        EntityManagerInterface $em,
+        StockService $stockService
+    ): Response {
+        $this->verifierJeton(
+            $request,
+            'livraison_livrer_masse_' . $commande->getId()
+        );
+
+        $qb = $commandesDetailsRepository
+            ->createQueryBuilder('detail')
+            ->andWhere('detail.commande = :commande')
+            ->andWhere('detail.statutProduction IN (:statuts)')
+            ->setParameter('commande', $commande)
+            ->setParameter(
+                'statuts',
+                [
+                    CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+                    CommandesDetails::PRODUCTION_EN_LIVRAISON,
+                ]
+            );
+
+        if (!$request->request->getBoolean('tout')) {
+            $ids = array_map(
+                'intval',
+                $request->request->all('lignes')
+            );
+
+            if ($ids === []) {
+                $this->addFlash(
+                    'error',
+                    'Aucune ligne sélectionnée.'
+                );
+
+                return $this->redirectToRoute(
+                    'app_livraisons_commande',
+                    [
+                        'id' => $commande->getId(),
+                    ]
+                );
+            }
+
+            $qb
+                ->andWhere('detail.id IN (:ids)')
+                ->setParameter('ids', $ids);
+        }
+
+        $lignes = $qb->getQuery()->getResult();
+
+        $nombreLivrees = 0;
+        $nombreIgnorees = 0;
+
+        foreach ($lignes as $detail) {
+            /*
+             * Déjà rattachée à un bon de livraison :
+             * on ne la touche pas ici.
+             */
+            $ligneBon = $bonLivraisonLigneRepository->findOneBy([
+                'commandeDetail' => $detail,
+            ]);
+
+            if ($ligneBon !== null) {
+                ++$nombreIgnorees;
+
+                continue;
+            }
+
+            try {
+                if (
+                    $detail->getStatutProduction()
+                    === CommandesDetails::PRODUCTION_PRETE_LIVRAISON
+                ) {
+                    $detail->marquerEnLivraison();
+                }
+
+                if (
+                    $detail->getTypeLigne()
+                    === CommandesDetails::TYPE_ARTICLE
+                ) {
+                    $article = $detail->getArticle();
+
+                    $quantite = (float) $detail->getQuantite();
+
+                    if ($article !== null && $quantite > 0) {
+                        $stockService->consommerPourDetail(
+                            $detail,
+                            StockSorties::ORIGINE_LIVRAISON,
+                            sprintf(
+                                'LIV-DIRECT-%06d',
+                                (int) $detail->getId()
+                            ),
+                            $quantite
+                        );
+                    }
+                }
+
+                $detail->marquerLivree();
+
+                ++$nombreLivrees;
+            } catch (
+                \LogicException |
+                \DomainException |
+                \RuntimeException $e
+            ) {
+                continue;
+            }
+        }
+
+        if ($nombreLivrees > 0) {
+            $em->flush();
+
+            $message = sprintf(
+                '%d ligne(s) marquée(s) comme livrée(s).',
+                $nombreLivrees
+            );
+
+            if ($nombreIgnorees > 0) {
+                $message .= sprintf(
+                    ' %d ligne(s) rattachée(s) à un bon de livraison ont été ignorée(s) (à livrer depuis leur bon).',
+                    $nombreIgnorees
+                );
+            }
+
+            $this->addFlash('success', $message);
+        } else {
+            $this->addFlash(
+                'error',
+                'Aucune ligne n’a pu être marquée comme livrée.'
+            );
+        }
+
+        return $this->redirectToRoute(
+            'app_livraisons_commande',
+            [
+                'id' => $commande->getId(),
             ]
         );
     }

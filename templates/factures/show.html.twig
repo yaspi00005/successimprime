@@ -1054,6 +1054,37 @@
 						{% endif %}
 
 
+						{# ACTUALISATION DES MONTANTS :
+																																																																								                           TANT QUE LA FACTURE N'EST PAS TOTALEMENT PAYÉE #}
+
+						{% if
+                            facture.comptabilisee
+                            and not facture.estAnnulee
+                            and commande
+                            and facture.montantPaye < facture.totalTtc
+                        %}
+
+							<button type="button" class="btn btn-outline-primary btn-block mb-3" id="btn-actualiser-facture">
+
+								<i class="fa fa-refresh mr-1"></i>
+
+								Actualiser depuis la commande
+
+							</button>
+
+
+							<form id="form-actualiser-facture" method="post" action="{{ path( 'app_factures_actualiser', { id: facture.id } ) }}" class="d-none">
+
+								<input type="hidden" name="_token" value="{{ csrf_token( 'actualiser-facture-' ~ facture.id ) }}">
+
+							</form>
+
+						{% endif %}
+
+
+						
+
+
 						{# ENCAISSEMENT :
 																																																																																				                           FACTURE OFFICIELLE UNIQUEMENT #}
 
@@ -2213,6 +2244,38 @@
 	<script>
 
 		document.addEventListener('DOMContentLoaded', function () {
+
+const boutonActualiser = document.getElementById('btn-actualiser-facture');
+
+const formActualiser = document.getElementById('form-actualiser-facture');
+
+
+if (boutonActualiser && formActualiser) {
+
+boutonActualiser.addEventListener('click', function () {
+
+if (typeof Swal !== 'undefined') {
+
+Swal.fire({
+icon: 'question',
+title: 'Actualiser cette facture ?',
+text: 'Les montants seront repris depuis la commande liée (les paiements déjà enregistrés ne sont pas modifiés).',
+showCancelButton: true,
+confirmButtonText: 'Oui, actualiser',
+cancelButtonText: 'Fermer'
+}).then(function (result) {
+if (result.isConfirmed) {
+formActualiser.submit();
+}
+});
+
+return;
+}
+
+formActualiser.submit();
+});
+}
+
 
 const button = document.getElementById('btn-annuler-facture');
 

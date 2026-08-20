@@ -17,6 +17,7 @@ use App\Service\BonusPlafondClientService;
 use Doctrine\ORM\EntityManagerInterface;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -53,6 +54,40 @@ final class ControlePrePresseController extends AbstractController
 
         return $this->render('controle_pre_presse/index.html.twig', [
             'details' => $details,
+        ]);
+    }
+
+    /*
+     * ============================================================
+     * VÉRIFIER LES NOUVEAUX ÉLÉMENTS (ALERTE SONORE)
+     * ============================================================
+     *
+     * Interrogé périodiquement en JS depuis la file d'attente pour
+     * détecter l'arrivée d'une nouvelle ligne "à contrôler" (aucun
+     * contrôle prépresse enregistré) et déclencher une alerte
+     * sonore tant que personne ne l'a traitée.
+     */
+    #[Route('/verifier-nouveaux', name: 'verifier_nouveaux', methods: ['GET'])]
+    public function verifierNouveaux(
+        CommandesDetailsRepository $detailsRepository
+    ): JsonResponse {
+        $ids = $detailsRepository
+            ->createQueryBuilder('detail')
+            ->select('detail.id')
+            ->innerJoin('detail.fichiers', 'fichier')
+            ->leftJoin('detail.controlesPrePresse', 'controle')
+            ->andWhere('fichier.actif = :actif')
+            ->andWhere('controle.id IS NULL')
+            ->setParameter('actif', true)
+            ->distinct()
+            ->getQuery()
+            ->getResult();
+
+        return $this->json([
+            'ids' => array_map(
+                static fn (array $ligne): int => (int) $ligne['id'],
+                $ids
+            ),
         ]);
     }
 

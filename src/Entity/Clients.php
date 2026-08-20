@@ -456,7 +456,14 @@ class Clients
         $this->updatedAt = new \DateTime();
     }
 
-    public function __toString(): string
+    /*
+     * De nombreux templates appellent client.nomComplet en
+     * s'attendant à un accesseur public (avec repli sur client.nom
+     * si absent). Comme cette méthode n'existait pas, Twig
+     * résolvait toujours silencieusement vers le repli, et le
+     * prénom n'apparaissait donc jamais nulle part (PDF, listes...).
+     */
+    public function getNomComplet(): string
     {
         if (
             $this->isEntreprise()
@@ -474,6 +481,11 @@ class Clients
         return $nomComplet !== ''
             ? $nomComplet
             : ($this->code ?? 'Client');
+    }
+
+    public function __toString(): string
+    {
+        return $this->getNomComplet();
     }
 
     private function normaliserValeur(

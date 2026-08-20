@@ -5,6 +5,7 @@
 
 {% block stylesheets %}
 	{{ parent() }}
+	<link href="{{ asset( 'assets/plugins/select2/select2.min.css' ) }}" rel="stylesheet">
 	<style>
 		.commande-filter-card {
 			position: sticky;
@@ -54,16 +55,16 @@
 
 {% block body %}
 	{% set rechercheActive =
-        app.request.query.get('q')
-        or app.request.query.get('client')
-        or app.request.query.get('statut')
-        or app.request.query.get('etat')
-        or app.request.query.get('paiement')
-        or app.request.query.get('date_debut')
-        or app.request.query.get('date_fin')
-        or app.request.query.get('montant_min')
-        or app.request.query.get('montant_max')
-        or app.request.query.get('affichage') == 'toutes'
+        filtres.q|default('')
+        or filtres.client|default('')
+        or filtres.statut|default('')
+        or filtres.etat|default('')
+        or filtres.paiement|default('')
+        or filtres.date_debut|default('')
+        or filtres.date_fin|default('')
+        or filtres.montant_min|default('')
+        or filtres.montant_max|default('')
+        or filtres.affichage|default('actives') == 'toutes'
     %}
 
 	<div class="side-app">
@@ -174,7 +175,7 @@
 						<div class="card-body">
 							<div class="form-group">
 								<label class="form-label">Recherche générale</label>
-								<input type="search" name="q" class="form-control" value="{{ app.request.query.get('q') }}" placeholder="N° commande, client, téléphone…">
+								<input type="search" name="q" class="form-control" value="{{ filtres.q|default('') }}" placeholder="N° commande, client, téléphone…">
 							</div>
 
 							<div class="form-group">
@@ -182,7 +183,7 @@
 								<select name="client" class="form-control custom-select">
 									<option value="">Tous les clients</option>
 									{% for client in clients|default([]) %}
-										<option value="{{ client.id }}" {{ app.request.query.get('client') == client.id ? 'selected' : '' }}>
+										<option value="{{ client.id }}" {{ filtres.client|default('') == client.id ? 'selected' : '' }}>
 											{{ client }}
 										</option>
 									{% endfor %}
@@ -194,7 +195,7 @@
 								<select name="statut" class="form-control custom-select">
 									<option value="">Tous les statuts</option>
 									{% for statut in statuts|default([]) %}
-										<option value="{{ statut.id }}" {{ app.request.query.get('statut') == statut.id ? 'selected' : '' }}>
+										<option value="{{ statut.id }}" {{ filtres.statut|default('') == statut.id ? 'selected' : '' }}>
 											{{ statut }}
 										</option>
 									{% endfor %}
@@ -205,11 +206,15 @@
 								<label class="form-label">État des travaux</label>
 								<select name="etat" class="form-control custom-select">
 									<option value="">Tous les états</option>
-									{% for etat in etats|default([]) %}
-										<option value="{{ etat.id }}" {{ app.request.query.get('etat') == etat.id ? 'selected' : '' }}>
-											{{ etat }}
-										</option>
-									{% endfor %}
+									<option value="preparation" {{ filtres.etat|default('') == 'preparation' ? 'selected' : '' }}>
+										En préparation
+									</option>
+									<option value="livraison" {{ filtres.etat|default('') == 'livraison' ? 'selected' : '' }}>
+										En livraison
+									</option>
+									<option value="livree" {{ filtres.etat|default('') == 'livree' ? 'selected' : '' }}>
+										Livrée
+									</option>
 								</select>
 							</div>
 
@@ -217,13 +222,13 @@
 								<label class="form-label">Situation financière</label>
 								<select name="paiement" class="form-control custom-select">
 									<option value="">Toutes</option>
-									<option value="impayee" {{ app.request.query.get('paiement') == 'impayee' ? 'selected' : '' }}>
+									<option value="impayee" {{ filtres.paiement|default('') == 'impayee' ? 'selected' : '' }}>
 										Non payée
 									</option>
-									<option value="partielle" {{ app.request.query.get('paiement') == 'partielle' ? 'selected' : '' }}>
+									<option value="partielle" {{ filtres.paiement|default('') == 'partielle' ? 'selected' : '' }}>
 										Paiement partiel
 									</option>
-									<option value="payee" {{ app.request.query.get('paiement') == 'payee' ? 'selected' : '' }}>
+									<option value="payee" {{ filtres.paiement|default('') == 'payee' ? 'selected' : '' }}>
 										Entièrement payée
 									</option>
 								</select>
@@ -233,13 +238,13 @@
 								<div class="col-6">
 									<div class="form-group">
 										<label class="form-label">Du</label>
-										<input type="date" name="date_debut" class="form-control" value="{{ app.request.query.get('date_debut') }}">
+										<input type="date" name="date_debut" class="form-control" value="{{ filtres.date_debut|default('') }}">
 									</div>
 								</div>
 								<div class="col-6">
 									<div class="form-group">
 										<label class="form-label">Au</label>
-										<input type="date" name="date_fin" class="form-control" value="{{ app.request.query.get('date_fin') }}">
+										<input type="date" name="date_fin" class="form-control" value="{{ filtres.date_fin|default('') }}">
 									</div>
 								</div>
 							</div>
@@ -248,13 +253,13 @@
 								<div class="col-6">
 									<div class="form-group">
 										<label class="form-label">Montant min.</label>
-										<input type="number" min="0" name="montant_min" class="form-control" value="{{ app.request.query.get('montant_min') }}" placeholder="0">
+										<input type="number" min="0" name="montant_min" class="form-control" value="{{ filtres.montant_min|default('') }}" placeholder="0">
 									</div>
 								</div>
 								<div class="col-6">
 									<div class="form-group">
 										<label class="form-label">Montant max.</label>
-										<input type="number" min="0" name="montant_max" class="form-control" value="{{ app.request.query.get('montant_max') }}" placeholder="Illimité">
+										<input type="number" min="0" name="montant_max" class="form-control" value="{{ filtres.montant_max|default('') }}" placeholder="Illimité">
 									</div>
 								</div>
 							</div>
@@ -262,10 +267,10 @@
 							<div class="form-group">
 								<label class="form-label">Afficher</label>
 								<select name="affichage" class="form-control custom-select">
-									<option value="actives" {{ app.request.query.get('affichage', 'actives') == 'actives' ? 'selected' : '' }}>
+									<option value="actives" {{ filtres.affichage|default('actives') == 'actives' ? 'selected' : '' }}>
 										Commandes actives
 									</option>
-									<option value="toutes" {{ app.request.query.get('affichage') == 'toutes' ? 'selected' : '' }}>
+									<option value="toutes" {{ filtres.affichage|default('') == 'toutes' ? 'selected' : '' }}>
 										Toutes les commandes
 									</option>
 								</select>
@@ -274,10 +279,10 @@
 							<div class="form-group">
 								<label class="form-label">Trier par</label>
 								<select name="tri" class="form-control custom-select">
-									<option value="recent" {{ app.request.query.get('tri') == 'recent' ? 'selected' : '' }}>Plus récentes</option>
-									<option value="ancien" {{ app.request.query.get('tri') == 'ancien' ? 'selected' : '' }}>Plus anciennes</option>
-									<option value="montant_desc" {{ app.request.query.get('tri') == 'montant_desc' ? 'selected' : '' }}>Montant décroissant</option>
-									<option value="reste_desc" {{ app.request.query.get('tri') == 'reste_desc' ? 'selected' : '' }}>Reste à payer décroissant</option>
+									<option value="recent" {{ filtres.tri|default('recent') == 'recent' ? 'selected' : '' }}>Plus récentes</option>
+									<option value="ancien" {{ filtres.tri|default('') == 'ancien' ? 'selected' : '' }}>Plus anciennes</option>
+									<option value="montant_desc" {{ filtres.tri|default('') == 'montant_desc' ? 'selected' : '' }}>Montant décroissant</option>
+									<option value="reste_desc" {{ filtres.tri|default('') == 'reste_desc' ? 'selected' : '' }}>Reste à payer décroissant</option>
 								</select>
 							</div>
 
@@ -286,7 +291,7 @@
 								Rechercher
 							</button>
 
-							<a href="{{ path('app_commandes_index') }}" class="btn btn-light btn-block">
+							<a href="{{ path('app_commandes_index', {reset: 1}) }}" class="btn btn-light btn-block">
 								<i class="fa fa-refresh mr-1"></i>
 								Réinitialiser
 							</a>
@@ -316,6 +321,7 @@
 								<tr>
 									<th scope="col">Commande</th>
 									<th scope="col">Client</th>
+									<th scope="col">Agent</th>
 									<th scope="col">Travaux</th>
 									<th scope="col">Paiement</th>
 									<th scope="col" class="text-right">Total TTC</th>
@@ -350,15 +356,38 @@
 											</strong>
 										</td>
 
+										{# 2bis. Agent #}
+										<td>
+											{% if commande.agents %}
+												{{ commande.agents.username }}
+											{% else %}
+												<span class="text-muted">—</span>
+											{% endif %}
+										</td>
+
 										{# 3. Travaux #}
 										<td>
-											{% if commande.etat %}
-												<span class="badge badge-info">
-													En production
+											{% set statutTravaux = commande.statutTravaux %}
+
+											{% if statutTravaux == 'livree' %}
+												<span class="badge badge-success">
+													Livrée
+												</span>
+											{% elseif statutTravaux == 'livraison' %}
+												<span class="badge badge-warning">
+													En livraison
+												</span>
+											{% elseif statutTravaux == 'annulee' %}
+												<span class="badge badge-secondary">
+													Annulée
+												</span>
+											{% elseif statutTravaux == 'vide' %}
+												<span class="badge badge-light">
+													Aucun travail
 												</span>
 											{% else %}
-												<span class="badge badge-secondary">
-													Terminée
+												<span class="badge badge-info">
+													En préparation
 												</span>
 											{% endif %}
 
@@ -425,7 +454,7 @@
 									</tr>
 								{% else %}
 									<tr>
-										<td colspan="8">
+										<td colspan="9">
 											<div class="empty-state">
 												<i class="fa fa-inbox"></i>
 
@@ -437,7 +466,7 @@
 													Modifiez les filtres ou réinitialisez la recherche.
 												</p>
 
-												<a href="{{ path('app_commandes_index') }}" class="btn btn-primary-light">
+												<a href="{{ path('app_commandes_index', {reset: 1}) }}" class="btn btn-primary-light">
 													Afficher les commandes actives
 												</a>
 											</div>
@@ -472,6 +501,17 @@
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 	<script>
 		document.addEventListener('DOMContentLoaded', function () {
+
+/*
+ * Recherche dans les listes déroulantes du formulaire de
+ * recherche avancée (client, statut, état...).
+ */
+if (window.jQuery && window.jQuery.fn.select2) {
+window.jQuery('.commande-filter-card select.custom-select').select2({
+width: '100%'
+});
+}
+
 document.querySelectorAll('[data-confirm]').forEach(function (button) {
 button.addEventListener('click', function (event) {
 event.preventDefault();

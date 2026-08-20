@@ -395,7 +395,7 @@
 						<small class="text-muted">
 
 							{% if groupe.commande and groupe.commande.clients %}
-								{{ groupe.commande.clients.nom }}
+								{{ groupe.commande.clients.nomComplet }}
 								·
 							{% endif %}
 
@@ -434,222 +434,48 @@
 				</div>
 
 
-				<div class="table-responsive">
+				<div class="card-body d-flex justify-content-between align-items-center flex-wrap">
 
-					<table class="table table-bordered table-hover mb-0">
+					<div>
 
-						<thead>
+						{% if groupe.commande and groupe.commande.clients %}
 
-							<tr>
+							{% set client = groupe.commande.clients %}
 
-								<th>
-									Produit / Désignation
-								</th>
+							<div>
+								<i class="fa fa-user text-muted mr-1"></i>
+								{{ client.nomComplet }}
+							</div>
 
-								<th class="text-center">
-									Quantité
-								</th>
+							{% if client.telephone %}
+								<div class="small text-muted">
+									<i class="fa fa-phone mr-1"></i>
+									{{ client.telephone }}
+								</div>
+							{% endif %}
 
-								<th>
-									Origine
-								</th>
+						{% else %}
 
-								<th>
-									Support
-								</th>
+							<span class="text-muted">
+								Aucun client renseigné
+							</span>
 
-								<th>
-									Machine
-								</th>
+						{% endif %}
 
-								<th class="text-center">
-									Statut
-								</th>
+					</div>
 
-								<th class="text-center">
-									Actions
-								</th>
+					<div>
 
-							</tr>
+						{% if groupe.commande %}
 
-						</thead>
+							<a href="{{ path( 'app_livraisons_commande', { id: groupe.commande.id } ) }}" class="btn btn-primary">
+								<i class="fa fa-eye mr-1"></i>
+								Voir
+							</a>
 
+						{% endif %}
 
-						<tbody>
-
-							{% for detail in groupe.lignes %}
-
-								<tr>
-
-									{# PRODUIT #}
-									<td class="align-middle">
-
-										<strong>
-											{{ detail.designation }}
-										</strong>
-
-										{% if detail.produit %}
-
-											<div class="small text-muted">
-												{{ detail.produit.nom }}
-											</div>
-
-										{% endif %}
-
-									</td>
-
-
-									{# QUANTITE #}
-									<td class="text-center align-middle">
-
-										{{ detail.quantite }}
-
-									</td>
-
-
-									{# ORIGINE #}
-									<td class="align-middle">
-
-										{% if detail.productionNecessaire %}
-
-											<span class="badge badge-primary">
-
-												<i class="fa fa-print mr-1"></i>
-												Production
-
-											</span>
-
-										{% else %}
-
-											<span class="badge badge-info">
-
-												<i class="fa fa-shopping-cart mr-1"></i>
-												Vente directe
-
-											</span>
-
-										{% endif %}
-
-									</td>
-
-
-									{# SUPPORT #}
-									<td class="align-middle">
-
-										{% if detail.support %}
-
-											{{ detail.support.nom }}
-
-										{% else %}
-
-											—
-
-										{% endif %}
-
-									</td>
-
-
-									{# MACHINE #}
-									<td class="align-middle">
-
-										{% if detail.machine %}
-
-											{{ detail.machine.nom }}
-
-										{% else %}
-
-											—
-
-										{% endif %}
-
-									</td>
-
-
-									{# STATUT #}
-									<td
-										class="text-center align-middle">
-
-										{% if detail.statutProduction == 'prete_livraison' %}
-
-											<span class="badge badge-primary">Prête</span>
-
-										{% elseif detail.statutProduction == 'en_livraison' %}
-
-											<span class="badge badge-warning">En livraison</span>
-
-										{% elseif detail.statutProduction == 'livree' %}
-
-											<span class="badge badge-success">Livrée</span>
-
-										{% endif %}
-
-									</td>
-
-
-									{# ACTIONS #}
-									<td class="text-center align-middle">
-
-										<div
-											class="btn-group">
-
-											{# VOIR #}
-											<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-primary-light" title="Voir">
-												<i class="fa fa-eye"></i>
-											</a>
-
-
-											{# DEMARRER LIVRAISON #}
-											{% if detail.statutProduction == 'prete_livraison' %}
-
-												<form method="post" action="{{ path( 'app_livraisons_demarrer', { id: detail.id } ) }}" class="d-inline" onsubmit="return confirm('Démarrer cette livraison ?');">
-
-													<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_demarrer_' ~ detail.id ) }}">
-
-													<button type="submit" class="btn btn-sm btn-warning-light" title="Démarrer la livraison">
-														<i class="fa fa-truck"></i>
-													</button>
-
-												</form>
-
-											{% endif %}
-
-
-											{# MARQUER LIVREE #}
-											{% if detail.statutProduction == 'en_livraison' %}
-
-												{% if detail.typeLigne == 'article' %}
-
-													<form method="post" action="{{ path( 'app_livraisons_livrer', { id: detail.id } ) }}" class="d-inline js-confirmer-livraison" data-designation="{{ detail.designation|e('html_attr') }}" data-quantite="{{ detail.quantite }}">
-
-														<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_livrer_' ~ detail.id ) }}">
-
-														<button type="submit" class="btn btn-sm btn-success-light" title="Marquer comme livré">
-															<i class="fa fa-check"></i>
-														</button>
-
-													</form>
-
-												{% else %}
-
-													<a href="{{ path( 'app_livraisons_show', { id: detail.id } ) }}" class="btn btn-sm btn-warning-light" title="Livraison depuis le bon de livraison">
-														<i class="fa fa-file-text-o"></i>
-													</a>
-
-												{% endif %}
-
-											{% endif %}
-
-										</div>
-
-									</td>
-
-								</tr>
-
-							{% endfor %}
-
-						</tbody>
-
-					</table>
+					</div>
 
 				</div>
 

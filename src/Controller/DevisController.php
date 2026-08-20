@@ -315,6 +315,10 @@ public function edit(
     $detailsForm =
         $form->get('devisDetails');
 
+    $clientB2B =
+        $devi->getClients()?->isB2B()
+        ?? false;
+
     foreach ($detailsForm as $detailForm) {
         $detail =
             $detailForm->getData();
@@ -428,7 +432,7 @@ public function edit(
 
 
             $detail->calculerTotaux(
-                false
+                $clientB2B
             );
 
             continue;
@@ -460,7 +464,7 @@ public function edit(
 
 
             $detail->calculerTotaux(
-                false
+                $clientB2B
             );
 
             continue;
@@ -522,7 +526,7 @@ public function edit(
 
 
         $detail->calculerTotaux(
-            false
+            $clientB2B
         );
     }
 }

@@ -11,16 +11,16 @@
 		class="side-app">
 
 		{# ==========================================================
-				       VARIABLES
-				       ========================================================== #}
+														       VARIABLES
+														       ========================================================== #}
 
 		{% set commande = bon.commande %}
 		{% set statut = bon.statut %}
 
 
 		{# ==========================================================
-				       PAGE HEADER
-				       ========================================================== #}
+														       PAGE HEADER
+														       ========================================================== #}
 
 		<div class="page-header">
 
@@ -57,8 +57,8 @@
 
 
 		{# ==========================================================
-				       FLASH
-				       ========================================================== #}
+														       FLASH
+														       ========================================================== #}
 
 		{% for message in app.flashes('success') %}
 
@@ -87,8 +87,8 @@
 
 
 		{# ==========================================================
-				       ENTETE DU BON
-				       ========================================================== #}
+														       ENTETE DU BON
+														       ========================================================== #}
 
 		<div class="row">
 
@@ -213,7 +213,7 @@
 								</small>
 
 								{% if bon.creePar %}
-									{{ bon.creePar }}
+									{{ bon.creePar.username  }}
 								{% else %}
 									—
 								{% endif %}
@@ -260,8 +260,8 @@
 
 
 			{# ======================================================
-						           ACTIONS
-						           ====================================================== #}
+																					           ACTIONS
+																					           ====================================================== #}
 
 			<div class="col-lg-4">
 
@@ -281,8 +281,8 @@
 						{% if bon.estBrouillon %}
 
 							<form method="post" action="{{ path( 'app_bons_livraison_valider', { id: bon.id } ) }}" class="mb-2" onsubmit="return confirm(
-																		                                'Valider ce bon de livraison ?'
-																		                            );">
+																																																															                                'Valider ce bon de livraison ?'
+																																																															                            );">
 
 								<input type="hidden" name="_token" value="{{ csrf_token( 'bon_livraison_valider_' ~ bon.id ) }}">
 
@@ -299,8 +299,8 @@
 						{% if bon.estValide %}
 
 							<form method="post" action="{{ path( 'app_bons_livraison_livrer', { id: bon.id } ) }}" class="mb-2" onsubmit="return confirm(
-																		                                'Confirmer que la marchandise a été livrée ?'
-																		                            );">
+																																																															                                'Confirmer que la marchandise a été livrée ?'
+																																																															                            );">
 
 								<input type="hidden" name="_token" value="{{ csrf_token( 'bon_livraison_livrer_' ~ bon.id ) }}">
 
@@ -317,8 +317,8 @@
 						{% if bon.estBrouillon or bon.estValide %}
 
 							<form method="post" action="{{ path( 'app_bons_livraison_annuler', { id: bon.id } ) }}" onsubmit="return confirm(
-																		                                'Voulez-vous réellement annuler ce bon de livraison ?'
-																		                            );">
+																																																															                                'Voulez-vous réellement annuler ce bon de livraison ?'
+																																																															                            );">
 
 								<input type="hidden" name="_token" value="{{ csrf_token( 'bon_livraison_annuler_' ~ bon.id ) }}">
 
@@ -367,8 +367,8 @@
 
 
 		{# ==========================================================
-				       CLIENT
-				       ========================================================== #}
+														       CLIENT
+														       ========================================================== #}
 
 		<div class="card">
 
@@ -466,8 +466,8 @@
 
 
 		{# ==========================================================
-				       INFORMATIONS DE LIVRAISON
-				       ========================================================== #}
+														       INFORMATIONS DE LIVRAISON
+														       ========================================================== #}
 
 		<div class="card">
 
@@ -574,7 +574,7 @@
 
 
 					{# Le formulaire reste ouvert pour englober
-										                   également les quantités des lignes ci-dessous. #}
+																																			                   également les quantités des lignes ci-dessous. #}
 
 
 					<div class="card-header border-top">
@@ -896,8 +896,8 @@
 
 
 		{# ==========================================================
-				       HISTORIQUE
-				       ========================================================== #}
+														       HISTORIQUE
+														       ========================================================== #}
 
 		<div class="card">
 
@@ -931,7 +931,7 @@
 							{% if bon.creePar %}
 								<div class="small text-muted">
 									par
-									{{ bon.creePar }}
+									{{ bon.creePar.username }}
 								</div>
 							{% endif %}
 
@@ -955,7 +955,7 @@
 							{% if bon.validePar %}
 								<div class="small text-muted">
 									par
-									{{ bon.validePar }}
+									{{ bon.validePar.username }}
 								</div>
 							{% endif %}
 
@@ -979,7 +979,7 @@
 							{% if bon.livrePar %}
 								<div class="small text-muted">
 									par
-									{{ bon.livrePar }}
+									{{ bon.livrePar.username }}
 								</div>
 							{% endif %}
 

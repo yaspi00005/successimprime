@@ -109,10 +109,10 @@ class Articles
 
     #[ORM\Column(
     options: [
-        'default' => false,
+        'default' => true,
     ]
 )]
-private bool $vendable = false;
+private bool $vendable = true;
 
 
 

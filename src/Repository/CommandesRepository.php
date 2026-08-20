@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Clients;
 use App\Entity\Commandes;
+use App\Entity\CommandesDetails;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -38,23 +39,35 @@ final class CommandesRepository extends ServiceEntityRepository
          * Affichage par défaut :
          * paiement en attente OU travaux en cours.
          *
-         * Le champ booléen c.statut n'est jamais mis à jour après la
-         * création de la commande (aucun setStatut() n'est appelé
-         * ailleurs dans le code) : il reste bloqué à true pour
-         * toujours, ce qui rendait ce filtre inopérant et laissait
-         * apparaître les commandes déjà payées. Le paiement réel est
-         * donc recalculé ici à partir de montantAPayer/totalTtc,
-         * comme pour le filtre "paiement" plus bas.
+         * Les champs booléens c.statut et c.etat ne sont jamais mis à
+         * jour après la création de la commande (aucun setStatut()
+         * ni setEtat() n'est appelé ailleurs dans le code) : ils
+         * restent bloqués à true pour toujours, ce qui rendait ce
+         * filtre inopérant et laissait apparaître indéfiniment les
+         * commandes déjà payées et déjà livrées. Le paiement réel est
+         * recalculé à partir de montantAPayer/totalTtc (comme pour le
+         * filtre "paiement" plus bas), et les travaux réels à partir
+         * du statut de production des lignes (comme pour
+         * Commandes::getStatutTravaux()).
          */
         if (!$rechercheActive && $affichage !== 'toutes') {
             $qb
                 ->andWhere(
                     $qb->expr()->orX(
                         'COALESCE(c.montantApayer, 0) < c.totalTtc',
-                        'c.etat = :etatActif'
+                        $qb->expr()->andX(
+                            'd.statutProduction IS NOT NULL',
+                            'd.statutProduction NOT IN (:statutsTermines)'
+                        )
                     )
                 )
-                ->setParameter('etatActif', true);
+                ->setParameter(
+                    'statutsTermines',
+                    [
+                        CommandesDetails::PRODUCTION_LIVREE,
+                        CommandesDetails::PRODUCTION_ANNULEE,
+                    ]
+                );
         }
 
         /*
@@ -104,18 +117,76 @@ final class CommandesRepository extends ServiceEntityRepository
         }
 
         /*
-         * Filtre par état des travaux.
-         *
-         * 1 = travaux en cours
-         * 0 = travaux terminés
+         * Filtre par état des travaux (préparation / livraison / livrée),
+         * calculé comme Commandes::getStatutTravaux() : basé sur le
+         * statut de production réel des lignes, pas sur c.etat (jamais
+         * mis à jour après création).
          */
-        if (($filtres['etat'] ?? '') !== '') {
-            $qb
-                ->andWhere('c.etat = :etat')
-                ->setParameter(
-                    'etat',
-                    (string) $filtres['etat'] === '1'
-                );
+        $etatFiltre = (string) ($filtres['etat'] ?? '');
+
+        if ($etatFiltre !== '') {
+            $groupePreparation = [
+                CommandesDetails::PRODUCTION_A_PRODUIRE,
+                CommandesDetails::PRODUCTION_EN_COURS,
+                CommandesDetails::PRODUCTION_TERMINEE,
+                CommandesDetails::PRODUCTION_NON_REQUISE,
+            ];
+
+            $groupeLivraison = [
+                CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+                CommandesDetails::PRODUCTION_EN_LIVRAISON,
+            ];
+
+            if ($etatFiltre === 'preparation') {
+                $qb
+                    ->andWhere($qb->expr()->exists(
+                        'SELECT 1 FROM App\Entity\CommandesDetails detatPrepa'
+                            . ' WHERE detatPrepa.commande = c'
+                            . ' AND detatPrepa.statutProduction IN (:groupePreparation)'
+                    ))
+                    ->setParameter('groupePreparation', $groupePreparation);
+            } elseif ($etatFiltre === 'livraison') {
+                $qb
+                    ->andWhere($qb->expr()->not(
+                        $qb->expr()->exists(
+                            'SELECT 1 FROM App\Entity\CommandesDetails detatPrepa2'
+                                . ' WHERE detatPrepa2.commande = c'
+                                . ' AND detatPrepa2.statutProduction IN (:groupePreparation)'
+                        )
+                    ))
+                    ->andWhere($qb->expr()->exists(
+                        'SELECT 1 FROM App\Entity\CommandesDetails detatLivr'
+                            . ' WHERE detatLivr.commande = c'
+                            . ' AND detatLivr.statutProduction IN (:groupeLivraison)'
+                    ))
+                    ->setParameter('groupePreparation', $groupePreparation)
+                    ->setParameter('groupeLivraison', $groupeLivraison);
+            } elseif ($etatFiltre === 'livree') {
+                $qb
+                    ->andWhere($qb->expr()->not(
+                        $qb->expr()->exists(
+                            'SELECT 1 FROM App\Entity\CommandesDetails detatNonLivr'
+                                . ' WHERE detatNonLivr.commande = c'
+                                . ' AND detatNonLivr.statutProduction NOT IN (:groupeLivreeOuAnnulee)'
+                        )
+                    ))
+                    ->andWhere($qb->expr()->exists(
+                        'SELECT 1 FROM App\Entity\CommandesDetails detatActive'
+                            . ' WHERE detatActive.commande = c'
+                            . ' AND detatActive.statutProduction != :statutAnnulee'
+                    ))
+                    ->setParameter(
+                        'groupeLivreeOuAnnulee',
+                        [
+                            CommandesDetails::PRODUCTION_LIVREE,
+                            CommandesDetails::PRODUCTION_ANNULEE,
+                        ]
+                    )
+                    ->setParameter(
+                        'statutAnnulee',
+                        CommandesDetails::PRODUCTION_ANNULEE
+                    );
+            }
         }
 
         /*

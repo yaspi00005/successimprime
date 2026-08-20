@@ -1431,6 +1431,17 @@ private ?string $pdfHash = null;
 
         $this->recalculerTotal();
 
+        /*
+         * Les montants viennent d'être rechargés depuis la
+         * commande (bouton "Actualiser") : un éventuel PDF déjà
+         * archivé afficherait des montants obsolètes. On
+         * l'invalide pour forcer une régénération à la prochaine
+         * consultation.
+         */
+        $this->pdfFichier = null;
+        $this->pdfHash = null;
+        $this->pdfGenereLe = null;
+
         return $this;
     }
 
@@ -1451,6 +1462,8 @@ private ?string $pdfHash = null;
     ) {
         return $this;
     }
+
+    $montantPayeAvant = $this->montantPaye;
 
     $totalPaye = 0;
 
@@ -1505,6 +1518,22 @@ private ?string $pdfHash = null;
 
         $this->statutPaiement =
             self::STATUT_IMPAYEE;
+    }
+
+
+    /*
+     * Le PDF déjà archivé affiche un "reste à payer" figé au
+     * moment de sa génération. Si le montant payé vient
+     * réellement de changer, l'ancien PDF est invalidé : la
+     * prochaine consultation en régénère un à jour (les montants
+     * facturés, eux, restent inchangés). Sans ce test, la simple
+     * consultation de la facture (qui appelle cette méthode à
+     * chaque affichage) forcerait une régénération à chaque fois.
+     */
+    if ($this->montantPaye !== $montantPayeAvant) {
+        $this->pdfFichier = null;
+        $this->pdfHash = null;
+        $this->pdfGenereLe = null;
     }
 
 

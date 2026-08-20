@@ -274,6 +274,15 @@
 	<script>
 		document.addEventListener('DOMContentLoaded', function () {
 
+/*
+ * Actualisation automatique toutes les 90 secondes, pour que
+ * l'écran affiché en continu en atelier reste à jour sans
+ * intervention.
+ */
+setTimeout(function () {
+window.location.reload();
+}, 90000);
+
 const champRecherche = document.getElementById('rechercheApercu');
 const lignes = document.querySelectorAll('#tableApercu .js-apercu-row');
 

@@ -307,6 +307,13 @@
 									Cette ligne doit être livrée
 																											            depuis son bon de livraison.
 
+									{% if commande %}
+										<a href="{{ path('app_livraisons_commande', { id: commande.id }) }}#bons-de-livraison" class="alert-link d-block mt-2">
+											<i class="fa fa-file-text-o mr-1"></i>
+											Voir les bons de livraison de cette commande
+										</a>
+									{% endif %}
+
 								</div>
 
 							{% endif %}

@@ -851,6 +851,114 @@ class FacturesController extends AbstractController
      * ============================================================
      */
     #[Route(
+        '/{id}/actualiser',
+        name: 'app_factures_actualiser',
+        methods: ['POST']
+    )]
+    public function actualiser(
+        Factures $facture,
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): Response {
+        if (
+            !$this->isCsrfTokenValid(
+                'actualiser-facture-'
+                    . $facture->getId(),
+                (string) $request
+                    ->request
+                    ->get('_token')
+            )
+        ) {
+            throw $this
+                ->createAccessDeniedException(
+                    'Jeton CSRF invalide.'
+                );
+        }
+
+
+        if ($facture->estAnnulee()) {
+            $this->addFlash(
+                'warning',
+                'Ce document est annulé, il ne peut plus être actualisé.'
+            );
+
+            return $this->redirectToRoute(
+                'app_factures_show',
+                [
+                    'id' =>
+                    $facture->getId(),
+                ]
+            );
+        }
+
+
+        /*
+         * Une fois la facture totalement payée, elle redevient un
+         * document figé (comme à l'émission) : plus de mise à jour
+         * possible, seul un avoir permettrait de la corriger.
+         */
+        if (
+            $facture->getMontantPaye()
+            >= $facture->getTotalTtc()
+        ) {
+            $this->addFlash(
+                'warning',
+                'Cette facture est totalement payée, elle ne peut plus être actualisée.'
+            );
+
+            return $this->redirectToRoute(
+                'app_factures_show',
+                [
+                    'id' =>
+                    $facture->getId(),
+                ]
+            );
+        }
+
+
+        $commande = $facture->getCommande();
+
+        if ($commande === null) {
+            $this->addFlash(
+                'warning',
+                'Aucune commande liée à ce document, impossible de l’actualiser.'
+            );
+
+            return $this->redirectToRoute(
+                'app_factures_show',
+                [
+                    'id' =>
+                    $facture->getId(),
+                ]
+            );
+        }
+
+
+        $facture->chargerDepuisCommande($commande);
+
+        $entityManager->flush();
+
+
+        $this->addFlash(
+            'success',
+            sprintf(
+                '%s a été actualisé avec les montants actuels de la commande.',
+                $facture->getNumero()
+                    ?? 'Le document'
+            )
+        );
+
+
+        return $this->redirectToRoute(
+            'app_factures_show',
+            [
+                'id' =>
+                $facture->getId(),
+            ]
+        );
+    }
+
+    #[Route(
         '/{id}/annuler',
         name: 'app_factures_annuler',
         methods: ['POST']
@@ -1048,8 +1156,9 @@ public function pdf(
 
                     'Content-Disposition' =>
                         sprintf(
-                            'inline; filename="%s.pdf"',
-                            $numero
+                            'inline; filename="%s%s.pdf"',
+                            $numero,
+                            $this->suffixeNomClientPdf($facture)
                         ),
 
                     'Content-Length' =>
@@ -1388,6 +1497,14 @@ public function pdf(
         . '.pdf';
 
 
+    $nomTelechargement =
+        $numeroNettoye
+        . $this->suffixeNomClientPdf(
+            $facture
+        )
+        . '.pdf';
+
+
     /*
      * ============================================================
      * DOSSIER ANNÉE
@@ -1566,7 +1683,7 @@ public function pdf(
             'Content-Disposition' =>
                 sprintf(
                     'inline; filename="%s"',
-                    $nomFichier
+                    $nomTelechargement
                 ),
 
             'Content-Length' =>
@@ -1702,6 +1819,35 @@ public function pdf(
             'success' => true,
             'message' => 'La facture a été envoyée par WhatsApp.',
         ]);
+    }
+
+    private function suffixeNomClientPdf(
+        Factures $facture
+    ): string {
+        $client =
+            $facture->getCommande()
+                ?->getClients();
+
+        if ($client === null) {
+            return '';
+        }
+
+        $nom =
+            preg_replace(
+                '/[^A-Za-z0-9\-_]/',
+                '-',
+                $client->getNomComplet()
+            );
+
+        $nom =
+            trim(
+                (string) $nom,
+                '-'
+            );
+
+        return $nom !== ''
+            ? '_' . $nom
+            : '';
     }
 
     private function imageVersDataUri(

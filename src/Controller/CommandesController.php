@@ -29,28 +29,91 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/commandes')]
 final class CommandesController extends AbstractController
 {
+    private const CLES_FILTRES_COMMANDES = [
+        'q',
+        'client',
+        'statut',
+        'etat',
+        'paiement',
+        'date_debut',
+        'date_fin',
+        'montant_min',
+        'montant_max',
+        'affichage',
+        'tri',
+    ];
+
+    private const FILTRES_COMMANDES_PAR_DEFAUT = [
+        'q' => '',
+        'client' => '',
+        'statut' => '',
+        'etat' => '',
+        'paiement' => '',
+        'date_debut' => '',
+        'date_fin' => '',
+        'montant_min' => '',
+        'montant_max' => '',
+        'affichage' => 'actives',
+        'tri' => 'recent',
+    ];
+
     #[Route('/', name: 'app_commandes_index', methods: ['GET'])]
     public function index(
         Request $request,
         CommandesRepository $commandesRepository,
         ClientsRepository $clientsRepository
     ): Response {
-        $filtres = [
-            'q' => trim((string) $request->query->get('q', '')),
-            'client' => (string) $request->query->get('client', ''),
-            'statut' => (string) $request->query->get('statut', ''),
-            'etat' => (string) $request->query->get('etat', ''),
-            'paiement' => (string) $request->query->get('paiement', ''),
-            'date_debut' => (string) $request->query->get('date_debut', ''),
-            'date_fin' => (string) $request->query->get('date_fin', ''),
-            'montant_min' => (string) $request->query->get('montant_min', ''),
-            'montant_max' => (string) $request->query->get('montant_max', ''),
-            'affichage' => (string) $request->query->get(
-                'affichage',
-                'actives'
-            ),
-            'tri' => (string) $request->query->get('tri', 'recent'),
-        ];
+        $session = $request->getSession();
+
+        /*
+     * ============================================================
+     * RECHERCHE GARDÉE EN SESSION
+     * ============================================================
+     *
+     * Tant qu'aucune recherche n'a été explicitement réinitialisée
+     * (bouton "Réinitialiser", ?reset=1), on retrouve les derniers
+     * filtres appliqués même en revenant sur la liste sans
+     * paramètre d'URL (ex. via le menu).
+     */
+        if ($request->query->getBoolean('reset')) {
+            $session->remove('commandes_filtres');
+        }
+
+        $requeteContientUnFiltre = false;
+
+        foreach (self::CLES_FILTRES_COMMANDES as $cle) {
+            if ($request->query->get($cle) !== null) {
+                $requeteContientUnFiltre = true;
+
+                break;
+            }
+        }
+
+        if ($requeteContientUnFiltre) {
+            $filtres = [
+                'q' => trim((string) $request->query->get('q', '')),
+                'client' => (string) $request->query->get('client', ''),
+                'statut' => (string) $request->query->get('statut', ''),
+                'etat' => (string) $request->query->get('etat', ''),
+                'paiement' => (string) $request->query->get('paiement', ''),
+                'date_debut' => (string) $request->query->get('date_debut', ''),
+                'date_fin' => (string) $request->query->get('date_fin', ''),
+                'montant_min' => (string) $request->query->get('montant_min', ''),
+                'montant_max' => (string) $request->query->get('montant_max', ''),
+                'affichage' => (string) $request->query->get(
+                    'affichage',
+                    'actives'
+                ),
+                'tri' => (string) $request->query->get('tri', 'recent'),
+            ];
+
+            $session->set('commandes_filtres', $filtres);
+        } else {
+            $filtres = $session->get(
+                'commandes_filtres',
+                self::FILTRES_COMMANDES_PAR_DEFAUT
+            );
+        }
 
         /*
          * Sans filtre, le repository affiche uniquement les commandes
@@ -920,6 +983,10 @@ final class CommandesController extends AbstractController
         $detailsForm =
             $form->get('commandesDetails');
 
+        $clientB2B =
+            $commande->getClients()?->isB2B()
+            ?? false;
+
         foreach ($detailsForm as $detailForm) {
             $detail =
                 $detailForm->getData();
@@ -1050,7 +1117,7 @@ final class CommandesController extends AbstractController
              */
 
                 $detail->calculerTotaux(
-                    false
+                    $clientB2B
                 );
 
                 continue;
@@ -1102,7 +1169,7 @@ final class CommandesController extends AbstractController
                 );
 
                 $detail->calculerTotaux(
-                    false
+                    $clientB2B
                 );
 
                 continue;
@@ -1172,7 +1239,7 @@ final class CommandesController extends AbstractController
             }
 
             $detail->calculerTotaux(
-                false
+                $clientB2B
             );
         }
     }

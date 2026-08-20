@@ -4,7 +4,7 @@
 {% endblock %}
 
 {% block body %}
-	<div class="side-app">
+	<div class="side-app" data-prepresse-ids-initiaux="{{ details|filter(d => d.controlesPrePresse is empty)|map(d => d.id)|join(',') }}">
 		<div class="page-header">
 			<div>
 				<h1 class="page-title">Contrôle prépresse</h1>
@@ -13,10 +13,17 @@
 				</p>
 			</div>
 
-			<a href="{{ path('app_commandes_index') }}" class="btn btn-light">
-				<i class="fe fe-arrow-left mr-1"></i>
-				Commandes
-			</a>
+			<div>
+				<button type="button" id="btnCouperSon" class="btn btn-warning-light mr-2" style="display: none;">
+					<i class="fe fe-volume-x mr-1"></i>
+					Couper le son
+				</button>
+
+				<a href="{{ path('app_commandes_index') }}" class="btn btn-light">
+					<i class="fe fe-arrow-left mr-1"></i>
+					Commandes
+				</a>
+			</div>
 		</div>
 
 		{% for type, messages in app.flashes %}
@@ -171,3 +178,115 @@
 		</div>
 	</div>
 {% endblock %}
+
+{% block javascripts %}
+		{{ parent() }}
+
+		<script>
+			document.addEventListener('DOMContentLoaded', function () {
+
+const conteneur = document.querySelector('.side-app');
+const idsInitiauxAttr = conteneur ? conteneur.dataset.prepresseIdsInitiaux || '' : '';
+
+let idsConnus = new Set(
+idsInitiauxAttr.split(',').filter(function (v) { return v !== ''; }).map(Number)
+);
+
+let sonActif = false;
+let intervalleSon = null;
+let audioContext = null;
+
+const boutonCouperSon = document.getElementById('btnCouperSon');
+
+function obtenirContexteAudio() {
+if (!audioContext) {
+audioContext = new (window.AudioContext || window.webkitAudioContext)();
+}
+if (audioContext.state === 'suspended') {
+audioContext.resume();
+}
+return audioContext;
+}
+
+/*
+ * Les navigateurs bloquent l'audio tant qu'il n'y a pas eu
+ * d'interaction : on débloque dès le premier clic sur la page.
+ */
+document.addEventListener('click', function () {
+obtenirContexteAudio();
+}, { once: true });
+
+function jouerBip() {
+try {
+const ctx = obtenirContexteAudio();
+const oscillateur = ctx.createOscillator();
+const gain = ctx.createGain();
+oscillateur.type = 'sine';
+oscillateur.frequency.value = 880;
+gain.gain.value = 0.2;
+oscillateur.connect(gain);
+gain.connect(ctx.destination);
+oscillateur.start();
+oscillateur.stop(ctx.currentTime + 0.25);
+} catch (erreur) {
+/* Audio indisponible : on ignore silencieusement. */
+}
+}
+
+function demarrerAlerte() {
+if (sonActif) {
+return;
+}
+
+sonActif = true;
+
+if (boutonCouperSon) {
+boutonCouperSon.style.display = '';
+}
+
+jouerBip();
+intervalleSon = setInterval(jouerBip, 1500);
+}
+
+function arreterAlerte() {
+sonActif = false;
+
+if (intervalleSon) {
+clearInterval(intervalleSon);
+intervalleSon = null;
+}
+
+if (boutonCouperSon) {
+boutonCouperSon.style.display = 'none';
+}
+}
+
+if (boutonCouperSon) {
+boutonCouperSon.addEventListener('click', arreterAlerte);
+}
+
+async function verifierNouveaux() {
+try {
+const reponse = await fetch('{{ path('app_controle_pre_presse_verifier_nouveaux') }}');
+const donnees = await reponse.json();
+const idsActuels = (donnees.ids || []).map(Number);
+
+const nouveaux = idsActuels.filter(function (id) {
+return !idsConnus.has(id);
+});
+
+idsConnus = new Set(idsActuels);
+
+if (nouveaux.length > 0) {
+demarrerAlerte();
+}
+} catch (erreur) {
+/* Réseau indisponible : on réessaiera au prochain cycle. */
+}
+}
+
+setInterval(verifierNouveaux, 20000);
+
+});
+		</script>
+	{% endblock %}

@@ -840,149 +840,35 @@ final class BonLivraisonController extends AbstractController
     methods: ['POST']
 )]
 public function livrer(
-    CommandesDetails $detail,
+    BonLivraison $bon,
     Request $request,
-    EntityManagerInterface $em,
-    StockService $stockService
+    EntityManagerInterface $em
 ): Response {
+    $utilisateur =
+        $this->utilisateurConnecte();
+
     $this->verifierJeton(
         $request,
-        'livraison_livrer_' . $detail->getId()
+        'bon_livraison_livrer_' . $bon->getId()
     );
 
     try {
-        /*
-         * ========================================================
-         * 1. LA LIGNE DOIT ÊTRE EN LIVRAISON
-         * ========================================================
-         */
-        if (
-            $detail->getStatutProduction()
-            !== CommandesDetails::PRODUCTION_EN_LIVRAISON
-        ) {
-            throw new \LogicException(
-                'La ligne doit être en livraison avant d’être confirmée comme livrée.'
-            );
-        }
-
-
-        /*
-         * ========================================================
-         * 2. ARTICLE EN STOCK = LIVRAISON DIRECTE AUTORISÉE
-         * ========================================================
-         */
-        if (
-            $detail->getTypeLigne()
-            === CommandesDetails::TYPE_ARTICLE
-        ) {
-            $article =
-                $detail->getArticle();
-
-            if ($article === null) {
-                throw new \LogicException(
-                    'Aucun article en stock n’est associé à cette ligne.'
-                );
-            }
-
-
-            /*
-             * Quantité réellement livrée.
-             *
-             * Pour cette route simple, on considère
-             * que toute la ligne est livrée.
-             *
-             * Les livraisons partielles restent gérées
-             * par le module Bon de Livraison.
-             */
-            $quantite =
-                (float) $detail->getQuantite();
-
-            if ($quantite <= 0) {
-                throw new \LogicException(
-                    'La quantité à livrer est invalide.'
-                );
-            }
-
-
-            /*
-             * Référence unique de cette sortie.
-             *
-             * Cela permet aussi à StockService
-             * d’éviter une double consommation.
-             */
-            $reference =
-                sprintf(
-                    'LIV-DIRECT-%06d',
-                    (int) $detail->getId()
-                );
-
-
-            /*
-             * ====================================================
-             * SORTIE DU STOCK
-             * ====================================================
-             *
-             * calculerBesoinsDetail() sait maintenant
-             * que TYPE_ARTICLE consomme directement
-             * detail->article.
-             */
-            $stockService->consommerPourDetail(
-                $detail,
-                StockSorties::ORIGINE_LIVRAISON,
-                $reference,
-                $quantite
-            );
-
-
-            /*
-             * ====================================================
-             * STATUT LIVRÉ
-             * ====================================================
-             */
-            $detail->marquerLivree();
-
-
-            $em->flush();
-
-
-            $this->addFlash(
-                'success',
-                sprintf(
-                    'La livraison de « %s » a été confirmée. '
-                    . 'La sortie de stock a été enregistrée.',
-                    $detail->getDesignation()
-                )
-            );
-
-
-            return $this->redirectToRoute(
-                'app_livraisons_show',
-                [
-                    'id' => $detail->getId(),
-                ]
-            );
-        }
-
-
-        /*
-         * ========================================================
-         * 3. AUTRES LIGNES
-         * ========================================================
-         *
-         * Pour les produits provenant de la production,
-         * on garde le circuit Bon de Livraison.
-         */
-        throw new \LogicException(
-            sprintf(
-                'La ligne « %s » doit être livrée à partir d’un bon de livraison.',
-                $detail->getDesignation()
-            )
+        $bon->marquerLivre(
+            $utilisateur
         );
 
+        $em->flush();
+
+        $this->addFlash(
+            'success',
+            sprintf(
+                'Le bon de livraison %s a été marqué comme livré.',
+                $bon->getNumero()
+            )
+        );
     } catch (
         \LogicException |
-        \RuntimeException |
-        \DomainException $e
+        \InvalidArgumentException $e
     ) {
         $this->addFlash(
             'error',
@@ -990,11 +876,10 @@ public function livrer(
         );
     }
 
-
     return $this->redirectToRoute(
-        'app_livraisons_show',
+        'app_bons_livraison_show',
         [
-            'id' => $detail->getId(),
+            'id' => $bon->getId(),
         ]
     );
 }

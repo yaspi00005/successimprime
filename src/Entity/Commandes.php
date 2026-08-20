@@ -346,6 +346,57 @@ class Commandes
     }
 
     /**
+     * Résumé de l'avancement des travaux, calculé à partir du
+     * statut réel de chaque ligne (contrairement à $etat, qui est
+     * un simple booléen jamais mis à jour après la création).
+     *
+     * Valeurs possibles :
+     * "vide", "preparation", "livraison", "livree", "annulee".
+     */
+    public function getStatutTravaux(): string
+    {
+        $lignesActives = $this->commandesDetails->filter(
+            static fn (CommandesDetails $ligne): bool =>
+                $ligne->getStatutProduction()
+                !== CommandesDetails::PRODUCTION_ANNULEE
+        );
+
+        if ($lignesActives->isEmpty()) {
+            return $this->commandesDetails->isEmpty()
+                ? 'vide'
+                : 'annulee';
+        }
+
+        $enPreparation = [
+            CommandesDetails::PRODUCTION_A_PRODUIRE,
+            CommandesDetails::PRODUCTION_EN_COURS,
+            CommandesDetails::PRODUCTION_TERMINEE,
+            CommandesDetails::PRODUCTION_NON_REQUISE,
+        ];
+
+        $enLivraison = [
+            CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+            CommandesDetails::PRODUCTION_EN_LIVRAISON,
+        ];
+
+        $toutesLivrees = true;
+
+        foreach ($lignesActives as $ligne) {
+            $statut = $ligne->getStatutProduction();
+
+            if (in_array($statut, $enPreparation, true)) {
+                return 'preparation';
+            }
+
+            if (in_array($statut, $enLivraison, true)) {
+                $toutesLivrees = false;
+            }
+        }
+
+        return $toutesLivrees ? 'livree' : 'livraison';
+    }
+
+    /**
      * @return Collection<int, CommandesDetails>
      */
     public function getCommandesDetails(): Collection

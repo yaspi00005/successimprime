@@ -902,6 +902,8 @@ class CommandesDetails
             $this->calculerSurface();
         }
 
+        $this->appliquerDimensionsALaDesignation();
+
         $montantImpression = $this->calculerMontantImpression();
         $montantFinitions = 0;
 
@@ -930,6 +932,56 @@ class CommandesDetails
         $this->totalTtc = $this->totalHt + $montantTva;
 
         return $this;
+    }
+
+    /**
+     * Ajoute (ou met à jour) les dimensions dans la désignation, au
+     * format "Nom du produit (29,7 x 42 cm)", pour qu'elles restent
+     * visibles partout où la désignation est affichée (listes, PDF)
+     * sans devoir modifier chaque gabarit.
+     *
+     * Idempotent : un ancien suffixe de dimensions est d'abord
+     * retiré avant d'ajouter le suffixe à jour, pour ne pas
+     * l'accumuler à chaque nouvel enregistrement.
+     */
+    private function appliquerDimensionsALaDesignation(): void
+    {
+        $base = preg_replace(
+            '/\s*\([0-9]+(?:,[0-9]+)?\s*x\s*[0-9]+(?:,[0-9]+)?\s*cm\)\s*$/u',
+            '',
+            trim((string) $this->designation)
+        );
+
+        if (
+            $this->largeur === null
+            || $this->longueur === null
+        ) {
+            $this->designation = $base !== '' ? $base : null;
+
+            return;
+        }
+
+        $formaterCm = static function (string $valeurMetres): string {
+            $texte = number_format(
+                (float) $valeurMetres * 100,
+                2,
+                ',',
+                ''
+            );
+
+            $texte = rtrim($texte, '0');
+            $texte = rtrim($texte, ',');
+
+            return $texte === '' ? '0' : $texte;
+        };
+
+        $suffixe = sprintf(
+            ' (%s x %s cm)',
+            $formaterCm($this->largeur),
+            $formaterCm($this->longueur)
+        );
+
+        $this->designation = ($base !== '' ? $base : 'Produit') . $suffixe;
     }
 
     public function getProfilCouleurs(): ?string
