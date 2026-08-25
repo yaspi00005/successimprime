@@ -13,9 +13,50 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class StockService
 {
+    /**
+     * Rôles prévenus quand un article passe sous son seuil d'alerte
+     * après une sortie de stock (production ou saisie manuelle).
+     */
+    private const ROLES_ALERTE_STOCK_BAS = ['ROLE_ADMIN', 'ROLE_RESPONSABLE_GESTION'];
+
     public function __construct(
-        private readonly EntityManagerInterface $entityManager
+        private readonly EntityManagerInterface $entityManager,
+        private readonly NotificationService $notificationService,
     ) {}
+
+    /**
+     * Prévient les responsables si l'article vient de passer sous son
+     * seuil d'alerte suite à une sortie de stock. N'appelle pas
+     * flush() : fait partie de la même transaction que l'appelant.
+     */
+    private function verifierSeuilAlerte(
+        Articles $article,
+        float $stockAvant,
+        float $quantiteSortie
+    ): void {
+        $stockApres = max(0.0, $stockAvant - $quantiteSortie);
+        $seuil = $article->getSeuilAlerte();
+
+        if ($stockApres > $seuil || $stockAvant <= $seuil) {
+            /*
+             * On ne notifie qu'au moment où le seuil est franchi
+             * (pas à chaque sortie tant qu'on reste en dessous, pour
+             * éviter le spam de notifications).
+             */
+            return;
+        }
+
+        $this->notificationService->notifierRoles(
+            self::ROLES_ALERTE_STOCK_BAS,
+            sprintf(
+                'Stock bas : %s — reste %s (seuil %s).',
+                $this->getDesignationArticle($article),
+                $this->formaterQuantite($stockApres),
+                $this->formaterQuantite($seuil)
+            ),
+            'app_stock_etat_index'
+        );
+    }
 
     /*
      * ============================================================
@@ -490,6 +531,43 @@ final class StockService
                 $articleId
             ]['obligatoire'] =
                 true;
+        }
+    }
+
+
+    /*
+     * ========================================================
+     * ARTICLE ASSOCIÉ AU STOCK (LIEN SIMPLE)
+     * ========================================================
+     *
+     * En plus des liaisons ProduitArticleStock (nomenclature avec
+     * coefficient/mode de calcul), un produit peut aussi avoir un
+     * simple "Article associé au stock" (Produits::$articleStock,
+     * un champ direct du formulaire produit). Ce champ n'était
+     * jusque-là lu nulle part : le lier ne déclenchait donc aucune
+     * réservation/consommation de stock à la commande.
+     *
+     * On ne l'utilise qu'en repli, si aucune nomenclature
+     * ProduitArticleStock n'a produit de besoin -- pour ne pas
+     * doubler la consommation d'un produit déjà configuré avec une
+     * vraie nomenclature. Consommation 1 pour 1 : pas de coefficient
+     * associé à ce champ.
+     */
+    if ($besoins === []) {
+        $articleAssocie =
+            $produit->getArticleStock();
+
+        if ($articleAssocie instanceof Articles) {
+            $besoins[(int) $articleAssocie->getId()] = [
+                'article' =>
+                    $articleAssocie,
+
+                'quantite' =>
+                    $quantite,
+
+                'obligatoire' =>
+                    true,
+            ];
         }
     }
 
@@ -1184,6 +1262,9 @@ final class StockService
 
                 'quantite' =>
                 $quantite,
+
+                'stockAvant' =>
+                $stockPhysique,
             ];
         }
 
@@ -1243,6 +1324,12 @@ final class StockService
                 $quantite,
                 $reservationsParArticle[(int)
                     $article->getId()] ?? []
+            );
+
+            $this->verifierSeuilAlerte(
+                $article,
+                (float) $donnees['stockAvant'],
+                $quantite
             );
         }
 
@@ -1412,6 +1499,58 @@ final class StockService
             $reservation
                 ->marquerConsommee();
         }
+    }
+
+
+    /*
+     * ============================================================
+     * CONSOMMABLE MANUEL (PRODUCTION)
+     * ============================================================
+     *
+     * En plus de la nomenclature automatique (calculerBesoinsDetail),
+     * un agent peut enregistrer à la main un consommable utilisé
+     * pendant la production (colle, encre, film...) qui n'était pas
+     * prévu dans la nomenclature du produit. Ça crée une sortie de
+     * stock immédiate, retirée du stock disponible.
+     */
+
+    public function enregistrerConsommableManuel(
+        ?CommandesDetails $detail,
+        Articles $article,
+        int $quantite,
+        ?string $referenceOrigine = null
+    ): StockSorties {
+        if ($quantite <= 0) {
+            throw new \InvalidArgumentException(
+                'La quantité doit être supérieure à zéro.'
+            );
+        }
+
+        $stockAvant = $this->getStockPhysique($article);
+
+        $sortie = new StockSorties();
+        $sortie
+            ->setArticle($article)
+            ->setCommandeDetail($detail)
+            ->setQuantite($quantite)
+            ->setDate(new \DateTimeImmutable())
+            ->setOrigine(StockSorties::ORIGINE_MANUELLE)
+            ->setReferenceOrigine($referenceOrigine);
+
+        $this->entityManager->persist($sortie);
+
+        $this->verifierSeuilAlerte($article, $stockAvant, (float) $quantite);
+
+        $this->entityManager->flush();
+
+        return $sortie;
+    }
+
+    public function supprimerConsommableManuel(
+        StockSorties $sortie
+    ): void {
+        $this->entityManager->remove($sortie);
+        $this->entityManager->flush();
     }
 
 

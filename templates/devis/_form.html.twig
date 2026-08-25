@@ -562,10 +562,13 @@
                         'data-detail-field':
                             'remise',
 
-                        min: 0,
-                        max: 100
+                        min: 0
                     }
                 }) }}
+
+					<small class="form-text text-muted js-remise-totale-detail">
+						Remise totale : —
+					</small>
 
 				</div>
 
@@ -1317,8 +1320,8 @@
 	#devis-form label,
 	#devis-form small,
 	#devis-form .form-text {
-		color: #feffff !important;
-		-webkit-text-fill-color: #ffffff !important;
+		color: #334155 !important;
+		-webkit-text-fill-color: #334155 !important;
 	}
 
 	#devis-form input.form-control,
@@ -1392,9 +1395,9 @@
 
 		padding: 11px 16px;
 
-		color: #ffffff !important;
+		color: #17366f !important;
 
-		-webkit-text-fill-color: #fdfdfd !important;
+		-webkit-text-fill-color: #17366f !important;
 
 		font-size: 14px;
 
@@ -1846,7 +1849,7 @@ const quantite = Math.max(1, nombreDepuisChamp(champDetail(detail, 'quantite'), 
 
 const prix = Math.max(0, nombreDepuisChamp(champDetail(detail, 'prixUnitaire')));
 
-const remise = Math.min(100, Math.max(0, nombreDepuisChamp(champDetail(detail, 'remise'))));
+const remise = Math.max(0, nombreDepuisChamp(champDetail(detail, 'remise')));
 
 const tva = Math.max(0, nombreDepuisChamp(champDetail(detail, 'tva')));
 
@@ -1856,30 +1859,31 @@ const mode = String(champMode ? champMode.value : 'unite').toLowerCase();
 
 
 let montant = 0;
+let facteur = 0;
 
 
 switch (mode) {
-case 'forfait': montant = prix;
+case 'forfait': facteur = 1; montant = prix * facteur;
 
 break;
 
 
-case 'metre': montant = prix * longueur * quantite;
+case 'metre': facteur = longueur * quantite; montant = prix * facteur;
 
 break;
 
 
-case 'metre_carre': montant = prix * surface * quantite;
+case 'metre_carre': facteur = surface * quantite; montant = prix * facteur;
 
 break;
 
 
-case 'face': montant = prix * Math.max(1, nombreDepuisChamp(champDetail(detail, 'nombreFaces'), 1)) * quantite;
+case 'face': facteur = Math.max(1, nombreDepuisChamp(champDetail(detail, 'nombreFaces'), 1)) * quantite; montant = prix * facteur;
 
 break;
 
 
-default: montant = prix * quantite;
+default: facteur = quantite; montant = prix * facteur;
 
 break;
 }
@@ -1899,9 +1903,21 @@ montant += montantFinitionsManuelles(detail);
 }
 
 
-const totalHt = Math.max(0, montant * (1 - remise / 100));
+// La remise est un montant par unité (ex. 500 FCFA par m²), pas un montant fixe sur toute la ligne.
+const remiseTotale = Math.min(montant, remise * Math.max(0, facteur));
+
+const totalHt = Math.max(0, montant - remiseTotale);
 
 const totalTtc = totalHt * (1 + tva / 100);
+
+
+const elementRemiseTotale = detail.querySelector('.js-remise-totale-detail');
+
+if (elementRemiseTotale) {
+elementRemiseTotale.textContent = remiseTotale > 0
+? ('Remise totale : ' + Math.round(remiseTotale).toLocaleString('fr-FR') + ' FCFA')
+: 'Remise totale : —';
+}
 
 
 /*

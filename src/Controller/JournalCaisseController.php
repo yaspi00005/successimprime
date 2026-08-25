@@ -6,6 +6,11 @@ use App\Entity\CompteTresorerie;
 use App\Entity\MouvementTresorerie;
 use App\Repository\CompteTresorerieRepository;
 use App\Repository\MouvementTresorerieRepository;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,6 +42,229 @@ class JournalCaisseController extends AbstractController
         CompteTresorerieRepository $compteRepository,
         MouvementTresorerieRepository $mouvementRepository
     ): Response {
+        $donnees = $this->construireDonnees($request, $compteRepository, $mouvementRepository);
+
+        return $this->render(
+            'journal_caisse/index.html.twig',
+            $donnees
+        );
+    }
+
+    #[Route(
+        '/export/pdf',
+        name: 'app_journal_caisse_export_pdf',
+        methods: ['GET']
+    )]
+    public function exporterPdf(
+        Request $request,
+        CompteTresorerieRepository $compteRepository,
+        MouvementTresorerieRepository $mouvementRepository
+    ): Response {
+        $donnees = $this->construireDonnees($request, $compteRepository, $mouvementRepository);
+
+        $options = new Options();
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', true);
+
+        $dompdf = new Dompdf($options);
+
+        $html = $this->renderView('journal_caisse/pdf.html.twig', $donnees);
+
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->render();
+
+        $nomFichier = sprintf(
+            'journal-caisse_%s_au_%s.pdf',
+            $donnees['filtres']['dateDebut'],
+            $donnees['filtres']['dateFin']
+        );
+
+        return new Response(
+            $dompdf->output(),
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => sprintf('attachment; filename="%s"', $nomFichier),
+            ]
+        );
+    }
+
+    #[Route(
+        '/export/excel',
+        name: 'app_journal_caisse_export_excel',
+        methods: ['GET']
+    )]
+    public function exporterExcel(
+        Request $request,
+        CompteTresorerieRepository $compteRepository,
+        MouvementTresorerieRepository $mouvementRepository
+    ): Response {
+        $donnees = $this->construireDonnees($request, $compteRepository, $mouvementRepository);
+
+        $spreadsheet = new Spreadsheet();
+
+        $this->remplirFeuilleResume($spreadsheet, $donnees);
+        $this->remplirFeuilleMouvements($spreadsheet, $donnees);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $nomFichier = sprintf(
+            'journal-caisse_%s_au_%s.xlsx',
+            $donnees['filtres']['dateDebut'],
+            $donnees['filtres']['dateFin']
+        );
+
+        $fluxTemporaire = fopen('php://temp', 'w+');
+
+        if ($fluxTemporaire === false) {
+            throw new \RuntimeException('Impossible de générer le fichier Excel.');
+        }
+
+        (new Xlsx($spreadsheet))->save($fluxTemporaire);
+        rewind($fluxTemporaire);
+        $contenu = stream_get_contents($fluxTemporaire);
+        fclose($fluxTemporaire);
+
+        return new Response(
+            $contenu === false ? '' : $contenu,
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => sprintf('attachment; filename="%s"', $nomFichier),
+            ]
+        );
+    }
+
+    private function remplirFeuilleResume(Spreadsheet $spreadsheet, array $donnees): void
+    {
+        $feuille = $spreadsheet->getActiveSheet();
+        $feuille->setTitle('Résumé');
+
+        $styleEntete = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1643A3'],
+            ],
+        ];
+
+        $feuille->setCellValue('A1', 'Journal de caisse');
+        $feuille->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+        $feuille->setCellValue('A2', 'Période :');
+        $feuille->setCellValue('B2', $donnees['filtres']['dateDebut'] . ' au ' . $donnees['filtres']['dateFin']);
+
+        $feuille->setCellValue('A4', 'Indicateur');
+        $feuille->setCellValue('B4', 'Montant (FCFA)');
+        $feuille->getStyle('A4:B4')->applyFromArray($styleEntete);
+
+        $rapport = $donnees['rapportGlobal'];
+
+        $lignesResume = [
+            ['Total entrées (période)', $rapport['entrees']],
+            ['Total sorties (période)', $rapport['sorties']],
+            ['Variation de trésorerie', $rapport['variationTresorerie']],
+            ['Produits (impact résultat)', $rapport['produits']],
+            ['Charges (impact résultat)', $rapport['charges']],
+            ['Résultat net', $rapport['resultatNet']],
+            ['Transferts internes', $rapport['transferts']],
+        ];
+
+        $ligne = 5;
+
+        foreach ($lignesResume as [$libelle, $montant]) {
+            $feuille->setCellValue('A' . $ligne, $libelle);
+            $feuille->setCellValue('B' . $ligne, $montant);
+            ++$ligne;
+        }
+
+        $ligne += 1;
+        $feuille->setCellValue('A' . $ligne, 'Compte');
+        $feuille->setCellValue('B' . $ligne, 'Type');
+        $feuille->setCellValue('C' . $ligne, 'Portée');
+        $feuille->setCellValue('D' . $ligne, 'Solde actuel (FCFA)');
+        $feuille->getStyle('A' . $ligne . ':D' . $ligne)->applyFromArray($styleEntete);
+        ++$ligne;
+
+        foreach ($donnees['soldes']['comptes'] as $ligneCompte) {
+            /** @var CompteTresorerie $compte */
+            $compte = $ligneCompte['compte'];
+
+            $feuille->setCellValue('A' . $ligne, $compte->getNom());
+            $feuille->setCellValue('B' . $ligne, $compte->getTypeLabel());
+            $feuille->setCellValue('C' . $ligne, $compte->getPorteeLabel());
+            $feuille->setCellValue('D' . $ligne, $ligneCompte['solde']);
+            ++$ligne;
+        }
+
+        foreach (['A', 'B', 'C', 'D'] as $colonne) {
+            $feuille->getColumnDimension($colonne)->setAutoSize(true);
+        }
+    }
+
+    private function remplirFeuilleMouvements(Spreadsheet $spreadsheet, array $donnees): void
+    {
+        $feuille = $spreadsheet->createSheet();
+        $feuille->setTitle('Mouvements');
+
+        $entetes = [
+            'Date', 'Référence', 'Type', 'Compte source', 'Compte destination',
+            'Catégorie', 'Libellé', 'Agent', 'Mode', 'Entrée', 'Sortie', 'Transfert',
+        ];
+
+        foreach ($entetes as $index => $intitule) {
+            $colonne = chr(ord('A') + $index);
+            $feuille->setCellValue($colonne . '1', $intitule);
+        }
+
+        $feuille->getStyle('A1:L1')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1643A3'],
+            ],
+        ]);
+
+        $ligne = 2;
+
+        foreach ($donnees['journalGlobal']['lignes'] as $donneesLigne) {
+            /** @var MouvementTresorerie $mouvement */
+            $mouvement = $donneesLigne['mouvement'];
+
+            $feuille->setCellValue('A' . $ligne, $mouvement->getDateOperation()?->format('d/m/Y H:i'));
+            $feuille->setCellValue('B' . $ligne, $mouvement->getReference());
+            $feuille->setCellValue('C' . $ligne, $mouvement->getTypeLabel());
+            $feuille->setCellValue('D' . $ligne, $mouvement->getCompteSource()?->getNom() ?? '');
+            $feuille->setCellValue('E' . $ligne, $mouvement->getCompteDestination()?->getNom() ?? '');
+            $feuille->setCellValue('F' . $ligne, $mouvement->getCategorieLabel());
+            $feuille->setCellValue('G' . $ligne, $mouvement->getLibelle());
+            $feuille->setCellValue('H' . $ligne, $mouvement->getAgent()?->getUsername() ?? '');
+            $feuille->setCellValue('I' . $ligne, $mouvement->getModePaiement() ?? '');
+            $feuille->setCellValue('J' . $ligne, $donneesLigne['entree']);
+            $feuille->setCellValue('K' . $ligne, $donneesLigne['sortie']);
+            $feuille->setCellValue('L' . $ligne, $donneesLigne['transfert']);
+            ++$ligne;
+        }
+
+        foreach (range('A', 'L') as $colonne) {
+            $feuille->getColumnDimension($colonne)->setAutoSize(true);
+        }
+    }
+
+    /**
+     * Calcule toutes les données du journal de caisse (soldes, journal
+     * détaillé d'un compte, journal global, rapport financier). Utilisé
+     * par la page HTML et par les deux exports (PDF, Excel) pour ne
+     * jamais dupliquer cette logique.
+     *
+     * @return array<string, mixed>
+     */
+    private function construireDonnees(
+        Request $request,
+        CompteTresorerieRepository $compteRepository,
+        MouvementTresorerieRepository $mouvementRepository
+    ): array {
         /*
          * ========================================================
          * PÉRIODE
@@ -649,7 +877,12 @@ $journalGlobal['variation'] =
 
         /*
          * ========================================================
-         * SOLDES ACTUELS
+         * SOLDES ACTUELS + DÉTAIL PAR COMPTE
+         * ========================================================
+         *
+         * Pour chaque compte : solde actuel, mais aussi nombre de
+         * mouvements et date du dernier mouvement SUR LA PÉRIODE
+         * affichée (utile pour repérer un compte inactif).
          * ========================================================
          */
 
@@ -663,6 +896,42 @@ $journalGlobal['variation'] =
 
             'comptes' => [],
         ];
+
+
+        $statsParCompte = [];
+
+        foreach ($journalGlobal['lignes'] as $ligneJournal) {
+            $mouvementLigne = $ligneJournal['mouvement'];
+
+            foreach ([$mouvementLigne->getCompteSource(), $mouvementLigne->getCompteDestination()] as $compteMouvement) {
+                if (!$compteMouvement instanceof CompteTresorerie || $compteMouvement->getId() === null) {
+                    continue;
+                }
+
+                $idCompte = $compteMouvement->getId();
+
+                if (!isset($statsParCompte[$idCompte])) {
+                    $statsParCompte[$idCompte] = [
+                        'nombre' => 0,
+                        'dernierMouvement' => null,
+                    ];
+                }
+
+                ++$statsParCompte[$idCompte]['nombre'];
+
+                $dateOperation = $mouvementLigne->getDateOperation();
+
+                if (
+                    $dateOperation !== null
+                    && (
+                        $statsParCompte[$idCompte]['dernierMouvement'] === null
+                        || $dateOperation > $statsParCompte[$idCompte]['dernierMouvement']
+                    )
+                ) {
+                    $statsParCompte[$idCompte]['dernierMouvement'] = $dateOperation;
+                }
+            }
+        }
 
 
         foreach (
@@ -687,7 +956,7 @@ $journalGlobal['variation'] =
                     $soldes[
                         'caisses'
                     ] += $solde;
-                    
+
 
                     break;
 
@@ -723,12 +992,19 @@ $journalGlobal['variation'] =
             }
 
 
+            $idCompte = $compte->getId();
+            $statsCompte = $idCompte !== null ? ($statsParCompte[$idCompte] ?? null) : null;
+
             $soldes['comptes'][] = [
                 'compte' =>
                     $compte,
 
                 'solde' =>
                     $solde,
+
+                'nombreMouvementsPeriode' => $statsCompte['nombre'] ?? 0,
+
+                'dernierMouvementPeriode' => $statsCompte['dernierMouvement'] ?? null,
             ];
         }
 
@@ -784,9 +1060,7 @@ $journalGlobal['variation'] =
         }
 
 
-       return $this->render(
-    'journal_caisse/index.html.twig',
-    [
+        return [
         'comptesJournal' =>
             $comptesJournal,
 
@@ -836,8 +1110,7 @@ $journalGlobal['variation'] =
             'dateFin' =>
                 $dateFinValeur,
         ],
-    ]
-);
+        ];
     }
 
 

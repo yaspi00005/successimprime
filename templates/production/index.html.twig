@@ -395,6 +395,8 @@
 							<tr>
 								<th>Ordre</th>
 								<th>Commande</th>
+								<th>Désignation</th>
+								<th>Qté à imprimer</th>
 								<th>Priorité</th>
 								<th>Machine</th>
 								<th>Statut</th>
@@ -429,6 +431,11 @@
             ordre.commandeDetail
             and ordre.commandeDetail.commande
                 ? ordre.commandeDetail.commande.id
+                : ''
+        ) ~ ' ' ~
+        (
+            ordre.commandeDetail
+                ? ordre.commandeDetail.designation|default('')
                 : ''
         ) ~ ' ' ~
         (
@@ -471,6 +478,14 @@
 										{% else %}
 											<span class="text-muted">—</span>
 										{% endif %}
+									</td>
+
+									<td>
+										{{ ordre.commandeDetail.designation|default('—') }}
+									</td>
+
+									<td>
+										{{ ordre.quantite|default('—') }}
 									</td>
 
 									<td>
@@ -620,14 +635,14 @@
 								</tr>
 							{% else %}
 								<tr>
-									<td colspan="9" class="text-center text-muted py-4">
+									<td colspan="11" class="text-center text-muted py-4">
 										Aucun ordre de production disponible.
 									</td>
 								</tr>
 							{% endfor %}
 
 							<tr id="aucunResultat" style="display: none;">
-								<td colspan="9" class="text-center text-muted py-4">
+								<td colspan="11" class="text-center text-muted py-4">
 									Aucun ordre ne correspond aux filtres.
 								</td>
 							</tr>

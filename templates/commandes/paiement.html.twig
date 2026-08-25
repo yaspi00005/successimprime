@@ -241,6 +241,51 @@
 							</small>
 
 						</div>
+
+
+						{# ====================================================
+						       FRAIS MOBILE MONEY (Orange Money / Wave)
+						       ==================================================== #}
+
+						<div class="form-group js-zone-frais-mobile-money" style="display:none;">
+
+							<label>
+								Frais mobile money
+							</label>
+
+							<div class="alert alert-light border mb-2">
+								Le client paie parfois ces frais en plus du prix de la commande.
+								Cochez ce qui s'applique à ce versement.
+							</div>
+
+							<div class="custom-control custom-checkbox mb-2">
+								{{ form_widget(form.fraisRetraitInclus, {
+                                    attr: { class: 'custom-control-input js-frais-retrait' }
+                                }) }}
+
+								{{ form_label(form.fraisRetraitInclus, null, {
+                                    label_attr: { class: 'custom-control-label' }
+                                }) }}
+
+								<span class="text-muted js-apercu-frais-retrait"></span>
+							</div>
+
+							<div class="custom-control custom-checkbox">
+								{{ form_widget(form.fondsSoutienInclus, {
+                                    attr: { class: 'custom-control-input js-fonds-soutien' }
+                                }) }}
+
+								{{ form_label(form.fondsSoutienInclus, null, {
+                                    label_attr: { class: 'custom-control-label' }
+                                }) }}
+
+								<span class="text-muted js-apercu-fonds-soutien"></span>
+							</div>
+
+							<div class="mt-2 font-weight-bold js-total-encaisse" style="display:none;"></div>
+
+						</div>
+
 						<div class="form-group">
 							{{ form_label(form.reference) }}
 
@@ -316,6 +361,7 @@
 						<tr>
 							<th>Date</th>
 							<th>Montant</th>
+							<th>Frais mobile money</th>
 							<th>Mode</th>
 							<th>Référence</th>
 							<th>Encaissé par</th>
@@ -339,6 +385,25 @@
                                         ' '
                                     ) }}
 									FCFA
+								</td>
+
+								<td class="text-muted">
+									{% if paiement.montantFraisRetrait > 0 or paiement.montantFondsSoutien > 0 %}
+										{% if paiement.montantFraisRetrait > 0 %}
+											Retrait :
+											{{ paiement.montantFraisRetrait|number_format(0, ',', ' ') }}
+											FCFA
+											<br>
+										{% endif %}
+
+										{% if paiement.montantFondsSoutien > 0 %}
+											Fonds de soutien :
+											{{ paiement.montantFondsSoutien|number_format(0, ',', ' ') }}
+											FCFA
+										{% endif %}
+									{% else %}
+										-
+									{% endif %}
 								</td>
 
 								<td>
@@ -367,7 +432,7 @@
 							</tr>
 						{% else %}
 							<tr>
-								<td colspan="5" class="text-center text-muted py-5">
+								<td colspan="6" class="text-center text-muted py-5">
 									Aucun paiement enregistré pour cette commande.
 								</td>
 							</tr>
@@ -386,7 +451,7 @@
 									FCFA
 								</th>
 
-								<th colspan="3"></th>
+								<th colspan="4"></th>
 							</tr>
 						</tfoot>
 					{% endif %}
@@ -415,6 +480,120 @@ const resteAPayer = {{ montantRestant|default(0)|json_encode|raw }};
 if (! form || ! button || ! montantInput) {
 return;
 }
+
+
+/*
+ * =========================================================
+ * FRAIS MOBILE MONEY (Orange Money / Wave)
+ * =========================================================
+ */
+
+const modeSelect = document.getElementById('{{ form.mode.vars.id|default('') }}');
+
+const zoneFraisMobileMoney = document.querySelector('.js-zone-frais-mobile-money');
+
+const checkboxFraisRetrait = document.getElementById('{{ form.fraisRetraitInclus.vars.id|default('') }}');
+
+const checkboxFondsSoutien = document.getElementById('{{ form.fondsSoutienInclus.vars.id|default('') }}');
+
+const apercuFraisRetrait = document.querySelector('.js-apercu-frais-retrait');
+
+const apercuFondsSoutien = document.querySelector('.js-apercu-fonds-soutien');
+
+const totalEncaisseEl = document.querySelector('.js-total-encaisse');
+
+const tauxFraisRetrait = {{ parametresPaiement.tauxFraisRetrait|default(0)|json_encode|raw }};
+
+const tauxFondsSoutien = {{ parametresPaiement.tauxFondsSoutien|default(0)|json_encode|raw }};
+
+const modesMobileMoney = ['orange_money', 'wave'];
+
+
+function formaterFcfa(valeur) {
+return new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 0}).format(Math.round(valeur)) + ' FCFA';
+}
+
+
+function actualiserZoneFraisMobileMoney() {
+if (! modeSelect || ! zoneFraisMobileMoney) {
+return;
+}
+
+const estMobileMoney = modesMobileMoney.includes(modeSelect.value);
+
+zoneFraisMobileMoney.style.display = estMobileMoney ? '' : 'none';
+
+if (! estMobileMoney) {
+if (checkboxFraisRetrait) {
+checkboxFraisRetrait.checked = false;
+}
+
+if (checkboxFondsSoutien) {
+checkboxFondsSoutien.checked = false;
+}
+}
+
+actualiserApercuFrais();
+}
+
+
+function actualiserApercuFrais() {
+const montant = getMontantNumerique();
+
+const fraisRetrait = montant * tauxFraisRetrait / 100;
+
+const fondsSoutien = montant * tauxFondsSoutien / 100;
+
+
+if (apercuFraisRetrait) {
+apercuFraisRetrait.textContent = montant > 0
+? ' (' + tauxFraisRetrait + '% = ' + formaterFcfa(fraisRetrait) + ')'
+: '';
+}
+
+if (apercuFondsSoutien) {
+apercuFondsSoutien.textContent = montant > 0
+? ' (' + tauxFondsSoutien + '% = ' + formaterFcfa(fondsSoutien) + ')'
+: '';
+}
+
+
+if (totalEncaisseEl) {
+const inclureFraisRetrait = Boolean(checkboxFraisRetrait && checkboxFraisRetrait.checked);
+
+const inclureFondsSoutien = Boolean(checkboxFondsSoutien && checkboxFondsSoutien.checked);
+
+if ((inclureFraisRetrait || inclureFondsSoutien) && montant > 0) {
+const total = montant
++ (inclureFraisRetrait ? fraisRetrait : 0)
++ (inclureFondsSoutien ? fondsSoutien : 0);
+
+totalEncaisseEl.style.display = '';
+
+totalEncaisseEl.textContent = 'Le client remettra au total : ' + formaterFcfa(total);
+
+} else {
+totalEncaisseEl.style.display = 'none';
+}
+}
+}
+
+
+if (modeSelect) {
+modeSelect.addEventListener('change', actualiserZoneFraisMobileMoney);
+}
+
+if (checkboxFraisRetrait) {
+checkboxFraisRetrait.addEventListener('change', actualiserApercuFrais);
+}
+
+if (checkboxFondsSoutien) {
+checkboxFondsSoutien.addEventListener('change', actualiserApercuFrais);
+}
+
+montantInput.addEventListener('input', actualiserApercuFrais);
+
+actualiserZoneFraisMobileMoney();
 
 
 function nettoyerMontant(value) {

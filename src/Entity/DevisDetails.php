@@ -112,14 +112,14 @@ public const TYPE_LIBRE = 'libre';
     private int $coutRevient = 0;
 
     /*
-     * La remise est un pourcentage compris entre 0 et 100.
-     * En decimal (et non arrondi a l'entier), aligné sur le module
-     * commande, pour que la remise B2B calculee a partir du prix
-     * catalogue donne exactement le meme total.
+     * Remise en FCFA par unité facturable (par m², par mètre
+     * linéaire, par exemplaire... selon le mode de calcul), pas un
+     * montant fixe sur toute la ligne ni un pourcentage : aligné sur
+     * le module commande.
      */
-    #[ORM\Column(type: Types::DECIMAL, precision: 7, scale: 4, options: ['default' => 0])]
-    #[Assert\Range(min: 0, max: 100)]
-    private string $remise = '0';
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private int $remise = 0;
 
     /*
      * La TVA est également un pourcentage.
@@ -484,7 +484,22 @@ private string $modeSaisie = 'automatique';
 
     public function calculerMontantImpression(): int
     {
-        $facteur = match ($this->modeCalcul) {
+        return (int) round(
+            (float) $this->prixUnitaire * max(0, $this->calculerFacteur())
+        );
+    }
+
+    /*
+     * Nombre d'"unités facturables" de la ligne selon son mode de
+     * calcul (mètres carrés, mètres linéaires, exemplaires...).
+     * Utilisé à la fois pour le prix (prixUnitaire x facteur) et pour
+     * la remise (remise x facteur) : la remise est elle aussi un
+     * montant "par unité" (ex. 500 FCFA par m²), pas un montant fixe
+     * sur toute la ligne.
+     */
+    private function calculerFacteur(): float
+    {
+        return match ($this->modeCalcul) {
             'forfait' => 1,
 
             'unite',
@@ -505,10 +520,18 @@ private string $modeSaisie = 'automatique';
 
             default => $this->quantite,
         };
+    }
 
-        return (int) round(
-            (float) $this->prixUnitaire * max(0, $facteur)
-        );
+    /**
+     * Surface totale de la ligne (surface unitaire x quantité), pour
+     * l'affichage "(X m²)" sur les PDF. Le cast (float) est
+     * volontaire : $surface peut contenir une chaîne non numérique
+     * sur d'anciennes lignes, et une multiplication directe
+     * planterait au lieu de retourner 0.
+     */
+    public function getSurfaceTotale(): float
+    {
+        return (float) ($this->surface ?? 0) * $this->quantite;
     }
 
     public function getProduitConfiguration(): ?ProduitConfiguration
@@ -696,14 +719,14 @@ private string $modeSaisie = 'automatique';
         return $this;
     }
 
-    public function getRemise(): float
+    public function getRemise(): int
     {
-        return (float) $this->remise;
+        return $this->remise;
     }
 
     public function setRemise(string|float|int|null $remise): static
     {
-        $this->remise = (string) min(100, max(0, (float) ($remise ?? 0)));
+        $this->remise = max(0, (int) round((float) ($remise ?? 0)));
 
         return $this;
     }
@@ -768,21 +791,10 @@ private string $modeSaisie = 'automatique';
     $this->calculerSurface();
 }
 
-        $montantImpression = $this->calculerMontantImpression();
-        $montantFinitions = 0;
+        $this->appliquerDimensionsALaDesignation();
 
-        foreach ($this->finitions as $finition) {
-            $montantFinitions += max(
-                0,
-                $finition->getMontant() ?? 0
-            );
-        }
-
-        $totalBrut = $montantImpression + $montantFinitions;
-
-        $montantRemise = (int) round(
-            $totalBrut * $this->remise / 100
-        );
+        $totalBrut = $this->calculerTotalBrut();
+        $montantRemise = $this->calculerMontantRemise($totalBrut);
 
         $this->totalHt = max(
             0,
@@ -796,6 +808,95 @@ private string $modeSaisie = 'automatique';
         $this->totalTtc = $this->totalHt + $montantTva;
 
         return $this;
+    }
+
+    private function calculerTotalBrut(): int
+    {
+        $montantFinitions = 0;
+
+        foreach ($this->finitions as $finition) {
+            $montantFinitions += max(
+                0,
+                $finition->getMontant() ?? 0
+            );
+        }
+
+        return $this->calculerMontantImpression() + $montantFinitions;
+    }
+
+    /**
+     * Ajoute (ou met à jour) les dimensions dans la désignation, au
+     * format "Nom du produit (29,7 x 42 cm)", pour qu'elles restent
+     * visibles partout où la désignation est affichée (listes, PDF)
+     * sans devoir modifier chaque gabarit.
+     *
+     * Idempotent : un ancien suffixe de dimensions est d'abord
+     * retiré avant d'ajouter le suffixe à jour, pour ne pas
+     * l'accumuler à chaque nouvel enregistrement.
+     */
+    private function appliquerDimensionsALaDesignation(): void
+    {
+        $base = preg_replace(
+            '/\s*\([0-9]+(?:,[0-9]+)?\s*x\s*[0-9]+(?:,[0-9]+)?\s*cm\)\s*$/u',
+            '',
+            trim((string) $this->designation)
+        );
+
+        if (
+            $this->largeur === null
+            || $this->longueur === null
+        ) {
+            $this->designation = $base !== '' ? $base : null;
+
+            return;
+        }
+
+        $formaterCm = static function (string $valeurMetres): string {
+            $texte = number_format(
+                (float) $valeurMetres * 100,
+                2,
+                ',',
+                ''
+            );
+
+            $texte = rtrim($texte, '0');
+            $texte = rtrim($texte, ',');
+
+            return $texte === '' ? '0' : $texte;
+        };
+
+        $suffixe = sprintf(
+            ' (%s x %s cm)',
+            $formaterCm($this->largeur),
+            $formaterCm($this->longueur)
+        );
+
+        $this->designation = ($base !== '' ? $base : 'Produit') . $suffixe;
+    }
+
+    /*
+     * La remise est un montant par unité facturable (ex. 500 FCFA par
+     * m²), pas un montant fixe sur toute la ligne : elle se multiplie
+     * donc par le même facteur que le prix unitaire
+     * (calculerFacteur()), plafonné au total brut de la ligne.
+     */
+    private function calculerMontantRemise(int $totalBrut): int
+    {
+        return min(
+            $totalBrut,
+            max(0, (int) round($this->remise * $this->calculerFacteur()))
+        );
+    }
+
+    /**
+     * Montant effectivement retiré par la remise sur cette ligne
+     * (remise par unité x facteur, plafonné au total brut), utilisé
+     * pour l'affichage sur les PDF (devis/facture) au lieu du seul
+     * taux par unité.
+     */
+    public function getMontantRemise(): int
+    {
+        return $this->calculerMontantRemise($this->calculerTotalBrut());
     }
 
     public function getProfilCouleurs(): ?string

@@ -77,6 +77,17 @@ class CommandesType extends AbstractType
                 'required' => false,
                 'widget' => 'single_text',
                 'html5' => true,
+                /*
+                 * Sans "input" explicite, DateTimeType produit un
+                 * DateTime mutable a la soumission -- alors que la
+                 * colonne dateLivraison est mappee en
+                 * DATETIME_IMMUTABLE (voir Commandes::$dateLivraison).
+                 * Le setter accepte DateTimeInterface sans erreur,
+                 * mais Doctrine refuse ensuite la conversion au
+                 * moment de l'enregistrement ("Impossible de
+                 * convertir la valeur PHP de type DateTime...").
+                 */
+                'input' => 'datetime_immutable',
                 'attr' => [
                     'class' => 'form-control',
                 ],

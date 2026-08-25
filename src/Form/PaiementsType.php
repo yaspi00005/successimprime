@@ -5,6 +5,7 @@ namespace App\Form;
 use App\Entity\Paiements;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\CallbackTransformer;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -89,6 +90,36 @@ class PaiementsType extends AbstractType
 
                     'help' =>
                         'Facultative pour les paiements en espèces.',
+                ]
+            )
+
+            /*
+             * Frais mobile money : n'ont de sens que pour Orange
+             * Money / Wave (affichage conditionnel géré en JS côté
+             * template) -- le contrôleur les ignore de toute façon
+             * pour tout autre mode, par sécurité.
+             */
+            ->add(
+                'fraisRetraitInclus',
+                CheckboxType::class,
+                [
+                    'label' => 'Frais de retrait à la charge du client',
+                    'required' => false,
+                    'attr' => [
+                        'class' => 'custom-control-input',
+                    ],
+                ]
+            )
+
+            ->add(
+                'fondsSoutienInclus',
+                CheckboxType::class,
+                [
+                    'label' => 'Fonds de soutien à la charge du client',
+                    'required' => false,
+                    'attr' => [
+                        'class' => 'custom-control-input',
+                    ],
                 ]
             );
             $estAdmin = (bool) $options['est_admin'];

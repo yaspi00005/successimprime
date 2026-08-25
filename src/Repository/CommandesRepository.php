@@ -30,6 +30,7 @@ final class CommandesRepository extends ServiceEntityRepository
             ->addSelect('cl')
             ->leftJoin('c.commandesDetails', 'd')
             ->addSelect('d')
+            ->andWhere('c.deleted = false')
             ->distinct();
 
         $rechercheActive = $this->rechercheEstActive($filtres);

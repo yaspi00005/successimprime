@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Finition;
 use App\Entity\Format;
+use App\Entity\ProduitArticleStock;
 use App\Entity\Produits;
 use App\Entity\Supports;
 use App\Entity\TypesImpression;
@@ -118,7 +119,8 @@ final class ProduitsController extends AbstractController
         TypesImpressionRepository $typesImpressionRepository,
         SupportsRepository $supportsRepository,
         FormatRepository $formatRepository,
-        FinitionRepository $finitionRepository
+        FinitionRepository $finitionRepository,
+        ArticlesRepository $articlesRepository
     ): JsonResponse {
         $data = $this->lireJson($request);
 
@@ -158,6 +160,15 @@ final class ProduitsController extends AbstractController
             $data['personnalisable'] ?? false,
             FILTER_VALIDATE_BOOL
         );
+
+        $gestionStock = filter_var(
+            $data['gestionStock'] ?? false,
+            FILTER_VALIDATE_BOOL
+        );
+
+        $articlesStockData = is_array($data['articlesStock'] ?? null)
+            ? $data['articlesStock']
+            : [];
 
         $categorieId = (int) ($data['categorieProduit'] ?? 0);
 
@@ -271,6 +282,7 @@ final class ProduitsController extends AbstractController
         $produit->setActif($actif);
         $produit->setOrdre($ordre);
         $produit->setCategorieProduit($categorie);
+        $produit->setGestionStock($gestionStock);
 
         foreach ($typesImpressions as $typeImpression) {
             $produit->addTypeImpression($typeImpression);
@@ -287,6 +299,12 @@ final class ProduitsController extends AbstractController
         foreach ($finitions as $finition) {
             $produit->addFinition($finition);
         }
+
+        $this->appliquerArticlesStock(
+            $produit,
+            $articlesStockData,
+            $articlesRepository
+        );
 
         $entityManager->persist($produit);
         $entityManager->flush();
@@ -524,7 +542,8 @@ final class ProduitsController extends AbstractController
         TypesImpressionRepository $typesImpressionRepository,
         SupportsRepository $supportsRepository,
         FormatRepository $formatRepository,
-        FinitionRepository $finitionRepository
+        FinitionRepository $finitionRepository,
+        ArticlesRepository $articlesRepository
     ): JsonResponse {
         $data = $this->lireJson($request);
 
@@ -564,6 +583,15 @@ final class ProduitsController extends AbstractController
             $data['personnalisable'] ?? false,
             FILTER_VALIDATE_BOOL
         );
+
+        $gestionStock = filter_var(
+            $data['gestionStock'] ?? false,
+            FILTER_VALIDATE_BOOL
+        );
+
+        $articlesStockData = is_array($data['articlesStock'] ?? null)
+            ? $data['articlesStock']
+            : [];
 
         $categorieId = (int) ($data['categorieProduit'] ?? 0);
 
@@ -679,6 +707,7 @@ final class ProduitsController extends AbstractController
         $produit->setPublie($publie);
         $produit->setActif($actif);
         $produit->setCategorieProduit($categorie);
+        $produit->setGestionStock($gestionStock);
 
         $this->viderRelationsProduit($produit);
 
@@ -697,6 +726,12 @@ final class ProduitsController extends AbstractController
         foreach ($finitions as $finition) {
             $produit->addFinition($finition);
         }
+
+        $this->appliquerArticlesStock(
+            $produit,
+            $articlesStockData,
+            $articlesRepository
+        );
 
         $entityManager->flush();
 
@@ -963,6 +998,69 @@ final class ProduitsController extends AbstractController
         foreach ($produit->getFinitions()->toArray() as $finition) {
             $produit->removeFinition($finition);
         }
+
+        foreach ($produit->getArticlesStock()->toArray() as $articleStock) {
+            $produit->removeArticlesStock($articleStock);
+        }
+    }
+
+    /*
+     * Construit les liaisons ProduitArticleStock (nomenclature de
+     * consommation) a partir des lignes envoyees par le JS
+     * (initialiserGestionStock() / recupererDonnees() dans
+     * traitement_produit.js) et les rattache au produit.
+     *
+     * Jusqu'ici, ni createAjax() ni updateAjax() ne lisaient
+     * "gestionStock" ni "articlesStock" dans les donnees recues :
+     * le formulaire de nomenclature (fonctionnel cote JS) n'avait
+     * donc aucun effet en base -- gestion_stock restait a 0 et
+     * aucune ligne n'etait jamais enregistree, meme apres l'avoir
+     * renseignee et "enregistree" avec succes (reponse 200).
+     */
+    private function appliquerArticlesStock(
+        Produits $produit,
+        array $donnees,
+        ArticlesRepository $articlesRepository
+    ): void {
+        foreach ($donnees as $ligne) {
+            if (!is_array($ligne)) {
+                continue;
+            }
+
+            $articleId = (int) ($ligne['articleId'] ?? 0);
+
+            if ($articleId <= 0) {
+                continue;
+            }
+
+            $article = $articlesRepository->find($articleId);
+
+            if ($article === null) {
+                continue;
+            }
+
+            $liaison = new ProduitArticleStock();
+            $liaison->setArticle($article);
+
+            try {
+                $liaison->setCoefficient($ligne['coefficient'] ?? '1.000');
+                $liaison->setModeCalcul(
+                    (string) ($ligne['modeCalcul'] ?? ProduitArticleStock::MODE_QUANTITE)
+                );
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+
+            $liaison->setObligatoire(
+                filter_var($ligne['obligatoire'] ?? true, FILTER_VALIDATE_BOOL)
+            );
+
+            $liaison->setActif(
+                filter_var($ligne['actif'] ?? true, FILTER_VALIDATE_BOOL)
+            );
+
+            $produit->addArticlesStock($liaison);
+        }
     }
 
     private function normaliserProduit(Produits $produit): array
@@ -1004,6 +1102,19 @@ final class ProduitsController extends AbstractController
                 static fn(Finition $finition): int =>
                 (int) $finition->getId(),
                 $produit->getFinitions()->toArray()
+            ),
+
+            'gestionStock' => $produit->isGestionStock(),
+
+            'articlesStock' => array_map(
+                static fn(ProduitArticleStock $liaison): array => [
+                    'articleId' => $liaison->getArticle()?->getId(),
+                    'coefficient' => $liaison->getCoefficient(),
+                    'modeCalcul' => $liaison->getModeCalcul(),
+                    'obligatoire' => $liaison->isObligatoire(),
+                    'actif' => $liaison->isActif(),
+                ],
+                $produit->getArticlesStock()->toArray()
             ),
         ];
     }

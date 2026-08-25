@@ -39,6 +39,14 @@ class Commandes
     private ?\DateTimeInterface $dateLivraison = null;
 
     /*
+     * true si le client est venu récupérer la commande lui-même
+     * (retrait au dépôt), plutôt qu'une livraison faite par un
+     * livreur.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $recupereParClient = false;
+
+    /*
      * Dernière modification (y compris une modification d'une
      * commande normalement verrouillée, faite par un administrateur).
      */
@@ -208,6 +216,18 @@ class Commandes
         ?\DateTimeInterface $dateLivraison
     ): static {
         $this->dateLivraison = $dateLivraison;
+
+        return $this;
+    }
+
+    public function isRecupereParClient(): bool
+    {
+        return $this->recupereParClient;
+    }
+
+    public function setRecupereParClient(bool $recupereParClient): static
+    {
+        $this->recupereParClient = $recupereParClient;
 
         return $this;
     }

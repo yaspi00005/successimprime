@@ -292,4 +292,24 @@ class Reclamation
 
         return $this;
     }
+
+    /**
+     * True une fois que l'agent a vu la notification "reclamation
+     * validee, passez a la caisse" (cloche de notification). N'a de
+     * sens que lorsque le statut est validee.
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $notificationLue = false;
+
+    public function estNotificationNonLue(): bool
+    {
+        return $this->isValidee() && !$this->notificationLue;
+    }
+
+    public function marquerNotificationLue(): static
+    {
+        $this->notificationLue = true;
+
+        return $this;
+    }
 }

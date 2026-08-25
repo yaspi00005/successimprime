@@ -939,6 +939,21 @@
                         |default(1)
                     }}
 
+							{% if detail.modeCalcul|default('') == 'metre_carre' %}
+
+								<br>
+
+								<span style="font-size: 9px; color: #666;">
+									(
+									{{
+                                detail.surfaceTotale|default(0)
+                                |number_format(2, ',', ' ')
+                            }}
+									m²)
+								</span>
+
+							{% endif %}
+
 						</td>
 
 
@@ -960,12 +975,12 @@
 
 						<td class="text-center">
 
-							{% if detail.remise|default(0) > 0 %}
+							{% if detail.montantRemise|default(0) > 0 %}
 								{{
-                            detail.remise
-                            |number_format(2, ',', '')
+                            detail.montantRemise
+                            |number_format(0, ',', ' ')
                         }}
-								%
+								F CFA
 							{% else %}
 								—
 							{% endif %}
@@ -1044,6 +1059,25 @@
 							                    152248617001
 
 						{% endif %}
+
+					</div>
+
+
+					<div style="
+							margin-top: 10px;
+							padding: 7px;
+							border: 1px solid #d5dce6;
+							font-size: 9px;
+							color: #666;
+						">
+
+						<strong>
+							Paiement Orange Money / Wave (mobile money) :
+						</strong>
+
+						<br>
+
+						Frais de transaction et fonds de soutien à la charge du client en cas de paiement par mobile money.
 
 					</div>
 

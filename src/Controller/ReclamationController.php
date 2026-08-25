@@ -27,9 +27,16 @@ final class ReclamationController extends AbstractController
     ): Response {
         $user = $this->utilisateurConnecte();
         $estAdmin = $this->isGranted('ROLE_ADMIN');
-        $peutPayer = $this->isGranted('ROLE_TRESORERIE_SAISIR');
+        $peutPayer = $this->isGranted('ROLE_TRESORERIE_SAISIR')
+            || $this->isGranted('ROLE_CAISSE_COMMANDE');
 
-        $reclamations = $estAdmin
+        /*
+         * Un agent ne voit que ses propres réclamations. Un admin ou
+         * une caisse habilitée à payer doit voir toutes les
+         * réclamations de tout le monde, sinon il ne peut jamais
+         * tomber sur celles des autres agents à payer.
+         */
+        $reclamations = ($estAdmin || $peutPayer)
             ? $reclamationRepository->findToutes()
             : $reclamationRepository->findPourAgent($user);
 
@@ -106,7 +113,8 @@ final class ReclamationController extends AbstractController
         return $this->render('reclamation/show.html.twig', [
             'reclamation' => $reclamation,
             'peutValider' => $this->isGranted('ROLE_ADMIN'),
-            'peutPayer' => $this->isGranted('ROLE_TRESORERIE_SAISIR'),
+            'peutPayer' => $this->isGranted('ROLE_TRESORERIE_SAISIR')
+                || $this->isGranted('ROLE_CAISSE_COMMANDE'),
             'peutVoirTresorerie' => $this->isGranted('ROLE_TRESORERIE_VOIR'),
         ]);
     }
@@ -172,20 +180,31 @@ final class ReclamationController extends AbstractController
     }
 
     #[Route('/{id}/payer', name: 'payer', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
-    #[IsGranted('ROLE_TRESORERIE_SAISIR')]
     public function payer(
         Reclamation $reclamation,
         Request $request,
         EntityManagerInterface $entityManager,
         MouvementTresorerieService $mouvementTresorerieService
     ): Response {
+        if (
+            !$this->isGranted('ROLE_TRESORERIE_SAISIR')
+            && !$this->isGranted('ROLE_CAISSE_COMMANDE')
+        ) {
+            throw $this->createAccessDeniedException(
+                'Vous n’avez pas le droit de payer une réclamation.'
+            );
+        }
+
         if (!$reclamation->isValidee()) {
             $this->addFlash('error', 'Seule une réclamation validée peut être payée.');
 
             return $this->redirectToRoute('app_reclamation_show', ['id' => $reclamation->getId()]);
         }
 
-        $form = $this->createForm(ReclamationPaiementType::class);
+        $form = $this->createForm(ReclamationPaiementType::class, null, [
+            'est_admin' => $this->isGranted('ROLE_ADMIN'),
+            'utilisateur' => $this->utilisateurConnecte(),
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -250,7 +269,11 @@ final class ReclamationController extends AbstractController
      */
     private function verifierAccesReclamation(Reclamation $reclamation): void
     {
-        if ($this->isGranted('ROLE_ADMIN') || $this->isGranted('ROLE_TRESORERIE_SAISIR')) {
+        if (
+            $this->isGranted('ROLE_ADMIN')
+            || $this->isGranted('ROLE_TRESORERIE_SAISIR')
+            || $this->isGranted('ROLE_CAISSE_COMMANDE')
+        ) {
             return;
         }
 

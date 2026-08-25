@@ -82,6 +82,9 @@ class MouvementTresorerieType extends AbstractType
 
             'Virement / dépôt bancaire' =>
                 'virement',
+
+            'Chèque' =>
+                'cheque',
         ];
 
 

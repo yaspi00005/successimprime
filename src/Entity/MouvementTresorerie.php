@@ -140,6 +140,12 @@ class MouvementTresorerie
     public const CATEGORIE_AJUSTEMENT =
         'ajustement';
 
+    public const CATEGORIE_FRAIS_BANCAIRE =
+        'frais_bancaire';
+
+    public const CATEGORIE_REMBOURSEMENT_CREDIT =
+        'remboursement_credit';
+
 
     public const CATEGORIES = [
         self::CATEGORIE_VENTE,
@@ -154,6 +160,8 @@ class MouvementTresorerie
         self::CATEGORIE_AUTRE_CHARGE,
         self::CATEGORIE_TRANSFERT_INTERNE,
         self::CATEGORIE_AJUSTEMENT,
+        self::CATEGORIE_FRAIS_BANCAIRE,
+        self::CATEGORIE_REMBOURSEMENT_CREDIT,
     ];
 
 
@@ -194,6 +202,12 @@ class MouvementTresorerie
 
         self::CATEGORIE_AJUSTEMENT =>
             'Ajustement de trésorerie',
+
+        self::CATEGORIE_FRAIS_BANCAIRE =>
+            'Frais bancaires',
+
+        self::CATEGORIE_REMBOURSEMENT_CREDIT =>
+            'Remboursement de crédit',
     ];
 
 
@@ -1088,6 +1102,25 @@ class MouvementTresorerie
             self::CATEGORIE_TRANSPORT,
             self::CATEGORIE_ENTRETIEN,
             self::CATEGORIE_ELECTRICITE,
+            self::CATEGORIE_LOYER,
+            self::CATEGORIE_AUTRE_CHARGE,
+            self::CATEGORIE_FRAIS_BANCAIRE,
+            self::CATEGORIE_REMBOURSEMENT_CREDIT,
+        ];
+    }
+
+    /**
+     * Catégories pertinentes pour un décaissement récurrent
+     * (frais bancaires, remboursement de crédit, ou toute autre
+     * charge fixe qui revient chaque mois ou chaque année).
+     *
+     * @return array<int, string>
+     */
+    public static function getCategoriesDecaissementRecurrent(): array
+    {
+        return [
+            self::CATEGORIE_FRAIS_BANCAIRE,
+            self::CATEGORIE_REMBOURSEMENT_CREDIT,
             self::CATEGORIE_LOYER,
             self::CATEGORIE_AUTRE_CHARGE,
         ];

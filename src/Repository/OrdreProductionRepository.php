@@ -50,7 +50,19 @@ public function rechercherTravauxAtelier(
             OrdreProduction::STATUT_EN_COURS,
             OrdreProduction::STATUT_EN_PAUSE,
         ])
-        ->orderBy('ordre.creeLe', 'ASC');
+        ->orderBy(
+            'CASE
+                WHEN ordre.priorite = :prioriteUrgente THEN 0
+                WHEN ordre.priorite = :prioriteHaute THEN 1
+                WHEN ordre.priorite = :prioriteNormale THEN 2
+                ELSE 3
+            END',
+            'ASC'
+        )
+        ->addOrderBy('ordre.creeLe', 'ASC')
+        ->setParameter('prioriteUrgente', OrdreProduction::PRIORITE_URGENTE)
+        ->setParameter('prioriteHaute', OrdreProduction::PRIORITE_HAUTE)
+        ->setParameter('prioriteNormale', OrdreProduction::PRIORITE_NORMALE);
 
     if ($typeImpressionId !== null) {
         $qb

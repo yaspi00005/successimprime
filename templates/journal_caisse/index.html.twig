@@ -287,6 +287,21 @@
 
 				</form>
 
+
+				<div class="mt-3 text-right">
+
+					<a href="{{ path('app_journal_caisse_export_pdf', {compte: filtres.compte, dateDebut: filtres.dateDebut, dateFin: filtres.dateFin}) }}" class="btn btn-outline-danger" target="_blank">
+						<i class="fa fa-file-pdf-o mr-1"></i>
+						Exporter en PDF
+					</a>
+
+					<a href="{{ path('app_journal_caisse_export_excel', {compte: filtres.compte, dateDebut: filtres.dateDebut, dateFin: filtres.dateFin}) }}" class="btn btn-outline-success">
+						<i class="fa fa-file-excel-o mr-1"></i>
+						Exporter en Excel
+					</a>
+
+				</div>
+
 			</div>
 
 		</div>
@@ -863,6 +878,16 @@
 									}}
 
 										FCFA
+
+									</div>
+
+									<div class="text-muted small mt-2">
+
+										{{ ligneCompte.nombreMouvementsPeriode }} mouvement{{ ligneCompte.nombreMouvementsPeriode > 1 ? 's' : '' }} sur la période
+
+										{% if ligneCompte.dernierMouvementPeriode %}
+											<br>Dernier : {{ ligneCompte.dernierMouvementPeriode|date('d/m/Y H:i') }}
+										{% endif %}
 
 									</div>
 

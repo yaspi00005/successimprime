@@ -1,17 +1,22 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Journal — {{ journal.entite }} #{{ journal.entiteId }}{% endblock %}
+{% block title %}Journal —
+	{{ journal.entite }}
+	#{{ journal.entiteId }}
+{% endblock %}
 
 {% block stylesheets %}
 	<style>
-		.journal-diff-table th, .journal-diff-table td {
+		.journal-diff-table th,
+		.journal-diff-table td {
 			font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-			font-size: .85rem;
+			font-size: 0.85rem;
 			word-break: break-word;
 		}
 
 		.journal-diff-modifie {
 			background: #fff8e1;
+			color: #060605;
 		}
 	</style>
 {% endblock %}
@@ -24,7 +29,8 @@
 
 			<div>
 				<h1 class="page-title">
-					{{ journal.entite }} #{{ journal.entiteId }}
+					{{ journal.entite }}
+					#{{ journal.entiteId }}
 
 					{% if journal.action == 'creation' %}
 						<span class="badge badge-success ml-2">Création</span>
@@ -40,7 +46,8 @@
 						<a href="{{ path('app_journal_activite_index') }}">Journal d'activité</a>
 					</li>
 					<li class="breadcrumb-item active">
-						{{ journal.entite }} #{{ journal.entiteId }}
+						{{ journal.entite }}
+						#{{ journal.entiteId }}
 					</li>
 				</ol>
 			</div>
@@ -93,7 +100,7 @@
 						</tr>
 					</thead>
 
-					<tbody>
+					<tbody class="tbody">
 
 						{% for champ in champs %}
 
@@ -101,8 +108,10 @@
 							{% set valeurApres = journal.donneesApres is not null and champ in journal.donneesApres|keys ? attribute(journal.donneesApres, champ) : null %}
 							{% set aChange = journal.donneesAvant is not null and journal.donneesApres is not null and valeurAvant != valeurApres %}
 
-							<tr class="{{ aChange ? 'journal-diff-modifie' : '' }}">
-								<td><strong>{{ champ }}</strong></td>
+							<tr class=" {{ aChange ? 'journal-diff-modifie' : '' }} ">
+								<td>
+									<strong>{{ champ }}</strong>
+								</td>
 								<td>
 									{% if journal.donneesAvant is null %}
 										<span class="text-muted">—</span>
@@ -118,21 +127,18 @@
 									{% endif %}
 								</td>
 							</tr>
-
-						{% else %}
-							<tr>
-								<td colspan="3" class="text-center text-muted py-4">Aucune donnée enregistrée.</td>
-							</tr>
-						{% endfor %}
-
+						</tbody>
 					</tbody>
+				</tr>
 
-				</table>
+			{% else %}
+				<tr>
+					<td colspan="3" class="text-center text-muted py-4">Aucune donnée enregistrée.</td>
+				</tr>
+			{% endfor %}
 
-			</div>
+		</tbody>
 
-		</div>
+	</table>
 
-	</div>
-
-{% endblock %}
+</div></div></div>{% endblock %}

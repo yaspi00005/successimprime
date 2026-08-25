@@ -88,6 +88,32 @@ final class LivraisonController extends AbstractController
             )
         );
 
+        $retrait = trim(
+            (string) $request->query->get(
+                'retrait',
+                ''
+            )
+        );
+
+        /*
+         * --------------------------------------------------------
+         * RECHERCHE ACTIVE ?
+         * --------------------------------------------------------
+         *
+         * Il peut y avoir des centaines de commandes déjà livrées :
+         * hors de tout critère de recherche, on ne les charge pas
+         * (ni ne les affiche), pour garder la page rapide et
+         * lisible. Elles restent consultables via la recherche.
+         * --------------------------------------------------------
+         */
+        $rechercheActive =
+            $recherche !== ''
+            || $statut !== ''
+            || $origine !== ''
+            || $dateDebut !== ''
+            || $dateFin !== ''
+            || $retrait !== '';
+
         /*
          * --------------------------------------------------------
          * QUERY BUILDER
@@ -95,6 +121,17 @@ final class LivraisonController extends AbstractController
          */
         $qb = $commandesDetailsRepository
             ->createQueryBuilder('detail');
+
+        $statutsAffiches = $rechercheActive
+            ? [
+                CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+                CommandesDetails::PRODUCTION_EN_LIVRAISON,
+                CommandesDetails::PRODUCTION_LIVREE,
+            ]
+            : [
+                CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+                CommandesDetails::PRODUCTION_EN_LIVRAISON,
+            ];
 
         $qb
             ->leftJoin(
@@ -126,11 +163,7 @@ final class LivraisonController extends AbstractController
             )
             ->setParameter(
                 'statutsLivraison',
-                [
-                    CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
-                    CommandesDetails::PRODUCTION_EN_LIVRAISON,
-                    CommandesDetails::PRODUCTION_LIVREE,
-                ]
+                $statutsAffiches
             );
 
         /*
@@ -339,10 +372,65 @@ final class LivraisonController extends AbstractController
             }
         }
 
+        /*
+         * Le total livré est compté à part (requête légère, sans
+         * charger les entités) : il reste exact même quand ces
+         * lignes ne sont pas chargées dans $livraisons faute de
+         * recherche active.
+         */
+        $compteurs['livree'] = (int) $commandesDetailsRepository
+            ->createQueryBuilder('total')
+            ->select('COUNT(total.id)')
+            ->andWhere('total.statutProduction = :livree')
+            ->setParameter('livree', CommandesDetails::PRODUCTION_LIVREE)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $groupes = $this->grouperParCommande($livraisons);
+
+        /*
+         * --------------------------------------------------------
+         * FILTRE MODE DE RETRAIT
+         * --------------------------------------------------------
+         *
+         * Propriété de la commande entière (pas d'une ligne) : le
+         * filtre s'applique donc après le regroupement.
+         * --------------------------------------------------------
+         */
+        if ($retrait === 'client' || $retrait === 'livreur') {
+            $groupes = array_values(array_filter(
+                $groupes,
+                static function (array $groupe) use ($retrait): bool {
+                    $recupereParClient = $groupe['commande']?->isRecupereParClient() ?? false;
+
+                    return $retrait === 'client'
+                        ? $recupereParClient
+                        : !$recupereParClient;
+                }
+            ));
+        }
+
+        /*
+         * --------------------------------------------------------
+         * SÉPARATION LIVRÉES / NON LIVRÉES
+         * --------------------------------------------------------
+         */
+        $groupesALivrer = array_values(array_filter(
+            $groupes,
+            static fn (array $groupe): bool => !$groupe['toutesLivrees']
+        ));
+
+        $groupesLivrees = array_values(array_filter(
+            $groupes,
+            static fn (array $groupe): bool => $groupe['toutesLivrees']
+        ));
+
         return $this->render(
             'livraisons/index.html.twig',
             [
-                'groupes' => $this->grouperParCommande($livraisons),
+                'groupesALivrer' => $groupesALivrer,
+                'groupesLivrees' => $groupesLivrees,
+                'rechercheActive' => $rechercheActive,
 
                 'compteurs' => $compteurs,
 
@@ -352,6 +440,7 @@ final class LivraisonController extends AbstractController
                     'origine' => $origine,
                     'date_debut' => $dateDebut,
                     'date_fin' => $dateFin,
+                    'retrait' => $retrait,
                 ],
             ]
         );
@@ -822,6 +911,10 @@ final class LivraisonController extends AbstractController
         }
 
         if ($nombreLivrees > 0) {
+            if ($request->request->getBoolean('recupere_par_client')) {
+                $commande->setRecupereParClient(true);
+            }
+
             $em->flush();
 
             $message = sprintf(

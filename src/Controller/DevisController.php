@@ -11,6 +11,7 @@ use App\Entity\ProduitConfigurationFinition;
 use App\Form\DevisType;
 use App\Repository\DevisRepository;
 use App\Repository\ClientsRepository;
+use App\Service\NotificationService;
 use App\Service\WhatsAppService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,6 +19,7 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Entity\Produits;
 use App\Entity\ProduitConfiguration;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -95,6 +97,7 @@ class DevisController extends AbstractController
     public function new(
         Request $request,
         EntityManagerInterface $entityManager,
+        NotificationService $notificationService,
     ): Response {
         $devi = new Devis();
 
@@ -184,6 +187,19 @@ class DevisController extends AbstractController
 $this->initialiserTokenAuthenticiteDevis(
     $devi
 );
+
+            $notificationService->notifierRoles(
+                ['ROLE_ADMIN'],
+                sprintf(
+                    'Nouveau devis %s créé par %s.',
+                    $devi->getNumero(),
+                    $utilisateur->getUsername()
+                ),
+                'app_devis_show',
+                ['id' => $devi->getId()],
+                $utilisateur
+            );
+
             $entityManager->flush();
 
             $request->getSession()->remove('brouillon_devis');
@@ -267,12 +283,28 @@ public function edit(
     ]);
 }
 
-    #[Route('/{id}', name: 'app_devis_delete', methods: ['POST'])]
+    #[Route('/{id}', name: 'delete', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function delete(Request $request, Devis $devi, EntityManagerInterface $entityManager): Response
     {
+        /*
+         * Suppression douce (Devis::$deleted), pour les mêmes
+         * raisons que Commandes::delete() : un remove() direct
+         * risque de heurter des relations existantes et efface
+         * l'historique. rechercherPourIndex() est corrigée dans le
+         * même correctif pour exclure les devis supprimés.
+         */
         if ($this->isCsrfTokenValid('delete' . $devi->getId(), $request->getPayload()->getString('_token'))) {
-            $entityManager->remove($devi);
+            $devi->setDeleted(true);
             $entityManager->flush();
+
+            $this->addFlash(
+                'success',
+                sprintf(
+                    'Le devis %s a été supprimé.',
+                    $devi->getNumero()
+                )
+            );
         }
 
         return $this->redirectToRoute('app_devis_index', [], Response::HTTP_SEE_OTHER);

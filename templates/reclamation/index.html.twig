@@ -29,7 +29,7 @@
 
 			<div class="card-header">
 				<h3 class="card-title">
-					{{ estAdmin ? 'Toutes les réclamations' : 'Mes réclamations' }}
+					{{ (estAdmin or peutPayer) ? 'Toutes les réclamations' : 'Mes réclamations' }}
 				</h3>
 			</div>
 
@@ -42,7 +42,7 @@
 						<thead>
 							<tr>
 								<th>Référence</th>
-								{% if estAdmin %}
+								{% if estAdmin or peutPayer %}
 									<th>Agent</th>
 								{% endif %}
 								<th>Motif</th>
@@ -63,7 +63,7 @@
 										<strong>{{ reclamation.reference }}</strong>
 									</td>
 
-									{% if estAdmin %}
+									{% if estAdmin or peutPayer %}
 										<td>
 											{{ reclamation.agent.employe.prenom|default('') }}
 											{{ reclamation.agent.employe.nom|default(reclamation.agent.username) }}
@@ -123,7 +123,7 @@
 							{% else %}
 
 								<tr>
-									<td colspan="{{ estAdmin ? 8 : 7 }}" class="text-center text-muted">
+									<td colspan="{{ (estAdmin or peutPayer) ? 8 : 7 }}" class="text-center text-muted">
 										Aucune réclamation trouvée.
 									</td>
 								</tr>

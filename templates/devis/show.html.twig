@@ -108,6 +108,26 @@
 					Télécharger PDF
 				</a>
 
+
+				{# =============================================
+																																																   SUPPRIMER (ADMIN)
+																																																   ============================================= #}
+
+				{% if is_granted('ROLE_ADMIN') %}
+
+					<form method="post" action="{{ path( 'app_devis_delete', { id: devis.id } ) }}" class="js-confirm-form d-inline" data-message="Supprimer définitivement le devis {{ devis.numero }} ? Cette action est irréversible.">
+
+						<input type="hidden" name="_token" value="{{ csrf_token( 'delete' ~ devis.id ) }}">
+
+						<button type="submit" class="btn btn-sm btn-danger mr-2 mb-1">
+							<i class="fe fe-trash-2 mr-1"></i>
+							Supprimer
+						</button>
+
+					</form>
+
+				{% endif %}
+
 				<button type="button" class="btn btn-sm btn-success mb-1 js-envoyer-whatsapp" data-url="{{ path( 'app_devis_whatsapp', { id: devis.id } ) }}" data-token="{{ csrf_token( 'whatsapp_devis_' ~ devis.id ) }}" data-numero="{{ devis.numero|default( '#' ~ devis.id ) }}">
 					<i class="fa fa-whatsapp mr-1"></i>
 					Envoyer par WhatsApp
@@ -297,26 +317,6 @@
 												</h5>
 
 
-												{% if typeLigne == 'article' %}
-
-													<span class="badge badge-warning">
-														Article en stock
-													</span>
-
-												{% elseif typeLigne == 'libre' %}
-
-													<span class="badge badge-info">
-														Saisie libre
-													</span>
-
-												{% else %}
-
-													<span class="badge badge-primary">
-														Produit / prestation
-													</span>
-
-												{% endif %}
-
 											</div>
 
 
@@ -438,35 +438,6 @@
                                                             produit.nom
                                                             |default('—')
                                                         }}
-													</strong>
-
-												</div>
-
-
-												<div class="col-md-3 mb-3">
-
-													<small class="text-muted d-block">
-														Mode de configuration
-													</small>
-
-													<strong>
-
-														{% if
-                                                            detail.modeConfiguration
-                                                            |default('automatique')
-                                                            == 'manuel'
-                                                        %}
-															Manuelle
-														{% elseif
-                                                            detail.modeConfiguration
-                                                            |default('automatique')
-                                                            == 'libre'
-                                                        %}
-															Libre
-														{% else %}
-															Automatique
-														{% endif %}
-
 													</strong>
 
 												</div>
@@ -644,10 +615,15 @@
 
 												<strong>
 													{{
-                                                        detail.remise
+                                                        detail.montantRemise
                                                         |default(0)
+                                                        |number_format(
+                                                            0,
+                                                            ',',
+                                                            ' '
+                                                        )
                                                     }}
-													%
+													FCFA
 												</strong>
 
 											</div>

@@ -43,6 +43,26 @@ class ArticlesRepository extends ServiceEntityRepository
     return $totalEntrees - $totalSorties;
 }
 
+    /**
+     * Articles utilisables comme consommables de production
+     * (colle, encre, film...) : jamais vendus directement au
+     * client, donc exclus de "Article en stock" côté commande
+     * (vendable = false).
+     *
+     * @return Articles[]
+     */
+    public function findConsommables(): array
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('a.vendable = :vendable')
+            ->andWhere('a.actif = :actif')
+            ->setParameter('vendable', false)
+            ->setParameter('actif', true)
+            ->orderBy('a.designation', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     //    /**
     //     * @return Articles[] Returns an array of Articles objects
     //     */

@@ -36,7 +36,11 @@ final class ControlePrePresseController extends AbstractController
         CommandesDetailsRepository $detailsRepository
     ): Response {
         /*
-         * Affiche uniquement les lignes ayant au moins un fichier.
+         * Affiche uniquement les lignes ayant au moins un fichier
+         * ET nécessitant réellement un contrôle prépresse : une
+         * ligne en impression directe (prePresseNecessaire = false)
+         * ne doit jamais apparaître ici, même si un fichier y est
+         * rattaché.
          */
         $details = $detailsRepository
             ->createQueryBuilder('detail')
@@ -45,7 +49,9 @@ final class ControlePrePresseController extends AbstractController
             ->leftJoin('detail.produit', 'produit')
             ->innerJoin('detail.fichiers', 'fichier')
             ->andWhere('fichier.actif = :actif')
+            ->andWhere('detail.prePresseNecessaire = :prepresseNecessaire')
             ->setParameter('actif', true)
+            ->setParameter('prepresseNecessaire', true)
             ->orderBy('commande.dateCommande', 'DESC')
             ->addOrderBy('detail.id', 'DESC')
             ->distinct()
@@ -78,7 +84,9 @@ final class ControlePrePresseController extends AbstractController
             ->leftJoin('detail.controlesPrePresse', 'controle')
             ->andWhere('fichier.actif = :actif')
             ->andWhere('controle.id IS NULL')
+            ->andWhere('detail.prePresseNecessaire = :prepresseNecessaire')
             ->setParameter('actif', true)
+            ->setParameter('prepresseNecessaire', true)
             ->distinct()
             ->getQuery()
             ->getResult();
@@ -145,6 +153,24 @@ public function controler(
         $this->addFlash(
             'warning',
             'Cette ligne de commande ne contient aucun fichier.'
+        );
+
+        return $this->redirectToRoute(
+            'app_controle_pre_presse_index'
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * IMPRESSION DIRECTE : PAS DE PRÉPRESSE
+     * ============================================================
+     */
+
+    if (!$detail->isPrePresseNecessaire()) {
+        $this->addFlash(
+            'warning',
+            'Cette ligne de commande est en impression directe et ne nécessite pas de contrôle prépresse.'
         );
 
         return $this->redirectToRoute(

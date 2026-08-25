@@ -204,6 +204,25 @@ class Paiements
     )]
     private ?Factures $facture = null;
 
+    /*
+     * Frais de retrait / fonds de soutien mobile money (Orange Money,
+     * Wave) : le client paie ces frais en plus du prix de la
+     * commande. Ils ne comptent JAMAIS dans $montant (qui reste
+     * plafonné au reste à payer de la commande) -- voir
+     * getMontantTotalEncaisse().
+     */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $fraisRetraitInclus = false;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $fondsSoutienInclus = false;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $montantFraisRetrait = 0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private int $montantFondsSoutien = 0;
+
     public function __construct()
     {
         $this->date = new \DateTimeImmutable();
@@ -717,5 +736,66 @@ class Paiements
         $this->facture = $facture;
 
         return $this;
+    }
+
+    public function isFraisRetraitInclus(): bool
+    {
+        return $this->fraisRetraitInclus;
+    }
+
+    public function setFraisRetraitInclus(bool $fraisRetraitInclus): static
+    {
+        $this->fraisRetraitInclus = $fraisRetraitInclus;
+
+        return $this;
+    }
+
+    public function isFondsSoutienInclus(): bool
+    {
+        return $this->fondsSoutienInclus;
+    }
+
+    public function setFondsSoutienInclus(bool $fondsSoutienInclus): static
+    {
+        $this->fondsSoutienInclus = $fondsSoutienInclus;
+
+        return $this;
+    }
+
+    public function getMontantFraisRetrait(): int
+    {
+        return $this->montantFraisRetrait;
+    }
+
+    public function setMontantFraisRetrait(int $montantFraisRetrait): static
+    {
+        $this->montantFraisRetrait = max(0, $montantFraisRetrait);
+
+        return $this;
+    }
+
+    public function getMontantFondsSoutien(): int
+    {
+        return $this->montantFondsSoutien;
+    }
+
+    public function setMontantFondsSoutien(int $montantFondsSoutien): static
+    {
+        $this->montantFondsSoutien = max(0, $montantFondsSoutien);
+
+        return $this;
+    }
+
+    /*
+     * Montant réellement encaissé sur le compte de trésorerie :
+     * la part appliquée à la commande, plus les frais mobile money
+     * éventuels. C'est ce montant qui crédite le compte -- $montant
+     * seul reste la référence pour le solde de la commande.
+     */
+    public function getMontantTotalEncaisse(): int
+    {
+        return $this->montant
+            + $this->montantFraisRetrait
+            + $this->montantFondsSoutien;
     }
 }

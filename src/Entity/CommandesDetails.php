@@ -45,7 +45,7 @@ class CommandesDetails
         choices: ['automatique', 'manuel', 'libre'],
         message: 'Le mode de saisie est invalide.'
     )]
-    private string $modeConfiguration = 'automatique';
+    private string $modeConfiguration = 'manuel';
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(
@@ -118,15 +118,13 @@ class CommandesDetails
     private int $coutRevient = 0;
 
     /*
-     * La remise est un pourcentage compris entre 0 et 100.
-     * En decimal (et non arrondi a l'entier) pour que la remise B2B
-     * calculee a partir du prix catalogue (prixBase/prixB2B) donne
-     * exactement le meme total qu'en appliquant le pourcentage exact,
-     * sans ecart de quelques francs du a un arrondi premature.
+     * Remise en FCFA (montant fixe), pas en pourcentage : plus
+     * simple à saisir précisément qu'un pourcentage (ex. 14,2857 %
+     * pour obtenir exactement 2 000 FCFA de remise sur 14 000 FCFA).
      */
-    #[ORM\Column(type: Types::DECIMAL, precision: 7, scale: 4, options: ['default' => 0])]
-    #[Assert\Range(min: 0, max: 100)]
-    private string $remise = '0';
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private int $remise = 0;
 
     /*
      * La TVA est également un pourcentage.
@@ -423,11 +421,20 @@ class CommandesDetails
             trim($modeConfiguration ?? '')
         );
 
+        /*
+         * Repli pour une valeur vide/invalide : "manuel", pas
+         * "automatique". Necessaire car un groupe de boutons radio
+         * "expanded" (voir CommandesDetailsType::modeConfiguration,
+         * desormais cache a l'utilisateur) soumet null quand aucun
+         * radio n'est coche -- et "empty_data" ne s'applique pas a
+         * un champ "expanded" (compound) en Symfony, donc cette
+         * option seule ne suffit pas a eviter ce repli.
+         */
         $this->modeConfiguration = in_array(
             $modeConfiguration,
             ['automatique', 'manuel', 'libre'],
             true
-        ) ? $modeConfiguration : 'automatique';
+        ) ? $modeConfiguration : 'manuel';
 
         if ($this->modeConfiguration === 'libre') {
             $this->produit = null;
@@ -610,7 +617,22 @@ class CommandesDetails
 
     public function calculerMontantImpression(): int
     {
-        $facteur = match ($this->modeCalcul) {
+        return (int) round(
+            (float) $this->prixUnitaire * max(0, $this->calculerFacteur())
+        );
+    }
+
+    /*
+     * Nombre d'"unités facturables" de la ligne selon son mode de
+     * calcul (mètres carrés, mètres linéaires, exemplaires...).
+     * Utilisé à la fois pour le prix (prixUnitaire x facteur) et pour
+     * la remise (remise x facteur) : la remise est elle aussi un
+     * montant "par unité" (ex. 500 FCFA par m²), pas un montant fixe
+     * sur toute la ligne.
+     */
+    private function calculerFacteur(): float
+    {
+        return match ($this->modeCalcul) {
             'forfait' => 1,
 
             'unite',
@@ -631,10 +653,18 @@ class CommandesDetails
 
             default => $this->quantite,
         };
+    }
 
-        return (int) round(
-            (float) $this->prixUnitaire * max(0, $facteur)
-        );
+    /**
+     * Surface totale de la ligne (surface unitaire x quantité), pour
+     * l'affichage "(X m²)" sur les PDF. Le cast (float) est
+     * volontaire : $surface peut contenir une chaîne non numérique
+     * sur d'anciennes lignes, et une multiplication directe
+     * planterait au lieu de retourner 0.
+     */
+    public function getSurfaceTotale(): float
+    {
+        return (float) ($this->surface ?? 0) * $this->quantite;
     }
 
     public function getProduitConfiguration(): ?ProduitConfiguration
@@ -832,14 +862,14 @@ class CommandesDetails
         return $this;
     }
 
-    public function getRemise(): float
+    public function getRemise(): int
     {
-        return (float) $this->remise;
+        return $this->remise;
     }
 
     public function setRemise(string|float|int|null $remise): static
     {
-        $this->remise = (string) min(100, max(0, (float) ($remise ?? 0)));
+        $this->remise = max(0, (int) round((float) ($remise ?? 0)));
 
         return $this;
     }
@@ -904,21 +934,8 @@ class CommandesDetails
 
         $this->appliquerDimensionsALaDesignation();
 
-        $montantImpression = $this->calculerMontantImpression();
-        $montantFinitions = 0;
-
-        foreach ($this->finitions as $finition) {
-            $montantFinitions += max(
-                0,
-                $finition->getMontant() ?? 0
-            );
-        }
-
-        $totalBrut = $montantImpression + $montantFinitions;
-
-        $montantRemise = (int) round(
-            $totalBrut * $this->remise / 100
-        );
+        $totalBrut = $this->calculerTotalBrut();
+        $montantRemise = $this->calculerMontantRemise($totalBrut);
 
         $this->totalHt = max(
             0,
@@ -932,6 +949,45 @@ class CommandesDetails
         $this->totalTtc = $this->totalHt + $montantTva;
 
         return $this;
+    }
+
+    private function calculerTotalBrut(): int
+    {
+        $montantFinitions = 0;
+
+        foreach ($this->finitions as $finition) {
+            $montantFinitions += max(
+                0,
+                $finition->getMontant() ?? 0
+            );
+        }
+
+        return $this->calculerMontantImpression() + $montantFinitions;
+    }
+
+    /*
+     * La remise est un montant par unité facturable (ex. 500 FCFA par
+     * m²), pas un montant fixe sur toute la ligne : elle se multiplie
+     * donc par le même facteur que le prix unitaire
+     * (calculerFacteur()), plafonné au total brut de la ligne.
+     */
+    private function calculerMontantRemise(int $totalBrut): int
+    {
+        return min(
+            $totalBrut,
+            max(0, (int) round($this->remise * $this->calculerFacteur()))
+        );
+    }
+
+    /**
+     * Montant effectivement retiré par la remise sur cette ligne
+     * (remise par unité x facteur, plafonné au total brut), utilisé
+     * pour l'affichage sur les PDF (devis/facture) au lieu du seul
+     * taux par unité.
+     */
+    public function getMontantRemise(): int
+    {
+        return $this->calculerMontantRemise($this->calculerTotalBrut());
     }
 
     /**

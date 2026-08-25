@@ -9,8 +9,8 @@
 {% block body %}
 
 	{# ================================================================
-						   PERMISSIONS
-						   ================================================================ #}
+																	   PERMISSIONS
+																	   ================================================================ #}
 
 	{% set estAdmin =
 		is_granted('ROLE_ADMIN')
@@ -38,20 +38,20 @@
 
 
 	{# ================================================================
-						   STATISTIQUES
-						   
-						   ATTENTION :
-						   
-						   Les montants financiers globaux sont calculés uniquement
-						   pour ADMIN / ROLE_STATS_GLOBAL.
-						   
-						   Les utilisateurs ordinaires peuvent consulter les documents
-						   auxquels ils ont accès, mais on ne leur expose pas :
-						   
-						   - CA global
-						   - encaissements globaux
-						   - reste global
-						   ================================================================ #}
+																	   STATISTIQUES
+																	   
+																	   ATTENTION :
+																	   
+																	   Les montants financiers globaux sont calculés uniquement
+																	   pour ADMIN / ROLE_STATS_GLOBAL.
+																	   
+																	   Les utilisateurs ordinaires peuvent consulter les documents
+																	   auxquels ils ont accès, mais on ne leur expose pas :
+																	   
+																	   - CA global
+																	   - encaissements globaux
+																	   - reste global
+																	   ================================================================ #}
 
 	{% set totalFactures = 0 %}
 	{% set totalEncaisse = 0 %}
@@ -141,8 +141,8 @@
 
 
 		{# ============================================================
-												   HEADER
-												   ============================================================ #}
+																																		   HEADER
+																																		   ============================================================ #}
 
 		<div class="page-header">
 
@@ -185,24 +185,24 @@
 
 
 		{# ============================================================
-												   FLASH
-												   ============================================================ #}
+																																		   FLASH
+																																		   ============================================================ #}
 
 		{% for type, messages in app.flashes %}
 
 			{% for message in messages %}
 
 				<div class="
-																																				alert
-																																				alert-{{
-																																					type == 'error'
-																																						? 'danger'
-																																						: type
-																																				}}
-																																				alert-dismissible
-																																				fade
-																																				show
-																																			">
+																																																																																																						alert
+																																																																																																						alert-{{
+																																																																																																							type == 'error'
+																																																																																																								? 'danger'
+																																																																																																								: type
+																																																																																																						}}
+																																																																																																						alert-dismissible
+																																																																																																						fade
+																																																																																																						show
+																																																																																																					">
 
 					{{ message }}
 
@@ -218,10 +218,10 @@
 
 
 		{# ============================================================
-												   STATISTIQUES FINANCIÈRES GLOBALES
-												   
-												   ADMIN / ROLE_STATS_GLOBAL UNIQUEMENT
-												   ============================================================ #}
+																																		   STATISTIQUES FINANCIÈRES GLOBALES
+																																		   
+																																		   ADMIN / ROLE_STATS_GLOBAL UNIQUEMENT
+																																		   ============================================================ #}
 
 		{% if peutVoirStatsGlobales %}
 
@@ -240,10 +240,10 @@
 							<div class="d-flex align-items-center">
 
 								<div class="
-																																																												facture-index-icon
-																																																												bg-primary-transparent
-																																																												text-primary
-																																																											">
+																																																																																																																																																																										facture-index-icon
+																																																																																																																																																																										bg-primary-transparent
+																																																																																																																																																																										text-primary
+																																																																																																																																																																									">
 									<i class="fa fa-file-text-o"></i>
 								</div>
 
@@ -295,10 +295,10 @@
 							<div class="d-flex align-items-center">
 
 								<div class="
-																																																												facture-index-icon
-																																																												bg-success-transparent
-																																																												text-success
-																																																											">
+																																																																																																																																																																										facture-index-icon
+																																																																																																																																																																										bg-success-transparent
+																																																																																																																																																																										text-success
+																																																																																																																																																																									">
 									<i class="fa fa-check-circle"></i>
 								</div>
 
@@ -310,9 +310,9 @@
 									</small>
 
 									<strong class="
-																																																																		facture-index-value
-																																																																		text-success
-																																																																	">
+																																																																																																																																																																																											facture-index-value
+																																																																																																																																																																																											text-success
+																																																																																																																																																																																										">
 
 										{{
 											totalEncaisse
@@ -349,10 +349,10 @@
 							<div class="d-flex align-items-center">
 
 								<div class="
-																																																												facture-index-icon
-																																																												bg-warning-transparent
-																																																												text-warning
-																																																											">
+																																																																																																																																																																										facture-index-icon
+																																																																																																																																																																										bg-warning-transparent
+																																																																																																																																																																										text-warning
+																																																																																																																																																																									">
 									<i class="fa fa-money"></i>
 								</div>
 
@@ -364,13 +364,13 @@
 									</small>
 
 									<strong class="
-																																																																		facture-index-value
-																																																																		{{
-																																																																			totalReste > 0
-																																																																				? 'text-danger'
-																																																																				: 'text-success'
-																																																																		}}
-																																																																	">
+																																																																																																																																																																																											facture-index-value
+																																																																																																																																																																																											{{
+																																																																																																																																																																																												totalReste > 0
+																																																																																																																																																																																													? 'text-danger'
+																																																																																																																																																																																													: 'text-success'
+																																																																																																																																																																																											}}
+																																																																																																																																																																																										">
 
 										{{
 											totalReste
@@ -407,10 +407,10 @@
 							<div class="d-flex align-items-center">
 
 								<div class="
-																																																												facture-index-icon
-																																																												bg-info-transparent
-																																																												text-info
-																																																											">
+																																																																																																																																																																										facture-index-icon
+																																																																																																																																																																										bg-info-transparent
+																																																																																																																																																																										text-info
+																																																																																																																																																																									">
 									<i class="fa fa-files-o"></i>
 								</div>
 
@@ -429,8 +429,8 @@
 
 										{{ nombreFacturesOfficielles }}
 										facture(s)
-																																																		
-																																																												/
+																																																																																																																																																																
+																																																																																																																																																																										/
 
 										{{ nombreProformas }}
 										pro forma
@@ -453,10 +453,10 @@
 
 
 		{# ============================================================
-												   STATUTS
-												   
-												   Ce bloc ne montre pas les montants globaux.
-												   ============================================================ #}
+																																		   STATUTS
+																																		   
+																																		   Ce bloc ne montre pas les montants globaux.
+																																		   ============================================================ #}
 
 		<div class="row">
 
@@ -468,10 +468,10 @@
 					<div class="card-body">
 
 						<div class="
-																																																d-flex
-																																																justify-content-between
-																																																align-items-center
-																																															">
+																																																																																																																																								d-flex
+																																																																																																																																								justify-content-between
+																																																																																																																																								align-items-center
+																																																																																																																																							">
 
 							<div>
 
@@ -487,10 +487,10 @@
 
 
 							<span class="
-																																																						badge
-																																																						badge-success
-																																																						facture-status-badge
-																																																					">
+																																																																																																																																																									badge
+																																																																																																																																																									badge-success
+																																																																																																																																																									facture-status-badge
+																																																																																																																																																								">
 								<i class="fa fa-check"></i>
 							</span>
 
@@ -510,10 +510,10 @@
 					<div class="card-body">
 
 						<div class="
-																																																d-flex
-																																																justify-content-between
-																																																align-items-center
-																																															">
+																																																																																																																																								d-flex
+																																																																																																																																								justify-content-between
+																																																																																																																																								align-items-center
+																																																																																																																																							">
 
 							<div>
 
@@ -529,10 +529,10 @@
 
 
 							<span class="
-																																																						badge
-																																																						badge-warning
-																																																						facture-status-badge
-																																																					">
+																																																																																																																																																									badge
+																																																																																																																																																									badge-warning
+																																																																																																																																																									facture-status-badge
+																																																																																																																																																								">
 								<i class="fa fa-hourglass-half"></i>
 							</span>
 
@@ -552,10 +552,10 @@
 					<div class="card-body">
 
 						<div class="
-																																																d-flex
-																																																justify-content-between
-																																																align-items-center
-																																															">
+																																																																																																																																								d-flex
+																																																																																																																																								justify-content-between
+																																																																																																																																								align-items-center
+																																																																																																																																							">
 
 							<div>
 
@@ -571,10 +571,10 @@
 
 
 							<span class="
-																																																						badge
-																																																						badge-danger
-																																																						facture-status-badge
-																																																					">
+																																																																																																																																																									badge
+																																																																																																																																																									badge-danger
+																																																																																																																																																									facture-status-badge
+																																																																																																																																																								">
 								<i class="fa fa-exclamation"></i>
 							</span>
 
@@ -594,10 +594,10 @@
 					<div class="card-body">
 
 						<div class="
-																																																d-flex
-																																																justify-content-between
-																																																align-items-center
-																																															">
+																																																																																																																																								d-flex
+																																																																																																																																								justify-content-between
+																																																																																																																																								align-items-center
+																																																																																																																																							">
 
 							<div>
 
@@ -613,10 +613,10 @@
 
 
 							<span class="
-																																																						badge
-																																																						badge-secondary
-																																																						facture-status-badge
-																																																					">
+																																																																																																																																																									badge
+																																																																																																																																																									badge-secondary
+																																																																																																																																																									facture-status-badge
+																																																																																																																																																								">
 								<i class="fa fa-ban"></i>
 							</span>
 
@@ -632,18 +632,18 @@
 
 
 		{# ============================================================
-												   TABLEAU
-												   ============================================================ #}
+																																		   TABLEAU
+																																		   ============================================================ #}
 
 		<div class="card">
 
 			<div class="
-																														card-header
-																														d-flex
-																														justify-content-between
-																														align-items-center
-																														flex-wrap
-																													">
+																																																																																					card-header
+																																																																																					d-flex
+																																																																																					justify-content-between
+																																																																																					align-items-center
+																																																																																					flex-wrap
+																																																																																				">
 
 				<div>
 
@@ -687,12 +687,12 @@
 				<div class="table-responsive">
 
 					<table class="
-																																					table
-																																					table-bordered
-																																					table-hover
-																																					facture-index-table
-																																					mb-0
-																																				" id="factures-table">
+																																																																																																							table
+																																																																																																							table-bordered
+																																																																																																							table-hover
+																																																																																																							facture-index-table
+																																																																																																							mb-0
+																																																																																																						" id="factures-table">
 
 						<thead>
 
@@ -737,8 +737,8 @@
 							{% for facture in factures %}
 
 								{# =================================================
-																																																   VARIABLES
-																																																   ================================================= #}
+																																																																																																																																								   VARIABLES
+																																																																																																																																								   ================================================= #}
 
 								{% set commande =
 									facture.commande|default(null)
@@ -781,18 +781,18 @@
 
 								<tr
 									class="
-																																																												facture-row
-																																																												{{
-																																																													facture.etat == 'annulee'
-																																																														? 'facture-row-annulee'
-																																																														: ''
-																																																												}}
-																																																											">
+																																																																																																																																																																										facture-row
+																																																																																																																																																																										{{
+																																																																																																																																																																											facture.etat == 'annulee'
+																																																																																																																																																																												? 'facture-row-annulee'
+																																																																																																																																																																												: ''
+																																																																																																																																																																										}}
+																																																																																																																																																																									">
 
 
 									{# =========================================
-																																																						   DOCUMENT
-																																																						   ========================================= #}
+																																																																																																																																																									   DOCUMENT
+																																																																																																																																																									   ========================================= #}
 
 									<td class="facture-document-cell">
 
@@ -814,10 +814,10 @@
 											{% if facture.comptabilisee %}
 
 												<span class="
-																																																																																				badge
-																																																																																				badge-success
-																																																																																				facture-type-badge
-																																																																																			">
+																																																																																																																																																																																																																																														badge
+																																																																																																																																																																																																																																														badge-success
+																																																																																																																																																																																																																																														facture-type-badge
+																																																																																																																																																																																																																																													">
 
 													<i class="fa fa-file-text-o mr-1"></i>
 
@@ -828,10 +828,10 @@
 											{% else %}
 
 												<span class="
-																																																																																				badge
-																																																																																				badge-info
-																																																																																				facture-type-badge
-																																																																																			">
+																																																																																																																																																																																																																																														badge
+																																																																																																																																																																																																																																														badge-info
+																																																																																																																																																																																																																																														facture-type-badge
+																																																																																																																																																																																																																																													">
 
 													<i class="fa fa-files-o mr-1"></i>
 
@@ -860,8 +860,8 @@
 
 
 									{# =========================================
-																																																						   CLIENT / COMMANDE
-																																																						   ========================================= #}
+																																																																																																																																																									   CLIENT / COMMANDE
+																																																																																																																																																									   ========================================= #}
 
 									<td class="facture-client-cell">
 
@@ -935,8 +935,8 @@
 
 
 									{# =========================================
-																																																						   DATE
-																																																						   ========================================= #}
+																																																																																																																																																									   DATE
+																																																																																																																																																									   ========================================= #}
 
 									<td class="facture-date-cell">
 
@@ -974,8 +974,8 @@
 
 
 									{# =========================================
-																																																						   MONTANT
-																																																						   ========================================= #}
+																																																																																																																																																									   MONTANT
+																																																																																																																																																									   ========================================= #}
 
 									<td class="text-right facture-montant-cell">
 
@@ -983,7 +983,7 @@
 											Total TTC
 										</div>
 
-										<div class="facture-ttc">
+										<div class="facture-ttc text-white">
 
 											{{
 												facture.totalTtc
@@ -1005,8 +1005,8 @@
 
 
 									{# =========================================
-																																																						   RÈGLEMENT
-																																																						   ========================================= #}
+																																																																																																																																																									   RÈGLEMENT
+																																																																																																																																																									   ========================================= #}
 
 									<td class="facture-reglement-cell">
 
@@ -1014,10 +1014,10 @@
 										{% if facture.comptabilisee %}
 
 											<div class="
-																																																																														d-flex
-																																																																														justify-content-between
-																																																																														facture-reglement-line
-																																																																													">
+																																																																																																																																																																																																																													d-flex
+																																																																																																																																																																																																																													justify-content-between
+																																																																																																																																																																																																																													facture-reglement-line
+																																																																																																																																																																																																																												">
 
 												<span class="text-muted">
 													Payé
@@ -1041,10 +1041,10 @@
 
 
 											<div class="
-																																																																														d-flex
-																																																																														justify-content-between
-																																																																														facture-reglement-line
-																																																																													">
+																																																																																																																																																																																																																													d-flex
+																																																																																																																																																																																																																													justify-content-between
+																																																																																																																																																																																																																													facture-reglement-line
+																																																																																																																																																																																																																												">
 
 												<span class="text-muted">
 													Reste
@@ -1084,8 +1084,8 @@
 
 
 									{# =========================================
-																																																						   STATUT
-																																																						   ========================================= #}
+																																																																																																																																																									   STATUT
+																																																																																																																																																									   ========================================= #}
 
 									<td class="text-center facture-statut-cell">
 
@@ -1093,17 +1093,17 @@
 										{% if facture.comptabilisee %}
 
 											<span class="
-																																																																														badge
-																																																																														badge-{{
-																																																																															statutClasses[
-																																																																																facture.statutPaiement
-																																																																															]
-																																																																																|default(
-																																																																																	'secondary'
-																																																																																)
-																																																																														}}
-																																																																														facture-status-main
-																																																																													">
+																																																																																																																																																																																																																													badge
+																																																																																																																																																																																																																													badge-{{
+																																																																																																																																																																																																																														statutClasses[
+																																																																																																																																																																																																																															facture.statutPaiement
+																																																																																																																																																																																																																														]
+																																																																																																																																																																																																																															|default(
+																																																																																																																																																																																																																																'secondary'
+																																																																																																																																																																																																																															)
+																																																																																																																																																																																																																													}}
+																																																																																																																																																																																																																													facture-status-main
+																																																																																																																																																																																																																												">
 
 												{{
 													statutLibelles[
@@ -1128,16 +1128,16 @@
 										<div class="mt-2">
 
 											<span class="
-																																																																														badge
-																																																																														badge-{{
-																																																																															etatClasses[
-																																																																																facture.etat
-																																																																															]
-																																																																																|default(
-																																																																																	'secondary'
-																																																																																)
-																																																																														}}
-																																																																													">
+																																																																																																																																																																																																																													badge
+																																																																																																																																																																																																																													badge-{{
+																																																																																																																																																																																																																														etatClasses[
+																																																																																																																																																																																																																															facture.etat
+																																																																																																																																																																																																																														]
+																																																																																																																																																																																																																															|default(
+																																																																																																																																																																																																																																'secondary'
+																																																																																																																																																																																																																															)
+																																																																																																																																																																																																																													}}
+																																																																																																																																																																																																																												">
 
 												{{
 													etatLibelles[
@@ -1156,8 +1156,8 @@
 
 
 									{# =========================================
-																																																						   ACTIONS
-																																																						   ========================================= #}
+																																																																																																																																																									   ACTIONS
+																																																																																																																																																									   ========================================= #}
 
 									<td
 										class="text-center facture-actions">
@@ -1173,10 +1173,10 @@
 
 
 										{# =====================================
-																																																												   ENCAISSER
-																																																												   
-																																																												   ROLE_PAIEMENT_ENCAISSER seulement.
-																																																												   ===================================== #}
+																																																																																																																																																																										   ENCAISSER
+																																																																																																																																																																										   
+																																																																																																																																																																										   ROLE_PAIEMENT_ENCAISSER seulement.
+																																																																																																																																																																										   ===================================== #}
 
 										{% if
 											peutEncaisser
@@ -1213,18 +1213,18 @@
 								<tr>
 
 									<td colspan="7" class="
-																																																																		text-center
-																																																																		text-muted
-																																																																		py-5
-																																																																	">
+																																																																																																																																																																																											text-center
+																																																																																																																																																																																											text-muted
+																																																																																																																																																																																											py-5
+																																																																																																																																																																																										">
 
 										<div class="mb-3">
 
 											<i class="
-																																																																									fa
-																																																																									fa-file-text-o
-																																																																									facture-empty-icon
-																																																																								"></i>
+																																																																																																																																																																																																													fa
+																																																																																																																																																																																																													fa-file-text-o
+																																																																																																																																																																																																													facture-empty-icon
+																																																																																																																																																																																																												"></i>
 
 										</div>
 
@@ -1233,7 +1233,7 @@
 										</strong>
 
 										Les factures et pro forma
-																																																												apparaîtront ici.
+																																																																																																																																																																										apparaîtront ici.
 
 									</td>
 
@@ -1606,7 +1606,7 @@
 
 			font-weight: 700;
 
-			color: #1f2937 !important;
+			color: #dde0e6 !important;
 
 			-webkit-text-fill-color: #1f2937 !important;
 		}

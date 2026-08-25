@@ -1766,6 +1766,22 @@
 
 													</a>
 
+
+													<a href="{{ path( 'app_parametres_paiement_edit' ) }}" class="
+																															slide-item
+																															{{
+																																routeCourante
+																																starts with
+																																'app_parametres_paiement_'
+																																	? 'active'
+																																	: ''
+																															}}
+																														">
+
+														Frais de paiement mobile money
+
+													</a>
+
 												</div>
 
 											</div>
@@ -1888,36 +1904,93 @@
 																																																															   NOTIFICATIONS
 																																																															   ========================================= #}
 
-									<div class="
-																																																																													dropdown
-																																																																													d-sm-flex
-																																																																													d-none
-																																																																													notifications
-																																																																												">
+														<div class="
+																																																																											dropdown
+																																																																										d-sm-flex
+																																																																										d-none
+																																																																										notifications
+																																																																										">
 
-										<a class="nav-link icon" data-toggle="dropdown">
+						{% set reclamationsANotifier = mes_reclamations_a_notifier() %}
+						{% set notificationsGenerales = mes_notifications() %}
+						{% set totalNotifications = reclamationsANotifier|length + notificationsGenerales|length %}
 
-											<i class="ti-bell"></i>
+						<a class="nav-link icon" data-toggle="dropdown">
 
-										</a>
+							<i class="ti-bell"></i>
+
+							{% if totalNotifications > 0 %}
+								<span class="badge badge-danger" style="position: absolute; top: 4px; right: 4px; font-size: 10px;">
+									{{ totalNotifications }}
+								</span>
+							{% endif %}
+
+						</a>
 
 
-										<div class="
+						<div class="
 																																																																																				dropdown-menu
 																																																																																				dropdown-menu-right
 																																																																																				dropdown-menu-arrow
 																																																																																			">
 
-											<div class="
+							{% if totalNotifications > 0 %}
+
+								{% for reclamationANotifier in reclamationsANotifier %}
+
+									<a href="{{ path('app_reclamation_show', {id: reclamationANotifier.id}) }}" class="dropdown-item">
+										<strong>Réclamation {{ reclamationANotifier.reference }} validée</strong>
+										<div class="small text-muted">Passez à la caisse pour le paiement.</div>
+									</a>
+
+								{% endfor %}
+
+								{% for notificationGenerale in notificationsGenerales %}
+
+									<a href="{{ path('app_notification_ouvrir', {id: notificationGenerale.id}) }}" class="dropdown-item">
+										<div class="small">{{ notificationGenerale.message }}</div>
+									</a>
+
+								{% endfor %}
+
+							{% else %}
+
+								<div class="
 																																																																																											dropdown-item
 																																																																																											text-center
 																																																																																										">
 
-												Aucune nouvelle notification
+									Aucune nouvelle notification
 
-											</div>
+								</div>
 
-										</div>
+							{% endif %}
+
+						</div>
+
+					</div>
+
+
+
+									{# =========================================
+																		   MESSAGERIE INTERNE
+																		   ========================================= #}
+
+									<div class="d-sm-flex d-none">
+
+										<a href="{{ path('app_chat_index') }}" class="nav-link icon" title="Messagerie">
+
+											<i class="ti-comments"></i>
+
+											{% set conversationsNonLues = mes_conversations_non_lues() %}
+
+											{% if conversationsNonLues > 0 %}
+												<span class="badge badge-danger" style="position: absolute; top: 4px; right: 4px; font-size: 10px;">
+													{{ conversationsNonLues }}
+												</span>
+											{% endif %}
+
+										</a>
 
 									</div>
 

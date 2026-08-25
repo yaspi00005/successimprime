@@ -326,6 +326,36 @@
 
 						</div>
 
+
+						{# RETRAIT #}
+						<div class="col-lg-2 col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label">
+									Retrait
+								</label>
+
+								<select name="retrait" class="form-control">
+
+									<option value="">
+										Tous
+									</option>
+
+									<option value="livreur" {% if filtres.retrait|default('') == 'livreur' %} selected {% endif %}>
+										Livrée par nous
+									</option>
+
+									<option value="client" {% if filtres.retrait|default('') == 'client' %} selected {% endif %}>
+										Récupérée par le client
+									</option>
+
+								</select>
+
+							</div>
+
+						</div>
+
 					</div>
 
 
@@ -354,21 +384,7 @@
 										       LISTE (REGROUPÉE PAR COMMANDE)
 										       ========================================================== #}
 
-		{% if groupes|length == 0 %}
-
-			<div class="card">
-				<div class="card-body text-center text-muted py-5">
-					<i class="fa fa-truck fa-3x mb-3"></i>
-					<div>
-						Aucune livraison trouvée.
-					</div>
-				</div>
-			</div>
-
-		{% endif %}
-
-
-		{% for groupe in groupes %}
+		{% macro carteCommande(groupe) %}
 
 			<div class="card mb-3">
 
@@ -407,6 +423,15 @@
 					</div>
 
 					<div>
+
+						{% if groupe.commande and groupe.commande.recupereParClient %}
+
+							<span class="badge badge-secondary mr-1">
+								<i class="fa fa-user mr-1"></i>
+								Récupérée par le client
+							</span>
+
+						{% endif %}
 
 						{% if groupe.toutesLivrees %}
 
@@ -481,7 +506,65 @@
 
 			</div>
 
-		{% endfor %}
+		{% endmacro %}
+
+
+		{% if groupesALivrer|length == 0 and groupesLivrees|length == 0 and (rechercheActive or compteurs.livree|default(0) == 0) %}
+
+			<div class="card">
+				<div class="card-body text-center text-muted py-5">
+					<i class="fa fa-truck fa-3x mb-3"></i>
+					<div>
+						Aucune livraison trouvée.
+					</div>
+				</div>
+			</div>
+
+		{% endif %}
+
+
+		{% if groupesALivrer|length > 0 %}
+
+			<h3 class="mb-3">
+				<i class="fa fa-truck mr-1"></i>
+				À livrer
+				<span class="badge badge-light">{{ groupesALivrer|length }}</span>
+			</h3>
+
+			{% for groupe in groupesALivrer %}
+				{{ _self.carteCommande(groupe) }}
+			{% endfor %}
+
+		{% endif %}
+
+
+		{% if not rechercheActive and compteurs.livree|default(0) > 0 %}
+
+			<div class="card mt-4">
+				<div class="card-body text-center text-muted py-4">
+					<i class="fa fa-check-circle fa-2x mb-2"></i>
+					<div>
+						{{ compteurs.livree }} commande{{ compteurs.livree > 1 ? 's' : '' }} déjà livrée{{ compteurs.livree > 1 ? 's' : '' }}.
+					</div>
+					<div class="small">
+						Utilisez la recherche ci-dessus pour les retrouver (elles ne sont pas affichées ici pour garder la page rapide).
+					</div>
+				</div>
+			</div>
+
+		{% elseif groupesLivrees|length > 0 %}
+
+			<h3 class="mb-3 mt-4">
+				<i class="fa fa-check-circle mr-1"></i>
+				Livrées
+				<span class="badge badge-light">{{ groupesLivrees|length }}</span>
+			</h3>
+
+			{% for groupe in groupesLivrees %}
+				{{ _self.carteCommande(groupe) }}
+			{% endfor %}
+
+		{% endif %}
 
 	</div>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

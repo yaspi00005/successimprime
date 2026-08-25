@@ -14,7 +14,7 @@ use App\Entity\Paiements;
 use App\Entity\Produits;
 use App\Entity\Reclamation;
 use App\Entity\User;
-use Doctrine\Common\EventSubscriber;
+use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
@@ -35,8 +35,21 @@ use Symfony\Bundle\SecurityBundle\Security;
  *   construit les entrées de journal et on les enregistre dans un
  *   flush séparé (JournalActivite n'étant pas une entité suivie,
  *   il n'y a pas de boucle).
+ *
+ * Enregistré auprès de Doctrine via les attributs #[AsDoctrineListener]
+ * ci-dessous plutôt qu'en implémentant Doctrine\Common\EventSubscriber
+ * (getSubscribedEvents()) : dans ce projet, la résolution de
+ * l'interface EventSubscriber n'aboutissait à aucun enregistrement
+ * réel auprès de Doctrine\Bridge\Doctrine\ContainerAwareEventManager
+ * (vérifié : le service était bien tagué doctrine.event_subscriber
+ * côté conteneur, mais totalement absent des listeners onFlush /
+ * postFlush réels). Les attributs #[AsDoctrineListener] sont lus par
+ * réflexion native sur la classe, sans dépendre de cette résolution,
+ * et sont la méthode recommandée depuis DoctrineBundle 2.4+.
  */
-final class AuditSubscriber implements EventSubscriber
+#[AsDoctrineListener(event: Events::onFlush)]
+#[AsDoctrineListener(event: Events::postFlush)]
+final class AuditSubscriber
 {
     private const ENTITES_SUIVIES = [
         Commandes::class,
@@ -59,14 +72,6 @@ final class AuditSubscriber implements EventSubscriber
 
     public function __construct(private readonly Security $security)
     {
-    }
-
-    public function getSubscribedEvents(): array
-    {
-        return [
-            Events::onFlush,
-            Events::postFlush,
-        ];
     }
 
     public function onFlush(OnFlushEventArgs $args): void
@@ -231,6 +236,17 @@ final class AuditSubscriber implements EventSubscriber
 
         if ($valeur instanceof \BackedEnum) {
             return $valeur->value;
+        }
+
+        /*
+         * Uuid/UuidV7/Ulid (ex: Commandes::$publicId, Clients::$publicId)
+         * sont des objets mais pas des entites Doctrine : essayer de
+         * recuperer leur "class metadata" comme pour une relation
+         * plante avec une MappingException ("The class ... was not
+         * found in the chain configured namespaces App\Entity").
+         */
+        if ($valeur instanceof \Symfony\Component\Uid\AbstractUid) {
+            return (string) $valeur;
         }
 
         if (is_object($valeur)) {

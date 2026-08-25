@@ -20,7 +20,10 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use App\Service\StockService;
+use App\Service\NotificationService;
+use App\Entity\Articles;
 use App\Entity\StockSorties;
+use App\Repository\ArticlesRepository;
 
 
 
@@ -292,12 +295,27 @@ final class ProductionController extends AbstractController
     )]
     public function show(
         OrdreProduction $ordre,
-        Request $request
+        Request $request,
+        ArticlesRepository $articlesRepository,
+        EntityManagerInterface $em
     ): Response {
         /** @var Machines|null $machineCourante */
         $machineCourante = $request->attributes->get(
             '_production_machine'
         );
+
+        $detail = $ordre->getCommandeDetail();
+
+        $consommables = $detail === null
+            ? []
+            : $em->getRepository(StockSorties::class)->findBy(
+                [
+                    'commandeDetail' => $detail,
+                    'origine' => StockSorties::ORIGINE_MANUELLE,
+                    'referenceOrigine' => $ordre->getNumero(),
+                ],
+                ['date' => 'DESC']
+            );
 
         return $this->render(
             'production/show.html.twig',
@@ -305,6 +323,8 @@ final class ProductionController extends AbstractController
                 'ordre' => $ordre,
                 'machineCourante' => $machineCourante,
                 'adresseIpCourante' => $request->getClientIp(),
+                'articlesConsommables' => $articlesRepository->findConsommables(),
+                'consommables' => $consommables,
             ]
         );
     }
@@ -708,7 +728,6 @@ final class ProductionController extends AbstractController
          * Une seule sauvegarde pour les deux objets.
          */
             $em->flush();
-
             $this->addFlash(
                 'success',
                 sprintf(
@@ -834,7 +853,8 @@ public function terminer(
     OrdreProduction $ordre,
     Request $request,
     EntityManagerInterface $em,
-    StockService $stockService
+    StockService $stockService,
+    NotificationService $notificationService
 ): Response {
     $utilisateur = $this->utilisateurConnecte();
 
@@ -963,6 +983,28 @@ public function terminer(
 
         /*
          * ========================================================
+         * NOTIFICATION
+         * ========================================================
+         *
+         * Prévient la livraison et le commercial que la production
+         * est terminée pour cette commande.
+         */
+        $commande = $detail->getCommande();
+
+        if ($commande !== null) {
+            $notificationService->notifierRoles(
+                ['ROLE_LIVRAISON', 'ROLE_COMMERCIAL'],
+                sprintf(
+                    'Production terminée pour la commande %s : prête pour la suite.',
+                    $commande->getNumero() ?? ('#' . $commande->getId())
+                ),
+                'app_commandes_show',
+                ['id' => $commande->getId()]
+            );
+        }
+
+        /*
+         * ========================================================
          * SAUVEGARDE ATOMIQUE
          * ========================================================
          *
@@ -971,7 +1013,8 @@ public function terminer(
          * - la sortie StockSorties ;
          * - la consommation de StockReservation ;
          * - le détail terminé ;
-         * - l'ordre terminé.
+         * - l'ordre terminé ;
+         * - la notification de fin de production.
          */
         $em->flush();
 
@@ -1016,6 +1059,131 @@ public function terminer(
         $ordre
     );
 }
+
+    /**
+     * Enregistre un consommable utilisé pendant la production
+     * (non prévu dans la nomenclature du produit) : retiré
+     * immédiatement du stock disponible.
+     */
+    #[Route(
+        '/{id}/consommable/ajouter',
+        name: 'ajouter_consommable',
+        requirements: ['id' => '\d+'],
+        methods: ['POST']
+    )]
+    public function ajouterConsommable(
+        OrdreProduction $ordre,
+        Request $request,
+        ArticlesRepository $articlesRepository,
+        StockService $stockService
+    ): Response {
+        $this->verifierJeton(
+            $request,
+            'production_ajouter_consommable_' . $ordre->getId()
+        );
+
+        try {
+            if ($ordre->estTermine()) {
+                throw new \LogicException(
+                    'Cet ordre est terminé, il n’est plus possible d’y ajouter un consommable.'
+                );
+            }
+
+            $detail = $ordre->getCommandeDetail();
+
+            if ($detail === null) {
+                throw new \LogicException(
+                    'Aucun détail de commande n’est associé à cet ordre.'
+                );
+            }
+
+            $articleId = $request->request->getInt('article_id');
+            $article = $articlesRepository->find($articleId);
+
+            if (!$article instanceof Articles) {
+                throw new \InvalidArgumentException(
+                    'Veuillez sélectionner un article.'
+                );
+            }
+
+            $quantite = $request->request->getInt('quantite');
+
+            $stockService->enregistrerConsommableManuel(
+                $detail,
+                $article,
+                $quantite,
+                $ordre->getNumero()
+            );
+
+            $this->addFlash(
+                'success',
+                sprintf(
+                    '%s retiré du stock (%d).',
+                    (string) $article,
+                    $quantite
+                )
+            );
+        } catch (
+            \LogicException |
+            \InvalidArgumentException $e
+        ) {
+            $this->addFlash(
+                'error',
+                $e->getMessage()
+            );
+        }
+
+        return $this->redirigerVersOrdre($ordre);
+    }
+
+    /**
+     * Supprime un consommable enregistré par erreur : la sortie de
+     * stock correspondante est annulée (le stock redevient
+     * disponible).
+     */
+    #[Route(
+        '/{id}/consommable/{sortie}/supprimer',
+        name: 'supprimer_consommable',
+        requirements: ['id' => '\d+', 'sortie' => '\d+'],
+        methods: ['POST']
+    )]
+    public function supprimerConsommable(
+        OrdreProduction $ordre,
+        StockSorties $sortie,
+        Request $request,
+        StockService $stockService
+    ): Response {
+        $this->verifierJeton(
+            $request,
+            'production_supprimer_consommable_' . $sortie->getId()
+        );
+
+        try {
+            if (
+                $sortie->getCommandeDetail() !== $ordre->getCommandeDetail()
+                || $sortie->getOrigine() !== StockSorties::ORIGINE_MANUELLE
+                || $sortie->getReferenceOrigine() !== $ordre->getNumero()
+            ) {
+                throw new \LogicException(
+                    'Ce consommable n’appartient pas à cet ordre de production.'
+                );
+            }
+
+            $stockService->supprimerConsommableManuel($sortie);
+
+            $this->addFlash(
+                'success',
+                'Le consommable a été retiré et le stock recrédité.'
+            );
+        } catch (\LogicException $e) {
+            $this->addFlash(
+                'error',
+                $e->getMessage()
+            );
+        }
+
+        return $this->redirigerVersOrdre($ordre);
+    }
 
     /**
      * Annule un ordre non terminé.

@@ -1,41 +1,212 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Paiements index{% endblock %}
+{% block title %}
+	Paiements
+{% endblock %}
 
 {% block body %}
-    <h1>Paiements index</h1>
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Montant</th>
-                <th>Mode</th>
-                <th>Date</th>
-                <th>Reference</th>
-                <th>actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for paiement in paiements %}
-            <tr>
-                <td>{{ paiement.id }}</td>
-                <td>{{ paiement.montant }}</td>
-                <td>{{ paiement.mode }}</td>
-                <td>{{ paiement.date ? paiement.date|date('Y-m-d H:i:s') : '' }}</td>
-                <td>{{ paiement.reference }}</td>
-                <td>
-                    <a href="{{ path('app_paiements_show', {'id': paiement.id}) }}">show</a>
-                    <a href="{{ path('app_paiements_edit', {'id': paiement.id}) }}">edit</a>
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="6">no records found</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+	<div class="side-app">
 
-    <a href="{{ path('app_paiements_new') }}">Create new</a>
+		<div class="page-header">
+
+			<div>
+
+				<h1 class="page-title">
+					Paiements
+				</h1>
+
+				<ol class="breadcrumb">
+
+					<li class="breadcrumb-item">
+						Trésorerie
+					</li>
+
+					<li class="breadcrumb-item active">
+						Paiements
+					</li>
+
+				</ol>
+
+			</div>
+
+			<div>
+
+				<a href="{{ path('app_paiements_new') }}" class="btn btn-primary">
+					<i class="fa fa-plus mr-1"></i>
+					Nouveau paiement
+				</a>
+
+			</div>
+
+		</div>
+
+
+		{% include "alert.html.twig" %}
+
+
+		<div class="card">
+
+			<div class="card-header">
+				<h3 class="card-title mb-0">
+					Liste des paiements
+				</h3>
+			</div>
+
+			<div class="table-responsive">
+
+				<table class="table table-bordered table-hover mb-0">
+
+					<thead>
+
+						<tr>
+							<th>#</th>
+							<th class="text-right">Montant</th>
+							<th>Mode</th>
+							<th>Compte</th>
+							<th>Commande</th>
+							<th>Date</th>
+							<th class="text-center">Statut</th>
+							<th class="text-center">Actions</th>
+						</tr>
+
+					</thead>
+
+					<tbody>
+
+						{% for paiement in paiements %}
+
+							<tr>
+
+								<td class="align-middle">
+									{{ paiement.id }}
+								</td>
+
+								<td class="align-middle text-right">
+									{{ paiement.montant|number_format(0, ',', ' ') }} FCFA
+								</td>
+
+								<td class="align-middle">
+									{{ paiement.modeLabel }}
+									{% if paiement.estCheque and paiement.numeroCheque %}
+										<div class="small text-muted">
+											N° {{ paiement.numeroCheque }}
+										</div>
+									{% endif %}
+								</td>
+
+								<td class="align-middle">
+									{{ paiement.compteTresorerie ? paiement.compteTresorerie.nom : '—' }}
+								</td>
+
+								<td class="align-middle">
+									{% if paiement.commande %}
+										<a href="{{ path('app_commandes_show', { id: paiement.commande.id }) }}">
+											{{ paiement.commande.numero|default('#' ~ paiement.commande.id) }}
+										</a>
+									{% else %}
+										—
+									{% endif %}
+								</td>
+
+								<td class="align-middle nowrap">
+									{{ paiement.date ? paiement.date|date('d/m/Y H:i') : '—' }}
+								</td>
+
+								<td class="align-middle text-center">
+
+									{% if paiement.estEnAttente %}
+										<span class="badge badge-warning">En attente</span>
+									{% elseif paiement.estValide %}
+										<span class="badge badge-success">Validé</span>
+									{% elseif paiement.estRejete %}
+										<span class="badge badge-danger">Rejeté</span>
+									{% elseif paiement.estAnnule %}
+										<span class="badge badge-secondary">Annulé</span>
+									{% endif %}
+
+								</td>
+
+								<td class="align-middle text-center nowrap">
+
+									<div class="btn-group">
+
+										<a href="{{ path('app_paiements_show', { id: paiement.id }) }}" class="btn btn-sm btn-primary-light" title="Voir le détail">
+											<i class="fa fa-eye"></i>
+										</a>
+
+										{% if paiement.estEnAttente %}
+
+											<form method="post" action="{{ path('app_paiements_valider', { id: paiement.id }) }}" class="d-inline js-confirmer-validation" data-libelle="ce paiement de {{ paiement.montant|number_format(0, ',', ' ') }} FCFA">
+												<input type="hidden" name="_token" value="{{ csrf_token('paiement_valider' ~ paiement.id) }}">
+												<button type="submit" class="btn btn-sm btn-success" title="Valider">
+													<i class="fa fa-check"></i>
+												</button>
+											</form>
+
+										{% endif %}
+
+									</div>
+
+								</td>
+
+							</tr>
+
+						{% else %}
+
+							<tr>
+								<td colspan="8" class="text-center text-muted py-5">
+									Aucun paiement enregistré.
+								</td>
+							</tr>
+
+						{% endfor %}
+
+					</tbody>
+
+				</table>
+
+			</div>
+
+		</div>
+
+	</div>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+
+document.querySelectorAll('.js-confirmer-validation').forEach(function (formulaire) {
+
+formulaire.addEventListener('submit', function (event) {
+
+event.preventDefault();
+
+const libelle = formulaire.dataset.libelle || 'ce paiement';
+
+if (typeof Swal === 'undefined') {
+formulaire.submit();
+return;
+}
+
+Swal.fire({
+icon: 'question',
+title: 'Valider ce paiement ?',
+html: 'Confirmer la validation de <strong>' + libelle + '</strong> ?<br><br><small>Le compte de trésorerie sera crédité immédiatement.</small>',
+showCancelButton: true,
+confirmButtonText: 'Oui, valider',
+cancelButtonText: 'Annuler',
+reverseButtons: true
+}).then(function (resultat) {
+if (resultat.isConfirmed) {
+formulaire.submit();
+}
+});
+
+});
+
+});
+
+});
+	</script>
+
 {% endblock %}

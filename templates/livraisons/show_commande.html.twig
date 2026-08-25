@@ -29,6 +29,13 @@
 
 			<div>
 
+				{% if commande.recupereParClient %}
+					<span class="badge badge-secondary mr-2">
+						<i class="fa fa-user mr-1"></i>
+						Récupérée par le client
+					</span>
+				{% endif %}
+
 				<a href="{{ path('app_livraisons_index') }}" class="btn btn-primary-light">
 					<i class="fa fa-arrow-left mr-1"></i>
 					Retour aux livraisons
@@ -206,17 +213,28 @@
 
 				{% if nbALivrer > 0 %}
 
-					<div class="btn-group">
+					<div class="d-flex align-items-center flex-wrap">
 
-						<button type="submit" name="tout" value="1" form="formLivrerMasse" class="btn btn-sm btn-success" onclick="return confirm('Tout a été livré ? La commande complète sera marquée comme livrée.');">
-							<i class="fa fa-check-circle mr-1"></i>
-							Tout est livré
-						</button>
+						<div class="custom-control custom-checkbox mr-3 mb-0">
+							<input type="checkbox" name="recupere_par_client" value="1" form="formLivrerMasse" id="js-recupere-client" class="custom-control-input">
+							<label class="custom-control-label" for="js-recupere-client">
+								Récupérée par le client lui-même
+							</label>
+						</div>
 
-						<button type="submit" form="formLivrerMasse" class="btn btn-sm btn-primary" onclick="return confirm('Marquer la sélection comme livrée ?');">
-							<i class="fa fa-check-square-o mr-1"></i>
-							Marquer la sélection comme livrée
-						</button>
+						<div class="btn-group">
+
+							<button type="submit" name="tout" value="1" form="formLivrerMasse" class="btn btn-sm btn-success" onclick="return confirm('Tout a été livré ? La commande complète sera marquée comme livrée.');">
+								<i class="fa fa-check-circle mr-1"></i>
+								Tout est livré
+							</button>
+
+							<button type="submit" form="formLivrerMasse" class="btn btn-sm btn-primary" onclick="return confirm('Marquer la sélection comme livrée ?');">
+								<i class="fa fa-check-square-o mr-1"></i>
+								Marquer la sélection comme livrée
+							</button>
+
+						</div>
 
 					</div>
 

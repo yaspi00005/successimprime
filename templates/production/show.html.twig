@@ -941,6 +941,18 @@
 						</div>
 					{% endif %}
 
+					{# CONSOMMABLES DE PRODUCTION #}
+					{% if ordre.statut not in statutsTermines %}
+						<div class="card mb-3">
+							<div class="card-body">
+								<a href="{{ path('app_consommables_index') }}" class="btn btn-outline-secondary btn-block">
+									<i class="fa fa-minus-circle mr-1"></i>
+									Enregistrer un consommable utilisé
+								</a>
+							</div>
+						</div>
+					{% endif %}
+
 					{# REPRISE #}
 					{% if ordre.statut == 'en_pause' %}
 						<div class="card mb-3 border-warning">

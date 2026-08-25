@@ -51,4 +51,23 @@ class ReclamationRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Reclamations validees de cet agent dont la notification "passez
+     * a la caisse" n'a pas encore ete vue.
+     *
+     * @return Reclamation[]
+     */
+    public function findNotificationsNonLuesPourAgent(User $agent): array
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.agent = :agent')
+            ->andWhere('r.statut = :statut')
+            ->andWhere('r.notificationLue = false')
+            ->setParameter('agent', $agent)
+            ->setParameter('statut', Reclamation::STATUT_VALIDEE)
+            ->orderBy('r.dateValidation', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

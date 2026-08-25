@@ -29,6 +29,7 @@ class DevisRepository extends ServiceEntityRepository
             ->addSelect('cl')
             ->leftJoin('c.devisDetails', 'd')
             ->addSelect('d')
+            ->andWhere('c.deleted = false')
             ->distinct();
 
         $rechercheActive = $this->rechercheEstActive($filtres);

@@ -30,7 +30,7 @@ use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
 use Symfony\Component\Validator\Constraints\Positive;
-use Symfony\Component\Validator\Constraints\Range;
+use Symfony\Component\Validator\Constraints\PositiveOrZero;
 use Symfony\Component\Form\FormError;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\Articles;
@@ -372,31 +372,29 @@ class DevisDetailsType extends AbstractType
             ])
 
             /*
-             * La remise est un pourcentage. En decimal (pas
-             * uniquement des entiers), aligné sur le module commande,
-             * pour que la remise B2B calculee a partir du prix
-             * catalogue s'applique exactement.
+             * Remise en FCFA par unité facturable (par m², par mètre
+             * linéaire, par exemplaire... selon le mode de calcul),
+             * pas un montant fixe sur toute la ligne ni un
+             * pourcentage : aligné sur le module commande.
              */
             ->add('remise', NumberType::class, [
-                'label' => 'Remise (%)',
+                'label' => 'Remise (FCFA / unité)',
+                'help' => 'Montant par unité (par m², par mètre '
+                    . 'linéaire, par exemplaire... selon le mode de '
+                    . 'calcul), pas sur toute la ligne.',
                 'required' => false,
                 'empty_data' => '0',
-                'scale' => 4,
+                'scale' => 0,
                 'html5' => true,
                 'attr' => [
                     'class' => 'form-control js-remise-detail '
                         . 'js-calcul-detail',
                     'min' => 0,
-                    'max' => 100,
-                    'step' => 0.0001,
+                    'step' => 1,
                     'data-detail-field' => 'remise',
                 ],
                 'constraints' => [
-                    new Range(
-                        min: 0,
-                        max: 100,
-                        notInRangeMessage: 'La remise doit être comprise entre 0 et 100 %.'
-                    ),
+                    new PositiveOrZero(),
                 ],
             ])
 
@@ -651,14 +649,14 @@ class DevisDetailsType extends AbstractType
                     if ($mode === 'automatique') {
                         /*
      * Le champ manuel ne doit pas être soumis en automatique.
-     * On le retire du formulaire afin de conserver les finitions
-     * existantes pour que la synchronisation puisse les réutiliser.
+     * On vide seulement les données (pas $event->getForm()->remove()) :
+     * retirer le champ du formulaire casse le réaffichage en cas
+     * d'erreur de validation (FormView::finitions n'existe alors
+     * plus, alors que le template le référence toujours) -- meme
+     * correctif deja applique cote commande, voir
+     * CommandesDetailsType.
      */
-                        if ($event->getForm()->has('finitions')) {
-                            $event->getForm()->remove('finitions');
-                        }
-
-                        unset($data['finitions']);
+                        $data['finitions'] = [];
                     } else {
                         /*
              * En modes manuel et libre, on retire toute ligne
@@ -797,15 +795,14 @@ class DevisDetailsType extends AbstractType
             $data['format'] = null;
             $data['finitionsSelectionnees'] = [];
 
-            if ($event->getForm()->has('finitions')) {
-                $event->getForm()->remove(
-                    'finitions'
-                );
-            }
-
-            unset(
-                $data['finitions']
-            );
+            /*
+             * On vide seulement les données (pas
+             * $event->getForm()->remove()) : retirer le champ du
+             * formulaire casse le réaffichage en cas d'erreur de
+             * validation (voir le commentaire du listener PRE_SUBMIT
+             * precedent).
+             */
+            $data['finitions'] = [];
 
             $event->setData(
                 $data
@@ -849,19 +846,12 @@ class DevisDetailsType extends AbstractType
 
 
         if ($mode === 'automatique') {
-            if (
-                $event->getForm()->has(
-                    'finitions'
-                )
-            ) {
-                $event->getForm()->remove(
-                    'finitions'
-                );
-            }
-
-            unset(
-                $data['finitions']
-            );
+            /*
+             * On vide seulement les données (pas
+             * $event->getForm()->remove()) : voir le commentaire du
+             * premier listener PRE_SUBMIT plus haut.
+             */
+            $data['finitions'] = [];
 
         } else {
             $finitions =

@@ -11,6 +11,7 @@ parameters:
         cin_directory: '%kernel.project_dir%/public/uploads/employes'
         fichier_directory: '%kernel.project_dir%/public/uploads/fichiers'
         reclamations_directory: '%kernel.project_dir%/public/uploads/reclamations'
+        chat_directory: '%kernel.project_dir%/public/uploads/chat'
         app.whatsapp_template_document: '%env(WHATSAPP_TEMPLATE_DOCUMENT)%'
 
 services:

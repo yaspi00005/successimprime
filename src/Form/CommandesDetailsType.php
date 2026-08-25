@@ -31,7 +31,7 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
 use Symfony\Component\Validator\Constraints\Positive;
-use Symfony\Component\Validator\Constraints\Range;
+use Symfony\Component\Validator\Constraints\PositiveOrZero;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Doctrine\ORM\EntityManagerInterface;
@@ -56,8 +56,30 @@ class CommandesDetailsType extends AbstractType
                     'Saisie libre' => 'libre',
                 ],
                 'expanded' => true,
-                'required' => true,
-                'empty_data' => 'automatique',
+                /*
+                 * Le champ n'est plus affiche a l'utilisateur (voir
+                 * _form.html.twig, .js-zone-mode-configuration) et
+                 * CommandesController force de toute facon la valeur
+                 * a "manuel" a l'enregistrement. Le laisser "required"
+                 * faisait planter la validation HTML5 du navigateur :
+                 * un champ requis mais cache (display:none) ne peut
+                 * pas recevoir le focus, ce qui bloquait
+                 * silencieusement la soumission du formulaire
+                 * ("An invalid form control ... is not focusable").
+                 */
+                'required' => false,
+                /*
+                 * Aucun radio n'est plus jamais coche (le groupe est
+                 * cache) : "empty_data" est donc systematiquement
+                 * utilise. Il doit valoir "manuel" (le seul mode
+                 * desormais utilise pour une ligne Produit), sinon le
+                 * validateur d'entite (CommandesDetails::validerModeCommande,
+                 * mode automatique) exige une produitConfiguration qui
+                 * n'existe plus dans ce formulaire et bloque
+                 * l'enregistrement ("Une configuration est obligatoire
+                 * en mode automatique.").
+                 */
+                'empty_data' => 'manuel',
                 'attr' => [
                     'class' => 'js-mode-configuration',
                     'data-detail-field' => 'modeConfiguration',
@@ -316,32 +338,29 @@ class CommandesDetailsType extends AbstractType
             ])
 
             /*
-             * La remise est un pourcentage. En decimal (pas
-             * uniquement des entiers) pour que la remise B2B calculee
-             * a partir du prix catalogue s'applique exactement, sans
-             * ecart de quelques francs du a un arrondi premature du
-             * pourcentage.
+             * Remise en FCFA par unité facturable (par m², par mètre
+             * linéaire, par exemplaire... selon le mode de calcul),
+             * pas un montant fixe sur toute la ligne ni un
+             * pourcentage : plus simple à saisir précisément.
              */
             ->add('remise', NumberType::class, [
-                'label' => 'Remise (%)',
+                'label' => 'Remise (FCFA / unité)',
+                'help' => 'Montant par unité (par m², par mètre '
+                    . 'linéaire, par exemplaire... selon le mode de '
+                    . 'calcul), pas sur toute la ligne.',
                 'required' => false,
                 'empty_data' => '0',
-                'scale' => 4,
+                'scale' => 0,
                 'html5' => true,
                 'attr' => [
                     'class' => 'form-control js-remise-detail '
                         . 'js-calcul-detail',
                     'min' => 0,
-                    'max' => 100,
-                    'step' => 0.0001,
+                    'step' => 1,
                     'data-detail-field' => 'remise',
                 ],
                 'constraints' => [
-                    new Range(
-                        min: 0,
-                        max: 100,
-                        notInRangeMessage: 'La remise doit être comprise entre 0 et 100 %.'
-                    ),
+                    new PositiveOrZero(),
                 ],
             ])
 
@@ -662,7 +681,14 @@ class CommandesDetailsType extends AbstractType
             return;
         }
 
-        $mode = $data['modeConfiguration'] ?? 'automatique';
+        /*
+         * Repli sur "manuel" (pas "automatique") : le champ
+         * modeConfiguration est desormais cache a l'utilisateur, le
+         * groupe de radios ne soumet donc plus jamais aucune cle
+         * pour ce champ -- $data['modeConfiguration'] est toujours
+         * absent ici.
+         */
+        $mode = $data['modeConfiguration'] ?? 'manuel';
 
         /*
          * En mode automatique, on ne doit pas envoyer
@@ -782,12 +808,24 @@ class CommandesDetailsType extends AbstractType
                     return;
                 }
 
+                /*
+                 * Repli sur "manuel" (pas "automatique") : le champ
+                 * modeConfiguration est desormais cache a
+                 * l'utilisateur, la cle est donc toujours absente
+                 * des donnees soumises. Avec un repli sur
+                 * "automatique", cette ligne finissait toujours en
+                 * mode automatique sans configuration catalogue
+                 * choisie, ce que le validateur d'entite refusait
+                 * ("Une configuration est obligatoire en mode
+                 * automatique.") -- avant meme que le controleur
+                 * n'ait la main pour forcer "manuel".
+                 */
                 $mode = strtolower(trim(
-                    (string) ($donnees['modeConfiguration'] ?? 'automatique')
+                    (string) ($donnees['modeConfiguration'] ?? 'manuel')
                 ));
 
                 if (!in_array($mode, ['automatique', 'manuel', 'libre'], true)) {
-                    $mode = 'automatique';
+                    $mode = 'manuel';
                 }
 
                 $donnees['modeConfiguration'] = $mode;

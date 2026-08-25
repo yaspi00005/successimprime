@@ -27,11 +27,16 @@
 		commande.commandesDetails|default([])
 	%}
 
-	{% set statut =
-		commande.statut
-			|default(
-				commande.etat|default(1)
-			)
+{#
+	 # commande.statut / commande.etat sont des booléens (paiement en
+	 # attente / travaux en cours), pas un statut de travail -- le
+	 # badge ci-dessous doit se baser sur commande.statutTravaux (la
+	 # même méthode déjà utilisée par commandes/index.html.twig), qui
+	 # calcule un vrai statut ('annulee', 'preparation', 'livraison',
+	 # 'livree', 'vide') à partir de l'état de production des lignes.
+	 #}
+	{% set statutTravaux =
+		commande.statutTravaux
 	%}
 
 
@@ -422,41 +427,31 @@
 
 						<div>
 
-							{% if statut in [
-								0,
-								'0',
-								'annulee',
-								'annulée'
-							] %}
+							{% if statutTravaux == 'annulee' %}
 
 								<span class="badge badge-danger">
 									Annulée
 								</span>
 
 
-							{% elseif statut in [
-								2,
-								'2',
-								'terminee',
-								'terminée',
-								'livree',
-								'livrée'
-							] %}
+							{% elseif statutTravaux == 'livree' %}
 
 								<span class="badge badge-success">
 									Terminée
 								</span>
 
 
-							{% elseif statut in [
-								3,
-								'3',
-								'en_cours',
-								'encours'
-							] %}
+							{% elseif statutTravaux == 'livraison' %}
 
 								<span class="badge badge-warning">
-									En cours
+									En livraison
+								</span>
+
+
+							{% elseif statutTravaux == 'preparation' %}
+
+								<span class="badge badge-info">
+									En préparation
 								</span>
 
 

@@ -21,8 +21,10 @@ use App\Entity\ProduitConfigurationFinition;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use App\Entity\CommandesDetails;
+use App\Service\NotificationService;
 use App\Service\StockService;
 use App\Repository\FacturesRepository;
+use App\Repository\ParametresPaiementRepository;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 
@@ -167,7 +169,8 @@ final class CommandesController extends AbstractController
         EntityManagerInterface $entityManager,
         CommandeDetailFichierRepository $fichierRepository,
         StockService $stockService,
-        CommandesRepository $commandesRepository
+        CommandesRepository $commandesRepository,
+        NotificationService $notificationService
     ): Response {
         $commande = new Commandes();
 
@@ -419,6 +422,18 @@ final class CommandesController extends AbstractController
                             'm-Y'
                         )
                     )
+                );
+
+                $notificationService->notifierRoles(
+                    ['ROLE_ADMIN'],
+                    sprintf(
+                        'Nouvelle commande %s créée par %s.',
+                        $commande->getNumero(),
+                        $commande->getAgents()?->getUsername() ?? 'un agent'
+                    ),
+                    'app_commandes_show',
+                    ['id' => $commande->getId()],
+                    $this->getUser()
                 );
 
                 $entityManager->flush();
@@ -856,11 +871,31 @@ final class CommandesController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_commandes_delete', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function delete(Request $request, Commandes $commande, EntityManagerInterface $entityManager): Response
     {
+        /*
+         * Suppression douce (Commandes::$deleted) plutôt qu'un
+         * remove() en base : une commande a en général déjà des
+         * paiements, réservations de stock, entrées de journal
+         * d'activité... liés — un remove() direct échouerait sur les
+         * contraintes de clé étrangère ou effacerait des données
+         * qu'on veut garder pour l'historique. Le champ deleted est
+         * déjà respecté par les requêtes de statistiques
+         * (CommandesRepository) ; rechercherPourIndex() est corrigée
+         * dans le même correctif pour l'exclure de la liste.
+         */
         if ($this->isCsrfTokenValid('delete' . $commande->getId(), $request->getPayload()->getString('_token'))) {
-            $entityManager->remove($commande);
+            $commande->setDeleted(true);
             $entityManager->flush();
+
+            $this->addFlash(
+                'success',
+                sprintf(
+                    'La commande %s a été supprimée.',
+                    $commande->getNumero()
+                )
+            );
         }
 
         return $this->redirectToRoute('app_commandes_index', [], Response::HTTP_SEE_OTHER);
@@ -1201,7 +1236,16 @@ final class CommandesController extends AbstractController
          * ====================================================
          * MODE DE CONFIGURATION DU PRODUIT
          * ====================================================
+         *
+         * La procédure a été simplifiée : il n'y a plus qu'une
+         * seule façon de configurer une ligne Produit (le choix
+         * libre parmi les type/support/format liés au produit).
+         * On force donc "manuel", quelle que soit la valeur reçue
+         * du formulaire ou déjà enregistrée pour une ancienne
+         * ligne créée avant cette simplification.
          */
+            $detail->setModeConfiguration('manuel');
+
             if (
                 $detail->isConfigurationAutomatique()
             ) {
@@ -1535,7 +1579,9 @@ final class CommandesController extends AbstractController
         Commandes $commande,
         Request $request,
         EntityManagerInterface $entityManager,
-        FacturesRepository $facturesRepository
+        FacturesRepository $facturesRepository,
+        ParametresPaiementRepository $parametresPaiementRepository,
+        NotificationService $notificationService
     ): Response {
         /*
      * ============================================================
@@ -1550,6 +1596,8 @@ final class CommandesController extends AbstractController
                 'Vous devez être connecté pour enregistrer un paiement.'
             );
         }
+
+        $parametresPaiement = $parametresPaiementRepository->recuperer();
 
 
         /*
@@ -1780,6 +1828,25 @@ final class CommandesController extends AbstractController
                             )
                         )
                     );
+            } elseif (
+                $paiement->getMode() === Paiements::MODE_CHEQUE
+                && trim((string) $paiement->getReference()) === ''
+            ) {
+                /*
+                 * Le numéro du chèque est saisi dans le champ
+                 * "Référence de paiement" (voir le placeholder du
+                 * formulaire) : sans lui, l'enregistrement du
+                 * paiement échoue silencieusement plus loin. On le
+                 * signale ici, comme une erreur de formulaire
+                 * normale, pour tous les profils (admin ou agent).
+                 */
+                $form
+                    ->get('reference')
+                    ->addError(
+                        new FormError(
+                            'Le numéro du chèque est obligatoire.'
+                        )
+                    );
             } else {
                 /*
              * ====================================================
@@ -1789,6 +1856,53 @@ final class CommandesController extends AbstractController
 
                 $commande->addPaiement(
                     $paiement
+                );
+
+
+                /*
+             * ====================================================
+             * FRAIS MOBILE MONEY (retrait + fonds de soutien)
+             * ====================================================
+             *
+             * Le client paie parfois ces frais en plus du prix de
+             * la commande quand il règle par Orange Money ou Wave.
+             * On ne les autorise que pour ces deux modes, quoi que
+             * le formulaire ait pu soumettre (défense en profondeur
+             * : les cases ne sont visibles en JS que pour ces modes,
+             * mais le contrôleur ne doit jamais faire confiance
+             * uniquement au JS).
+             * ====================================================
+             */
+
+                $modesMobileMoney = [
+                    Paiements::MODE_ORANGE_MONEY,
+                    Paiements::MODE_WAVE,
+                ];
+
+                if (!in_array($paiement->getMode(), $modesMobileMoney, true)) {
+                    $paiement->setFraisRetraitInclus(false);
+                    $paiement->setFondsSoutienInclus(false);
+                }
+
+                /*
+                 * Chèque : le numéro saisi dans "Référence de
+                 * paiement" alimente aussi numeroCheque, requis par
+                 * l'entité au moment de l'enregistrement.
+                 */
+                if ($paiement->getMode() === Paiements::MODE_CHEQUE) {
+                    $paiement->setNumeroCheque($paiement->getReference());
+                }
+
+                $paiement->setMontantFraisRetrait(
+                    $paiement->isFraisRetraitInclus()
+                        ? $parametresPaiement->calculerFraisRetrait($montant)
+                        : 0
+                );
+
+                $paiement->setMontantFondsSoutien(
+                    $paiement->isFondsSoutienInclus()
+                        ? $parametresPaiement->calculerFondsSoutien($montant)
+                        : 0
                 );
 
 
@@ -2064,11 +2178,13 @@ final class CommandesController extends AbstractController
 
                         $mouvement->setLibelle(
                             sprintf(
-                                'Paiement commande %s',
+                                'Paiement commande %s — %s',
                                 $commande->getNumero()
                                     ??
                                     '#'
-                                    . $commande->getId()
+                                    . $commande->getId(),
+                                $commande->getClients()?->getNomComplet()
+                                    ?? 'Client inconnu'
                             )
                         );
 
@@ -2171,6 +2287,14 @@ final class CommandesController extends AbstractController
                      * =============================================
                      * MISE À JOUR DU SOLDE DU COMPTE
                      * =============================================
+                     *
+                     * Le compte reçoit le montant total réellement
+                     * encaissé (part commande + frais mobile money
+                     * éventuels) : c'est ce qui entre physiquement
+                     * dans la caisse Orange Money / Wave, même si
+                     * seule la part commande est comptée dans le
+                     * solde de la commande elle-même.
+                     * =============================================
                      */
 
                         $ancienSolde = (int) (
@@ -2182,7 +2306,7 @@ final class CommandesController extends AbstractController
                         $compte->setSoldeActuel(
                             $ancienSolde
                                 +
-                                $montant
+                                $paiement->getMontantTotalEncaisse()
                         );
 
 
@@ -2199,6 +2323,102 @@ final class CommandesController extends AbstractController
                         $entityManager->persist(
                             $compte
                         );
+
+
+                        /*
+                     * =============================================
+                     * MOUVEMENT SÉPARÉ POUR LES FRAIS MOBILE MONEY
+                     * =============================================
+                     *
+                     * Classé en "Autre produit" (pas "Vente") pour
+                     * ne pas gonfler le chiffre d'affaires réel, tout
+                     * en restant compté dans le résultat -- c'est
+                     * bien de l'argent réellement encaissé, que la
+                     * boutique reversera ensuite en frais de retrait
+                     * mobile money.
+                     * =============================================
+                     */
+
+                        $montantFrais =
+                            $paiement->getMontantFraisRetrait()
+                            + $paiement->getMontantFondsSoutien();
+
+                        if ($montantFrais > 0) {
+                            $mouvementFrais = new MouvementTresorerie();
+
+                            $mouvementFrais->setReference(
+                                sprintf(
+                                    'MVT-FRAIS-%s-%s',
+                                    (new \DateTimeImmutable())->format('YmdHis'),
+                                    strtoupper(substr(bin2hex(random_bytes(3)), 0, 6))
+                                )
+                            );
+
+                            $mouvementFrais->setType(
+                                MouvementTresorerie::TYPE_ENCAISSEMENT
+                            );
+
+                            $mouvementFrais->setCategorie(
+                                MouvementTresorerie::CATEGORIE_AUTRE_PRODUIT
+                            );
+
+                            $mouvementFrais->setConfidentiel(false);
+
+                            $mouvementFrais->setCompteDestination($compte);
+                            $mouvementFrais->setCompteSource(null);
+
+                            $mouvementFrais->setMontant($montantFrais);
+                            $mouvementFrais->setDevise('XOF');
+                            $mouvementFrais->setModePaiement($paiement->getMode());
+                            $mouvementFrais->setReferenceExterne($paiement->getReference());
+
+                            $mouvementFrais->setLibelle(
+                                sprintf(
+                                    'Frais mobile money - commande %s — %s',
+                                    $commande->getNumero() ?? '#' . $commande->getId(),
+                                    $commande->getClients()?->getNomComplet() ?? 'Client inconnu'
+                                )
+                            );
+
+                            $detailFrais = [];
+
+                            if ($paiement->getMontantFraisRetrait() > 0) {
+                                $detailFrais[] = sprintf(
+                                    'frais de retrait : %s FCFA',
+                                    number_format($paiement->getMontantFraisRetrait(), 0, ',', ' ')
+                                );
+                            }
+
+                            if ($paiement->getMontantFondsSoutien() > 0) {
+                                $detailFrais[] = sprintf(
+                                    'fonds de soutien : %s FCFA',
+                                    number_format($paiement->getMontantFondsSoutien(), 0, ',', ' ')
+                                );
+                            }
+
+                            $mouvementFrais->setDescription(
+                                sprintf(
+                                    'Frais mobile money à la charge du client sur le paiement de %s FCFA '
+                                        . 'de la commande %s (%s).',
+                                    number_format($montant, 0, ',', ' '),
+                                    $commande->getNumero() ?? '#' . $commande->getId(),
+                                    implode(', ', $detailFrais)
+                                )
+                            );
+
+                            $mouvementFrais->setAgent($user);
+                            $mouvementFrais->setDateOperation(
+                                $paiement->getDate() ?? new \DateTimeImmutable()
+                            );
+                            $mouvementFrais->setStatut(
+                                MouvementTresorerie::STATUT_VALIDE
+                            );
+                            $mouvementFrais->setDateValidation(
+                                new \DateTimeImmutable()
+                            );
+
+                            $entityManager->persist($mouvementFrais);
+                        }
                     }
                 }
 
@@ -2360,6 +2580,20 @@ final class CommandesController extends AbstractController
                     $commande
                 );
 
+                if ($paiement->estValide()) {
+                    $notificationService->notifierRoles(
+                        ['ROLE_ADMIN', 'ROLE_TRESORERIE_VOIR'],
+                        sprintf(
+                            'Paiement de %s FCFA encaissé sur la commande %s.',
+                            number_format($montant, 0, ',', ' '),
+                            $commande->getNumero()
+                        ),
+                        'app_commandes_show',
+                        ['id' => $commande->getId()],
+                        $user
+                    );
+                }
+
 
                 /*
              * ====================================================
@@ -2372,7 +2606,8 @@ final class CommandesController extends AbstractController
              * - mouvement trésorerie ;
              * - compte trésorerie ;
              * - commande ;
-             * - facture.
+             * - facture ;
+             * - notification.
              * ====================================================
              */
 
@@ -2388,17 +2623,31 @@ final class CommandesController extends AbstractController
                 if (
                     $paiement->estValide()
                 ) {
+                    $montantFrais =
+                        $paiement->getMontantFraisRetrait()
+                        + $paiement->getMontantFondsSoutien();
+
+                    $messageSucces = sprintf(
+                        'Paiement de %s FCFA enregistré avec succès. L’encaissement a été intégré à la trésorerie et classé dans les ventes.',
+                        number_format(
+                            $montant,
+                            0,
+                            ',',
+                            ' '
+                        )
+                    );
+
+                    if ($montantFrais > 0) {
+                        $messageSucces .= sprintf(
+                            ' Frais mobile money encaissés en plus : %s FCFA (total remis par le client : %s FCFA).',
+                            number_format($montantFrais, 0, ',', ' '),
+                            number_format($paiement->getMontantTotalEncaisse(), 0, ',', ' ')
+                        );
+                    }
+
                     $this->addFlash(
                         'success',
-                        sprintf(
-                            'Paiement de %s FCFA enregistré avec succès. L’encaissement a été intégré à la trésorerie et classé dans les ventes.',
-                            number_format(
-                                $montant,
-                                0,
-                                ',',
-                                ' '
-                            )
-                        )
+                        $messageSucces
                     );
                 } else {
                     $this->addFlash(
@@ -2455,6 +2704,9 @@ final class CommandesController extends AbstractController
 
                 'resteAPayer' =>
                 $resteAPayer,
+
+                'parametresPaiement' =>
+                $parametresPaiement,
             ]
         );
     }
