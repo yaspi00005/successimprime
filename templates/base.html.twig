@@ -5,40 +5,6 @@
 	{% set routeCourante = app.request.attributes.get('_route')|default('') %}
 
 
-	{# ================================================================
-							   DROITS / CAPACITÉS
-							   ================================================================
-							   
-							   PROFILS ENREGISTRÉS DANS USER :
-							   
-							   ROLE_ADMIN
-							   ROLE_CAISSE_COMMANDE
-							   ROLE_GRAPHISTE
-							   ROLE_PRODUCTION
-							   ROLE_STATS_GLOBAL
-							   
-							   PERMISSIONS TECHNIQUES HÉRITÉES DE SECURITY.YAML :
-							   
-							   ROLE_CLIENT
-							   ROLE_DEVIS
-							   ROLE_COMMANDE
-							   ROLE_FACTURE
-							   ROLE_PAIEMENT
-							   ROLE_TRESORERIE_VOIR
-							   ROLE_TRESORERIE_SAISIR
-							   ROLE_JOURNAL_CAISSE
-							   ROLE_RAPPROCHEMENT_BANCAIRE
-							   ROLE_PREPRESSE
-							   ROLE_PRODUCTION_VOIR
-							   ROLE_PRODUCTION_GERER
-							   ROLE_LIVRAISON
-							   ================================================================ #}
-
-
-	{# ================================================================
-							   COMMERCIAL
-							   ================================================================ #}
-
 	{% set peutVoirClients =
 		is_granted('ROLE_CLIENT')
 	%}
@@ -68,8 +34,8 @@
 
 
 	{# ================================================================
-							   PRODUCTION
-							   ================================================================ #}
+													   PRODUCTION
+													   ================================================================ #}
 
 	{% set peutVoirProduction =
 		is_granted('ROLE_PRODUCTION_VOIR')
@@ -82,11 +48,11 @@
 
 
 	{# ================================================================
-							   PRÉPRESSE
-							   
-							   INFOGRAPHISTE UNIQUEMENT
-							   + ADMIN PAR HÉRITAGE
-							   ================================================================ #}
+													   PRÉPRESSE
+													   
+													   INFOGRAPHISTE UNIQUEMENT
+													   + ADMIN PAR HÉRITAGE
+													   ================================================================ #}
 
 	{% set peutVoirPrepresse =
 		is_granted('ROLE_PREPRESSE')
@@ -94,10 +60,10 @@
 
 
 	{# ================================================================
-							   STOCK / ACHATS
-							   
-							   ADMIN UNIQUEMENT
-							   ================================================================ #}
+													   STOCK / ACHATS
+													   
+													   ADMIN UNIQUEMENT
+													   ================================================================ #}
 
 	{% set peutVoirStocks =
 		is_granted('ROLE_ADMIN')
@@ -105,8 +71,8 @@
 
 
 	{# ================================================================
-							   FACTURATION
-							   ================================================================ #}
+													   FACTURATION
+													   ================================================================ #}
 
 	{% set peutVoirFactures =
 		is_granted('ROLE_FACTURE')
@@ -114,13 +80,13 @@
 
 
 	{% set peutVoirPaiements =
-		is_granted('ROLE_PAIEMENT')
+		is_granted('ROLE_PAIEMENT_VOIR')
 	%}
 
 
 	{# ================================================================
-							   TRÉSORERIE
-							   ================================================================ #}
+													   TRÉSORERIE
+													   ================================================================ #}
 
 	{% set peutVoirTresorerie =
 		is_granted('ROLE_TRESORERIE_VOIR')
@@ -148,8 +114,8 @@
 
 
 	{# ================================================================
-							   STATISTIQUES
-							   ================================================================ #}
+													   STATISTIQUES
+													   ================================================================ #}
 
 	{% set peutVoirStatsGlobales =
 		is_granted('ROLE_STATS_GLOBAL')
@@ -163,8 +129,8 @@
 
 
 	{# ================================================================
-							   GESTION
-							   ================================================================ #}
+													   GESTION
+													   ================================================================ #}
 
 	{% set peutVoirGestion =
 		peutVoirFactures
@@ -179,10 +145,10 @@
 
 
 	{# ================================================================
-							   RH
-							   
-							   ADMIN UNIQUEMENT
-							   ================================================================ #}
+													   RH
+													   
+													   ADMIN UNIQUEMENT
+													   ================================================================ #}
 
 	{% set peutVoirRh =
 		is_granted('ROLE_ADMIN')
@@ -190,10 +156,10 @@
 
 
 	{# ================================================================
-							   PARAMÈTRES
-							   
-							   ADMIN UNIQUEMENT
-							   ================================================================ #}
+													   PARAMÈTRES
+													   
+													   ADMIN UNIQUEMENT
+													   ================================================================ #}
 
 	{% set peutVoirParametres =
 		is_granted('ROLE_ADMIN')
@@ -201,13 +167,13 @@
 
 
 	{# ================================================================
-							   MENU ACTIF SELON LA ROUTE
-							   ================================================================ #}
+													   MENU ACTIF SELON LA ROUTE
+													   ================================================================ #}
 
 	{% set menuActif = 'accueil' %}
 
 
-		{% if
+	{% if
 		routeCourante starts with 'app_clients_'
 		or routeCourante starts with 'app_commandes_'
 		or routeCourante starts with 'app_devis_'
@@ -285,12 +251,19 @@
 
 		{% set menuActif = 'reclamations' %}
 
+	{% elseif
+		routeCourante starts with 'app_chat_'
+	%}
+
+		{% set menuActif = 'messagerie' %}
+
+
 	{% endif %}
 
 
 	{# ================================================================
-							   SÉCURITÉ VISUELLE DU MENU
-							   ================================================================ #}
+													   SÉCURITÉ VISUELLE DU MENU
+													   ================================================================ #}
 
 	{% if menuActif == 'commercial' and not peutVoirCommercial %}
 		{% set menuActif = 'accueil' %}
@@ -328,17 +301,18 @@
 
 		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0">
 
-		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta
+		http-equiv="X-UA-Compatible" content="IE=edge">
 
 		{#
-			Empêche la traduction automatique du navigateur (Google
-			Translate, etc.). Cette page manipule beaucoup le DOM en
-			JavaScript (ajout de lignes, envoi de fichiers...) ; si le
-			navigateur a traduit la page, il modifie lui aussi le DOM
-			en parallèle, ce qui entre en conflit avec nos scripts et
-			peut faire planter/geler l'affichage (écran qui reste
-			bleu vide, par exemple pendant l'envoi d'un fichier).
-		#}
+															Empêche la traduction automatique du navigateur (Google
+															Translate, etc.). Cette page manipule beaucoup le DOM en
+															JavaScript (ajout de lignes, envoi de fichiers...) ; si le
+															navigateur a traduit la page, il modifie lui aussi le DOM
+															en parallèle, ce qui entre en conflit avec nos scripts et
+															peut faire planter/geler l'affichage (écran qui reste
+															bleu vide, par exemple pendant l'envoi d'un fichier).
+														#}
 		<meta name="google" content="notranslate">
 
 		<meta name="msapplication-TileColor" content="#0061da">
@@ -352,7 +326,7 @@
 		<meta name="mobile-web-app-capable" content="yes">
 
 
-		<link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
+		<link rel="icon" href="{{ asset('assets/images/brand/favicon.png') }}" type="image/x-icon">
 
 
 		<title>
@@ -432,8 +406,8 @@
 
 
 		{# ============================================================
-														   LOADER
-														   ============================================================ #}
+																										   LOADER
+																										   ============================================================ #}
 
 		<div id="global-loader">
 
@@ -451,22 +425,22 @@
 
 
 				{# ============================================================
-																												   SIDEBAR
-																												   ============================================================ #}
+																																																				   SIDEBAR
+																																																				   ============================================================ #}
 
 				<aside
 					class="app-sidebar">
 
 
 					{# ====================================================
-																																			   LOGO
-																																			   ==================================================== #}
+																																																																	   LOGO
+																																																																	   ==================================================== #}
 
 					<a class="
-																																											header-brand
-																																											left-meu-header-brand
-																																											left-meu-header-brand-desktop
-																																										" href="{{ path('app_home') }}">
+																																																																															header-brand
+																																																																															left-meu-header-brand
+																																																																															left-meu-header-brand-desktop
+																																																																														" href="{{ path('app_home') }}">
 
 						<img src="{{ asset('assets/images/brand/logo2.png') }}" class="header-brand-img desktop-logo" alt="MDG ERP">
 
@@ -476,8 +450,8 @@
 
 
 					{# ====================================================
-																																			   RECHERCHE MENU
-																																			   ==================================================== #}
+																																																																	   RECHERCHE MENU
+																																																																	   ==================================================== #}
 
 					<div class="input-group p-2 bg-white border-bottom">
 
@@ -486,11 +460,11 @@
 						<div class="input-group-prepend mr-0">
 
 							<span class="
-																																																															input-group-text
-																																																															border-right
-																																																															search_btn
-																																																															btn-primary-default
-																																																														">
+																																																																																																																					input-group-text
+																																																																																																																					border-right
+																																																																																																																					search_btn
+																																																																																																																					btn-primary-default
+																																																																																																																				">
 
 								<i class="fa fa-search text-white"></i>
 
@@ -508,24 +482,24 @@
 
 
 							{# =================================================
-																																																	   PREMIER MENU
-																																																	   ================================================= #}
+																																																																																											   PREMIER MENU
+																																																																																											   ================================================= #}
 
 							<ul
 								class="resp-tabs-list hor_1">
 
 
 								{# =============================================
-																																																								   ACCUEIL
-																																																								   ============================================= #}
+																																																																																																								   ACCUEIL
+																																																																																																								   ============================================= #}
 
 								<li class="{{ menuActif == 'accueil' ? 'resp-tab-active active' : '' }}" data-menu="accueil" title="Accueil">
 
 									<i class="
-																																																																							side-menu__icon
-																																																																							typcn
-																																																																							typcn-home-outline
-																																																																						"></i>
+																																																																																																																																			side-menu__icon
+																																																																																																																																			typcn
+																																																																																																																																			typcn-home-outline
+																																																																																																																																		"></i>
 
 									<div class="slider-text">
 										Accueil
@@ -535,18 +509,18 @@
 
 
 								{# =============================================
-																																																								   COMMERCIAL
-																																																								   ============================================= #}
+																																																																																																								   COMMERCIAL
+																																																																																																								   ============================================= #}
 
 								{% if peutVoirCommercial %}
 
 									<li class="{{ menuActif == 'commercial' ? 'resp-tab-active active' : '' }}" data-menu="commercial" title="Commercial">
 
 										<i class="
-																																																																														side-menu__icon
-																																																																														typcn
-																																																																														typcn-shopping-cart
-																																																																													"></i>
+																																																																																																																																																side-menu__icon
+																																																																																																																																																typcn
+																																																																																																																																																typcn-shopping-cart
+																																																																																																																																															"></i>
 
 										<div class="slider-text">
 											Commercial
@@ -558,18 +532,18 @@
 
 
 								{# =============================================
-																																																								   PRODUCTION
-																																																								   ============================================= #}
+																																																																																																								   PRODUCTION
+																																																																																																								   ============================================= #}
 
 								{% if peutVoirProduction %}
 
 									<li class="{{ menuActif == 'production' ? 'resp-tab-active active' : '' }}" data-menu="production" title="Production">
 
 										<i class="
-																																																																														side-menu__icon
-																																																																														typcn
-																																																																														typcn-cog-outline
-																																																																													"></i>
+																																																																																																																																																side-menu__icon
+																																																																																																																																																typcn
+																																																																																																																																																typcn-cog-outline
+																																																																																																																																															"></i>
 
 										<div class="slider-text">
 											Production
@@ -581,18 +555,18 @@
 
 
 								{# =============================================
-																																																								   STOCK
-																																																								   ============================================= #}
+																																																																																																								   STOCK
+																																																																																																								   ============================================= #}
 
 								{% if peutVoirStocks %}
 
 									<li class="{{ menuActif == 'stocks' ? 'resp-tab-active active' : '' }}" data-menu="stocks" title="Stocks et achats">
 
 										<i class="
-																																																																														side-menu__icon
-																																																																														typcn
-																																																																														typcn-archive
-																																																																													"></i>
+																																																																																																																																																side-menu__icon
+																																																																																																																																																typcn
+																																																																																																																																																typcn-archive
+																																																																																																																																															"></i>
 
 										<div class="slider-text">
 											Stocks
@@ -604,18 +578,18 @@
 
 
 								{# =============================================
-																																																								   GESTION
-																																																								   ============================================= #}
+																																																																																																								   GESTION
+																																																																																																								   ============================================= #}
 
 								{% if peutVoirGestion %}
 
 									<li class="{{ menuActif == 'gestion' ? 'resp-tab-active active' : '' }}" data-menu="gestion" title="Gestion et trésorerie">
 
 										<i class="
-																																																																														side-menu__icon
-																																																																														typcn
-																																																																														typcn-chart-line-outline
-																																																																													"></i>
+																																																																																																																																																side-menu__icon
+																																																																																																																																																typcn
+																																																																																																																																																typcn-chart-line-outline
+																																																																																																																																															"></i>
 
 										<div class="slider-text">
 											Gestion
@@ -627,18 +601,18 @@
 
 
 								{# =============================================
-																																																								   RH
-																																																								   ============================================= #}
+																																																																																																								   RH
+																																																																																																								   ============================================= #}
 
 								{% if peutVoirRh %}
 
 									<li class="{{ menuActif == 'rh' ? 'resp-tab-active active' : '' }}" data-menu="rh" title="Ressources humaines">
 
 										<i class="
-																																																																														side-menu__icon
-																																																																														typcn
-																																																																														typcn-group-outline
-																																																																													"></i>
+																																																																																																																																																side-menu__icon
+																																																																																																																																																typcn
+																																																																																																																																																typcn-group-outline
+																																																																																																																																															"></i>
 
 										<div class="slider-text">
 											RH
@@ -650,18 +624,18 @@
 
 
 								{# =============================================
-																																																								   PARAMÈTRES
-																																																								   ============================================= #}
+																																																																																																								   PARAMÈTRES
+																																																																																																								   ============================================= #}
 
 								{% if peutVoirParametres %}
 
 									<li class="{{ menuActif == 'parametres' ? 'resp-tab-active active' : '' }}" data-menu="parametres" title="Catalogue et paramètres">
 
 										<i class="
-																																																																														side-menu__icon
-																																																																														typcn
-																																																																														typcn-spanner-outline
-																																																																													"></i>
+																																																																																																																																																side-menu__icon
+																																																																																																																																																typcn
+																																																																																																																																																typcn-spanner-outline
+																																																																																																																																															"></i>
 
 										<div class="slider-text">
 											Paramètres
@@ -673,18 +647,18 @@
 
 
 								{# =============================================
-																								   RÉCLAMATIONS
-								
-																								   Accessible à tous les utilisateurs connectés.
-																								   ============================================= #}
+																																																																								   RÉCLAMATIONS
+																																																								
+																																																																								   Accessible à tous les utilisateurs connectés.
+																																																																								   ============================================= #}
 
 								<li class="{{ menuActif == 'reclamations' ? 'resp-tab-active active' : '' }}" data-menu="reclamations" title="Réclamations">
 
 									<i class="
-																																	side-menu__icon
-																																	fa
-																																	fa-money
-																																"></i>
+																																																																																													side-menu__icon
+																																																																																													fa
+																																																																																													fa-money
+																																																																																												"></i>
 
 									<div class="slider-text">
 										Réclamations
@@ -692,12 +666,23 @@
 
 								</li>
 
+								<li class="{{ menuActif == 'messagerie' ? 'resp-tab-active active' : '' }}" data-menu="messagerie" title="Messagerie">
+
+									<i class="side-menu__icon fa fa-comments"></i>
+
+									<div class="slider-text">
+										Messagerie
+									</div>
+
+								</li>
+
+
 							</ul>
 
 
 							{# =================================================
-																																																	   SECOND MENU
-																																																	   ================================================= #}
+																																																																																											   SECOND MENU
+																																																																																											   ================================================= #}
 
 							<div class="second-sidemenu">
 
@@ -706,8 +691,8 @@
 
 
 									{# =================================================
-																																																															   ACCUEIL
-																																																															   ================================================= #}
+																																																																																																																					   ACCUEIL
+																																																																																																																					   ================================================= #}
 
 									<div data-panel="accueil" class="{{ menuActif == 'accueil' ? 'resp-tab-content-active' : '' }}">
 
@@ -718,9 +703,9 @@
 												<h4 class="font-weight-normal">
 
 													<i class="
-																																																																																																			typcn
-																																																																																																			typcn-home-outline
-																																																																																																		"></i>
+																																																																																																																																																																																							typcn
+																																																																																																																																																																																							typcn-home-outline
+																																																																																																																																																																																						"></i>
 
 													Accueil
 
@@ -728,14 +713,14 @@
 
 
 												<a href="{{ path('app_home') }}" class="
-																																																																																																		slide-item
-																																																																																																		{{
-																																																																																																			routeCourante
-																																																																																																			== 'app_home'
-																																																																																																				? 'active'
-																																																																																																				: ''
-																																																																																																		}}
-																																																																																																	">
+																																																																																																																																																																																						slide-item
+																																																																																																																																																																																						{{
+																																																																																																																																																																																							routeCourante
+																																																																																																																																																																																							== 'app_home'
+																																																																																																																																																																																								? 'active'
+																																																																																																																																																																																								: ''
+																																																																																																																																																																																						}}
+																																																																																																																																																																																					">
 
 													<i class="fa fa-home mr-2"></i>
 
@@ -751,8 +736,8 @@
 
 
 									{# =================================================
-																																																															   COMMERCIAL
-																																																															   ================================================= #}
+																																																																																																																					   COMMERCIAL
+																																																																																																																					   ================================================= #}
 
 									{% if peutVoirCommercial %}
 
@@ -765,9 +750,9 @@
 													<h4 class="font-weight-normal">
 
 														<i class="
-																																																																																																										typcn
-																																																																																																										typcn-shopping-cart
-																																																																																																									"></i>
+																																																																																																																																																																																																				typcn
+																																																																																																																																																																																																				typcn-shopping-cart
+																																																																																																																																																																																																			"></i>
 
 														Commercial
 
@@ -777,15 +762,15 @@
 													{% if peutVoirClients %}
 
 														<a href="{{ path('app_clients_index') }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_clients_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_clients_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="fa fa-users mr-2"></i>
 
@@ -799,21 +784,21 @@
 													{% if peutVoirDevis %}
 
 														<a href="{{ path('app_devis_index') }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_devis_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_devis_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-file-text-o
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-file-text-o
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Devis
 
@@ -825,21 +810,21 @@
 													{% if peutVoirCommandes %}
 
 														<a href="{{ path('app_commandes_index') }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_commandes_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_commandes_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-shopping-cart
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-shopping-cart
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Commandes
 
@@ -851,15 +836,15 @@
 													{% if peutVoirLivraison %}
 
 														<a href="{{ path('app_livraisons_index') }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_livraisons_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_livraisons_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="fa fa-truck mr-2"></i>
 
@@ -879,8 +864,8 @@
 
 
 									{# =================================================
-																																																															   PRODUCTION
-																																																															   ================================================= #}
+																																																																																																																					   PRODUCTION
+																																																																																																																					   ================================================= #}
 
 									{% if peutVoirProduction %}
 
@@ -893,9 +878,9 @@
 													<h4 class="font-weight-normal">
 
 														<i class="
-																																																																																																										typcn
-																																																																																																										typcn-cog-outline
-																																																																																																									"></i>
+																																																																																																																																																																																																				typcn
+																																																																																																																																																																																																				typcn-cog-outline
+																																																																																																																																																																																																			"></i>
 
 														Production
 
@@ -903,18 +888,18 @@
 
 
 													{# =====================================
-																																																																																											   ORDRES DE PRODUCTION
-																																																																																											   ===================================== #}
+																																																																																																																																																																									   ORDRES DE PRODUCTION
+																																																																																																																																																																									   ===================================== #}
 
 													<a href="{{ path('app_production_index') }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										== 'app_production_index'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				== 'app_production_index'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="fa fa-list mr-2"></i>
 
@@ -924,34 +909,34 @@
 
 
 													{# =====================================
-																																		   VUE D'ENSEMBLE
-													
-																																		   Accessible sans connexion à une machine.
-																																		   ===================================== #}
+																																																																																																																   VUE D'ENSEMBLE
+																																																																																											
+																																																																																																																   Accessible sans connexion à une machine.
+																																																																																																																   ===================================== #}
 
 
 													{# =====================================
-																																		   VUE D'ENSEMBLE
-													
-																																		   Accessible sans connexion à une machine.
-																																		   ===================================== #}
+																																																																																																																   VUE D'ENSEMBLE
+																																																																																											
+																																																																																																																   Accessible sans connexion à une machine.
+																																																																																																																   ===================================== #}
 
 
 													{# =====================================
-																																		   VUE D'ENSEMBLE
-													
-																																		   Accessible sans connexion à une machine.
-																																		   ===================================== #}
+																																																																																																																   VUE D'ENSEMBLE
+																																																																																											
+																																																																																																																   Accessible sans connexion à une machine.
+																																																																																																																   ===================================== #}
 
 														<a href="{{ path('app_production_apercu') }}" class="
-																																										slide-item
-																																										{{
-																																											routeCourante
-																																											== 'app_production_apercu'
-																																												? 'active'
-																																												: ''
-																																										}}
-																																										"> <i class="fa fa-eye mr-2"></i>
+																																																																																																																																				slide-item
+																																																																																																																																				{{
+																																																																																																																																					routeCourante
+																																																																																																																																					== 'app_production_apercu'
+																																																																																																																																						? 'active'
+																																																																																																																																						: ''
+																																																																																																																																				}}
+																																																																																																																																				"> <i class="fa fa-eye mr-2"></i>
 
 														Vue d'ensemble
 
@@ -959,29 +944,29 @@
 
 
 													{# =====================================
-																																																																																											   PRÉPRESSE
-																																																																																											   
-																																																																																											   INFOGRAPHISTE UNIQUEMENT
-																																																																																											   ===================================== #}
+																																																																																																																																																																									   PRÉPRESSE
+																																																																																																																																																																									   
+																																																																																																																																																																									   INFOGRAPHISTE UNIQUEMENT
+																																																																																																																																																																									   ===================================== #}
 
 													{% if peutVoirPrepresse %}
 
 														<a href="{{ path( 'app_controle_pre_presse_index' ) }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_controle_pre_presse_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_controle_pre_presse_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-check-square-o
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-check-square-o
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Prépresse
 
@@ -991,25 +976,25 @@
 
 
 													{# =====================================
-																																																																																											   PRODUCTIONS TERMINÉES
-																																																																																											   ===================================== #}
+																																																																																																																																																																									   PRODUCTIONS TERMINÉES
+																																																																																																																																																																									   ===================================== #}
 
 													<a href="{{ path( 'app_production_termines' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										==
-																																																																																																										'app_production_termines'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				==
+																																																																																																																																																																																																				'app_production_termines'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-check-circle
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-check-circle
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Productions terminées
 
@@ -1025,10 +1010,10 @@
 
 
 									{# =================================================
-																																																															   STOCK / ACHATS
-																																																															   
-																																																															   ADMIN UNIQUEMENT
-																																																															   ================================================= #}
+																																																																																																																					   STOCK / ACHATS
+																																																																																																																					   
+																																																																																																																					   ADMIN UNIQUEMENT
+																																																																																																																					   ================================================= #}
 
 									{% if peutVoirStocks %}
 
@@ -1041,9 +1026,9 @@
 													<h4 class="font-weight-normal">
 
 														<i class="
-																																																																																																										typcn
-																																																																																																										typcn-archive
-																																																																																																									"></i>
+																																																																																																																																																																																																				typcn
+																																																																																																																																																																																																				typcn-archive
+																																																																																																																																																																																																			"></i>
 
 														Stocks et achats
 
@@ -1051,30 +1036,30 @@
 
 
 													<h6 class="
-																																																																																																									text-uppercase
-																																																																																																									mt-4
-																																																																																																									mb-3
-																																																																																																								">
+																																																																																																																																																																																																			text-uppercase
+																																																																																																																																																																																																			mt-4
+																																																																																																																																																																																																			mb-3
+																																																																																																																																																																																																		">
 														Stock
 													</h6>
 
 
 													<a href="{{ path( 'app_stock_etat_index' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_stock_etat_'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_stock_etat_'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-dashboard
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-dashboard
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														État du stock
 
@@ -1082,21 +1067,21 @@
 
 
 													<a href="{{ path( 'app_article_index' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_article_'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_article_'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-cubes
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-cubes
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Articles et matières
 
@@ -1106,10 +1091,10 @@
 													<a href="{{ path( 'app_stock_etat_index' ) }}" class="slide-item">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-exchange
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-exchange
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Mouvements de stock
 
@@ -1117,30 +1102,30 @@
 
 
 													<h6 class="
-																																																																																																									text-uppercase
-																																																																																																									mt-4
-																																																																																																									mb-3
-																																																																																																								">
+																																																																																																																																																																																																			text-uppercase
+																																																																																																																																																																																																			mt-4
+																																																																																																																																																																																																			mb-3
+																																																																																																																																																																																																		">
 														Achats
 													</h6>
 
 
 													<a href="{{ path( 'app_fournisseur_index' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_fournisseur_'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_fournisseur_'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-truck
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-truck
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Fournisseurs
 
@@ -1148,22 +1133,22 @@
 
 
 													<a href="{{ path( 'app_achat_index', {statut: 'demande'} ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_achat_'
-																																																																																																										and app.request.query.get('statut', 'demande') == 'demande'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_achat_'
+																																																																																																																																																																																																				and app.request.query.get('statut', 'demande') == 'demande'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-file-text-o
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-file-text-o
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Demandes d'achat
 
@@ -1171,22 +1156,22 @@
 
 
 													<a href="{{ path( 'app_achat_index', {statut: 'recu'} ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_achat_'
-																																																																																																										and app.request.query.get('statut') == 'recu'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_achat_'
+																																																																																																																																																																																																				and app.request.query.get('statut') == 'recu'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-shopping-basket
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-shopping-basket
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Achats
 
@@ -1202,8 +1187,8 @@
 
 
 									{# =================================================
-																																																															   GESTION / TRÉSORERIE
-																																																															   ================================================= #}
+																																																																																																																					   GESTION / TRÉSORERIE
+																																																																																																																					   ================================================= #}
 
 									{% if peutVoirGestion %}
 
@@ -1216,9 +1201,9 @@
 													<h4 class="font-weight-normal">
 
 														<i class="
-																																																																																																										typcn
-																																																																																																										typcn-chart-line-outline
-																																																																																																									"></i>
+																																																																																																																																																																																																				typcn
+																																																																																																																																																																																																				typcn-chart-line-outline
+																																																																																																																																																																																																			"></i>
 
 														Gestion et trésorerie
 
@@ -1226,8 +1211,8 @@
 
 
 													{# =====================================
-																																																																																											   FACTURATION
-																																																																																											   ===================================== #}
+																																																																																																																																																																									   FACTURATION
+																																																																																																																																																																									   ===================================== #}
 
 													{% if
 														peutVoirFactures
@@ -1235,10 +1220,10 @@
 													%}
 
 														<h6 class="
-																																																																																																																text-uppercase
-																																																																																																																mt-4
-																																																																																																																mb-3
-																																																																																																															">
+																																																																																																																																																																																																																text-uppercase
+																																																																																																																																																																																																																mt-4
+																																																																																																																																																																																																																mb-3
+																																																																																																																																																																																																															">
 															Facturation
 														</h6>
 
@@ -1248,21 +1233,21 @@
 													{% if peutVoirFactures %}
 
 														<a href="{{ path( 'app_factures_index' ) }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_factures_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_factures_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-file-text
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-file-text
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Factures
 
@@ -1274,21 +1259,21 @@
 													{% if peutVoirPaiements %}
 
 														<a href="{{ path( 'app_paiements_index' ) }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_paiements_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_paiements_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-money
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-money
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Paiements
 
@@ -1298,36 +1283,36 @@
 
 
 													{# =====================================
-																																																																																											   TRÉSORERIE
-																																																																																											   ===================================== #}
+																																																																																																																																																																									   TRÉSORERIE
+																																																																																																																																																																									   ===================================== #}
 
 													{% if peutVoirTresorerie %}
 
 														<h6 class="
-																																																																																																																text-uppercase
-																																																																																																																mt-4
-																																																																																																																mb-3
-																																																																																																															">
+																																																																																																																																																																																																																text-uppercase
+																																																																																																																																																																																																																mt-4
+																																																																																																																																																																																																																mb-3
+																																																																																																																																																																																																															">
 															Trésorerie
 														</h6>
 
 
 														<a href="{{ path( 'app_compte_tresorerie_index' ) }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_compte_tresorerie_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_compte_tresorerie_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-bank
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-bank
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Comptes de trésorerie
 
@@ -1335,32 +1320,45 @@
 
 
 														<a href="{{ path( 'app_mouvement_tresorerie_index' ) }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_mouvement_tresorerie_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_mouvement_tresorerie_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-exchange
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-exchange
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Mouvements de trésorerie
 
 														</a>
 
+														{% if peutVoirComptesTresorerie %}
+
+															<a href="{{ path( 'app_decaissement_recurrent_index' ) }}" class="slide-item {{ routeCourante starts with 'app_decaissement_recurrent_' ? 'active' : '' }}">
+
+																<i class="fa fa-refresh mr-2"></i>
+
+																Décaissements automatiques
+
+															</a>
+
+														{% endif %}
+
+
 													{% endif %}
 
 
 													{# =====================================
-																																																																																											   CONTRÔLE
-																																																																																											   ===================================== #}
+																																																																																																																																																																									   CONTRÔLE
+																																																																																																																																																																									   ===================================== #}
 
 													{% if
 														peutVoirJournalCaisse
@@ -1368,10 +1366,10 @@
 													%}
 
 														<h6 class="
-																																																																																																																text-uppercase
-																																																																																																																mt-4
-																																																																																																																mb-3
-																																																																																																															">
+																																																																																																																																																																																																																text-uppercase
+																																																																																																																																																																																																																mt-4
+																																																																																																																																																																																																																mb-3
+																																																																																																																																																																																																															">
 															Contrôle
 														</h6>
 
@@ -1381,21 +1379,21 @@
 													{% if peutVoirJournalCaisse %}
 
 														<a href="{{ path( 'app_journal_caisse_index' ) }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_journal_caisse_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_journal_caisse_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-book
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-book
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Journal de caisse
 
@@ -1407,21 +1405,21 @@
 													{% if peutVoirRapprochement %}
 
 														<a href="{{ path( 'app_rapprochement_bancaire_index' ) }}" class="
-																																																																																																																slide-item
-																																																																																																																{{
-																																																																																																																	routeCourante
-																																																																																																																	starts with
-																																																																																																																	'app_rapprochement_bancaire_'
-																																																																																																																		? 'active'
-																																																																																																																		: ''
-																																																																																																																}}
-																																																																																																															">
+																																																																																																																																																																																																																slide-item
+																																																																																																																																																																																																																{{
+																																																																																																																																																																																																																	routeCourante
+																																																																																																																																																																																																																	starts with
+																																																																																																																																																																																																																	'app_rapprochement_bancaire_'
+																																																																																																																																																																																																																		? 'active'
+																																																																																																																																																																																																																		: ''
+																																																																																																																																																																																																																}}
+																																																																																																																																																																																																															">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-check-square-o
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-check-square-o
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Rapprochements bancaires
 
@@ -1431,8 +1429,8 @@
 
 
 													{# =====================================
-																																																																																											   STATISTIQUES
-																																																																																											   ===================================== #}
+																																																																																																																																																																									   STATISTIQUES
+																																																																																																																																																																									   ===================================== #}
 
 													{% if
 														peutVoirMesStats
@@ -1440,10 +1438,10 @@
 													%}
 
 														<h6 class="
-																																																																																																																text-uppercase
-																																																																																																																mt-4
-																																																																																																																mb-3
-																																																																																																															">
+																																																																																																																																																																																																																text-uppercase
+																																																																																																																																																																																																																mt-4
+																																																																																																																																																																																																																mb-3
+																																																																																																																																																																																																															">
 															Statistiques
 														</h6>
 
@@ -1455,10 +1453,10 @@
 														<a href="#" class="slide-item">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-line-chart
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-line-chart
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Mes encaissements
 
@@ -1472,10 +1470,10 @@
 														<a href="#" class="slide-item">
 
 															<i class="
-																																																																																																																	fa
-																																																																																																																	fa-bar-chart
-																																																																																																																	mr-2
-																																																																																																																"></i>
+																																																																																																																																																																																																																	fa
+																																																																																																																																																																																																																	fa-bar-chart
+																																																																																																																																																																																																																	mr-2
+																																																																																																																																																																																																																"></i>
 
 															Statistiques globales
 
@@ -1493,10 +1491,10 @@
 
 
 									{# =================================================
-																																																															   RESSOURCES HUMAINES
-																																																															   
-																																																															   ADMIN UNIQUEMENT
-																																																															   ================================================= #}
+																																																																																																																					   RESSOURCES HUMAINES
+																																																																																																																					   
+																																																																																																																					   ADMIN UNIQUEMENT
+																																																																																																																					   ================================================= #}
 
 									{% if peutVoirRh %}
 
@@ -1509,9 +1507,9 @@
 													<h4 class="font-weight-normal">
 
 														<i class="
-																																																																																																										typcn
-																																																																																																										typcn-group-outline
-																																																																																																									"></i>
+																																																																																																																																																																																																				typcn
+																																																																																																																																																																																																				typcn-group-outline
+																																																																																																																																																																																																			"></i>
 
 														Ressources humaines
 
@@ -1519,19 +1517,19 @@
 
 
 													<a href="{{ path( 'app_employes_index' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_employes_'
-																																																																																																										and
-																																																																																																										routeCourante
-																																																																																																										!=
-																																																																																																										'app_employes_new'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_employes_'
+																																																																																																																																																																																																				and
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				!=
+																																																																																																																																																																																																				'app_employes_new'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="fa fa-users mr-2"></i>
 
@@ -1541,21 +1539,21 @@
 
 
 													<a href="{{ path( 'app_employes_new' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										==
-																																																																																																										'app_employes_new'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				==
+																																																																																																																																																																																																				'app_employes_new'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-user-plus
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-user-plus
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Ajouter un employé
 
@@ -1563,21 +1561,21 @@
 
 
 													<a href="{{ path( 'app_user_index' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_user_'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_user_'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-lock
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-lock
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Utilisateurs et accès
 
@@ -1585,21 +1583,21 @@
 
 
 													<a href="{{ path( 'app_journal_activite_index' ) }}" class="
-																																																																																																									slide-item
-																																																																																																									{{
-																																																																																																										routeCourante
-																																																																																																										starts with
-																																																																																																										'app_journal_activite_'
-																																																																																																											? 'active'
-																																																																																																											: ''
-																																																																																																									}}
-																																																																																																								">
+																																																																																																																																																																																																			slide-item
+																																																																																																																																																																																																			{{
+																																																																																																																																																																																																				routeCourante
+																																																																																																																																																																																																				starts with
+																																																																																																																																																																																																				'app_journal_activite_'
+																																																																																																																																																																																																					? 'active'
+																																																																																																																																																																																																					: ''
+																																																																																																																																																																																																			}}
+																																																																																																																																																																																																		">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-history
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-history
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Journal d'activité
 
@@ -1609,10 +1607,10 @@
 													<a href="#" class="slide-item">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-clock-o
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-clock-o
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Présences
 
@@ -1622,10 +1620,10 @@
 													<a href="#" class="slide-item">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-calendar
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-calendar
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Congés et absences
 
@@ -1641,10 +1639,10 @@
 
 
 									{# =================================================
-																																																															   PARAMÈTRES
-																																																															   
-																																																															   ADMIN UNIQUEMENT
-																																																															   ================================================= #}
+																																																																																																																					   PARAMÈTRES
+																																																																																																																					   
+																																																																																																																					   ADMIN UNIQUEMENT
+																																																																																																																					   ================================================= #}
 
 									{% if peutVoirParametres %}
 
@@ -1657,9 +1655,9 @@
 													<h4 class="font-weight-normal">
 
 														<i class="
-																																																																																																										typcn
-																																																																																																										typcn-spanner-outline
-																																																																																																									"></i>
+																																																																																																																																																																																																				typcn
+																																																																																																																																																																																																				typcn-spanner-outline
+																																																																																																																																																																																																			"></i>
 
 														Catalogue
 
@@ -1730,10 +1728,10 @@
 
 
 													<h6 class="
-																																																																																																									text-uppercase
-																																																																																																									mt-4
-																																																																																																									mb-3
-																																																																																																								">
+																																																																																																																																																																																																			text-uppercase
+																																																																																																																																																																																																			mt-4
+																																																																																																																																																																																																			mb-3
+																																																																																																																																																																																																		">
 
 														Administration
 
@@ -1743,10 +1741,10 @@
 													<a href="{{ path( 'app_user_index' ) }}" class="slide-item">
 
 														<i class="
-																																																																																																										fa
-																																																																																																										fa-users
-																																																																																																										mr-2
-																																																																																																									"></i>
+																																																																																																																																																																																																				fa
+																																																																																																																																																																																																				fa-users
+																																																																																																																																																																																																				mr-2
+																																																																																																																																																																																																			"></i>
 
 														Utilisateurs et accès
 
@@ -1768,15 +1766,15 @@
 
 
 													<a href="{{ path( 'app_parametres_paiement_edit' ) }}" class="
-																															slide-item
-																															{{
-																																routeCourante
-																																starts with
-																																'app_parametres_paiement_'
-																																	? 'active'
-																																	: ''
-																															}}
-																														">
+																																																																																																																									slide-item
+																																																																																																																									{{
+																																																																																																																										routeCourante
+																																																																																																																										starts with
+																																																																																																																										'app_parametres_paiement_'
+																																																																																																																											? 'active'
+																																																																																																																											: ''
+																																																																																																																									}}
+																																																																																																																								">
 
 														Frais de paiement mobile money
 
@@ -1792,10 +1790,10 @@
 
 
 									{# =================================================
-																											   RÉCLAMATIONS
-									
-																											   Accessible à tous les utilisateurs connectés.
-																											   ================================================= #}
+																																																																																	   RÉCLAMATIONS
+																																																															
+																																																																																	   Accessible à tous les utilisateurs connectés.
+																																																																																	   ================================================= #}
 
 									<div data-panel="reclamations" class="{{ menuActif == 'reclamations' ? 'resp-tab-content-active' : '' }}">
 
@@ -1806,9 +1804,9 @@
 												<h4 class="font-weight-normal">
 
 													<i class="
-																																													fa
-																																													fa-money
-																																												"></i>
+																																																																																																																																	fa
+																																																																																																																																	fa-money
+																																																																																																																																"></i>
 
 													Réclamations
 
@@ -1816,20 +1814,43 @@
 
 
 												<a href="{{ path( 'app_reclamation_index' ) }}" class="
-																																												slide-item
-																																												{{
-																																													routeCourante
-																																													starts with
-																																													'app_reclamation_'
-																																														? 'active'
-																																														: ''
-																																												}}
-																																											">
+																																																																																																																																slide-item
+																																																																																																																																{{
+																																																																																																																																	routeCourante
+																																																																																																																																	starts with
+																																																																																																																																	'app_reclamation_'
+																																																																																																																																		? 'active'
+																																																																																																																																		: ''
+																																																																																																																																}}
+																																																																																																																															">
 
 													<i class="fa fa-money mr-2"></i>
 
 													Mes réclamations
 
+												</a>
+
+											</div>
+
+										</div>
+
+									</div>
+
+
+									<div data-panel="messagerie" class="{{ menuActif == 'messagerie' ? 'resp-tab-content-active' : '' }}">
+
+										<div class="row">
+
+											<div class="col-md-12">
+
+												<h4 class="font-weight-normal">
+													<i class="fa fa-comments"></i>
+													Messagerie
+												</h4>
+
+												<a href="{{ path( 'app_chat_index' ) }}" class="slide-item {{ routeCourante starts with 'app_chat_' ? 'active' : '' }}">
+													<i class="fa fa-comments mr-2"></i>
+													Discussions
 												</a>
 
 											</div>
@@ -1850,16 +1871,16 @@
 
 
 				{# ============================================================
-																												   CONTENU
-																												   ============================================================ #}
+																																																				   CONTENU
+																																																				   ============================================================ #}
 
 				<div
 					class="app-content my-3 my-md-5">
 
 
 					{# ========================================================
-																																			   HEADER
-																																			   ======================================================== #}
+																																																																	   HEADER
+																																																																	   ======================================================== #}
 
 					<div class="header header-fixed">
 
@@ -1873,25 +1894,25 @@
 
 								<div
 									class="
-																																																																						d-flex
-																																																																						order-lg-2
-																																																																						ml-auto
-																																																																						header-right-icons
-																																																																					">
+																																																																																																																																		d-flex
+																																																																																																																																		order-lg-2
+																																																																																																																																		ml-auto
+																																																																																																																																		header-right-icons
+																																																																																																																																	">
 
 
 									{# =========================================
-																																																															   PLEIN ÉCRAN
-																																																															   ========================================= #}
+																																																																																																																					   PLEIN ÉCRAN
+																																																																																																																					   ========================================= #}
 
 									<div class="dropdown d-sm-flex d-none">
 
 										<a class="
-																																																																																				nav-link
-																																																																																				icon
-																																																																																				full-screen-link
-																																																																																				nav-link-bg
-																																																																																			">
+																																																																																																																																																												nav-link
+																																																																																																																																																												icon
+																																																																																																																																																												full-screen-link
+																																																																																																																																																												nav-link-bg
+																																																																																																																																																											">
 
 											<i class="ti-arrows-corner" id="fullscreen-button"></i>
 
@@ -1901,80 +1922,81 @@
 
 
 									{# =========================================
-																																																															   NOTIFICATIONS
-																																																															   ========================================= #}
+																																																																																																																					   NOTIFICATIONS
+																																																																																																																					   ========================================= #}
 
-														<div class="
-																																																																											dropdown
-																																																																										d-sm-flex
-																																																																										d-none
-																																																																										notifications
-																																																																										">
+									<div class="
+																																																																																																																																													dropdown
+																																																																																																																																												d-sm-flex
+																																																																																																																																												d-none
+																																																																																																																																												notifications
+																																																																																																																																												">
 
-						{% set reclamationsANotifier = mes_reclamations_a_notifier() %}
-						{% set notificationsGenerales = mes_notifications() %}
-						{% set totalNotifications = reclamationsANotifier|length + notificationsGenerales|length %}
+										{% set reclamationsANotifier = mes_reclamations_a_notifier() %}
+										{% set notificationsGenerales = mes_notifications() %}
+										{% set totalNotifications = reclamationsANotifier|length + notificationsGenerales|length %}
 
-						<a class="nav-link icon" data-toggle="dropdown">
+										<a class="nav-link icon" data-toggle="dropdown">
 
-							<i class="ti-bell"></i>
+											<i class="ti-bell"></i>
 
-							{% if totalNotifications > 0 %}
-								<span class="badge badge-danger" style="position: absolute; top: 4px; right: 4px; font-size: 10px;">
-									{{ totalNotifications }}
-								</span>
-							{% endif %}
+											{% if totalNotifications > 0 %}
+												<span class="badge badge-danger" style="position: absolute; top: 4px; right: 4px; font-size: 10px;">
+													{{ totalNotifications }}
+												</span>
+											{% endif %}
 
-						</a>
+										</a>
 
 
-						<div class="
-																																																																																				dropdown-menu
-																																																																																				dropdown-menu-right
-																																																																																				dropdown-menu-arrow
-																																																																																			">
+										<div class="
+																																																																																																																																																												dropdown-menu
+																																																																																																																																																												dropdown-menu-right
+																																																																																																																																																												dropdown-menu-arrow
+																																																																																																																																																											">
 
-							{% if totalNotifications > 0 %}
+											{% if totalNotifications > 0 %}
 
-								{% for reclamationANotifier in reclamationsANotifier %}
+												{% for reclamationANotifier in reclamationsANotifier %}
 
-									<a href="{{ path('app_reclamation_show', {id: reclamationANotifier.id}) }}" class="dropdown-item">
-										<strong>Réclamation {{ reclamationANotifier.reference }} validée</strong>
-										<div class="small text-muted">Passez à la caisse pour le paiement.</div>
-									</a>
+													<a href="{{ path('app_reclamation_show', {id: reclamationANotifier.id}) }}" class="dropdown-item">
+														<strong>Réclamation
+															{{ reclamationANotifier.reference }}
+															validée</strong>
+														<div class="small text-muted">Passez à la caisse pour le paiement.</div>
+													</a>
 
-								{% endfor %}
+												{% endfor %}
 
-								{% for notificationGenerale in notificationsGenerales %}
+												{% for notificationGenerale in notificationsGenerales %}
 
-									<a href="{{ path('app_notification_ouvrir', {id: notificationGenerale.id}) }}" class="dropdown-item">
-										<div class="small">{{ notificationGenerale.message }}</div>
-									</a>
+													<a href="{{ path('app_notification_ouvrir', {id: notificationGenerale.id}) }}" class="dropdown-item">
+														<div class="small">{{ notificationGenerale.message }}</div>
+													</a>
 
-								{% endfor %}
+												{% endfor %}
 
-							{% else %}
+											{% else %}
 
-								<div class="
-																																																																																											dropdown-item
-																																																																																											text-center
-																																																																																										">
+												<div class="
+																																																																																																																																																																															dropdown-item
+																																																																																																																																																																															text-center
+																																																																																																																																																																														">
 
-									Aucune nouvelle notification
+													Aucune nouvelle notification
 
-								</div>
+												</div>
 
-							{% endif %}
+											{% endif %}
 
-						</div>
+										</div>
 
-					</div>
-
+									</div>
 
 
 									{# =========================================
-																		   MESSAGERIE INTERNE
-																		   ========================================= #}
+																																																																								   MESSAGERIE INTERNE
+																																																																								   ========================================= #}
 
 									<div class="d-sm-flex d-none">
 
@@ -1996,25 +2018,25 @@
 
 
 									{# =========================================
-																																																															   PROFIL UTILISATEUR
-																																																															   ========================================= #}
+																																																																																																																					   PROFIL UTILISATEUR
+																																																																																																																					   ========================================= #}
 
 									{% if app.user %}
 
 										<div class="
-																																																																																				dropdown
-																																																																																				text-center
-																																																																																				selector
-																																																																																				profile-1
-																																																																																				d-sm-flex
-																																																																																			">
+																																																																																																																																																												dropdown
+																																																																																																																																																												text-center
+																																																																																																																																																												selector
+																																																																																																																																																												profile-1
+																																																																																																																																																												d-sm-flex
+																																																																																																																																																											">
 
 											<a href="#" data-toggle="dropdown" class="
-																																																																																											nav-link
-																																																																																											leading-none
-																																																																																											d-flex
-																																																																																											align-items-center
-																																																																																										">
+																																																																																																																																																																									nav-link
+																																																																																																																																																																									leading-none
+																																																																																																																																																																									d-flex
+																																																																																																																																																																									align-items-center
+																																																																																																																																																																								">
 
 												{% if
 													app.user.employe
@@ -2023,18 +2045,18 @@
 												%}
 
 													<img src="{{ asset( 'uploads/employes/' ~ app.user.employe.photos ) }}" class="
-																																																																																																			avatar
-																																																																																																			brround
-																																																																																																		" alt="{{ app.user.userIdentifier }}">
+																																																																																																																																																																																							avatar
+																																																																																																																																																																																							brround
+																																																																																																																																																																																						" alt="{{ app.user.userIdentifier }}">
 
 												{% else %}
 
 													<span class="
-																																																																																																									avatar
-																																																																																																									brround
-																																																																																																									bg-primary
-																																																																																																									text-white
-																																																																																																								">
+																																																																																																																																																																																																			avatar
+																																																																																																																																																																																																			brround
+																																																																																																																																																																																																			bg-primary
+																																																																																																																																																																																																			text-white
+																																																																																																																																																																																																		">
 
 														{{
 															app.user
@@ -2051,16 +2073,16 @@
 
 
 											<div class="
-																																																																																											dropdown-menu
-																																																																																											dropdown-menu-right
-																																																																																											dropdown-menu-arrow
-																																																																																										">
+																																																																																																																																																																									dropdown-menu
+																																																																																																																																																																									dropdown-menu-right
+																																																																																																																																																																									dropdown-menu-arrow
+																																																																																																																																																																								">
 
 												<div class="
-																																																																																																		px-4
-																																																																																																		py-3
-																																																																																																		border-bottom
-																																																																																																	">
+																																																																																																																																																																																						px-4
+																																																																																																																																																																																						py-3
+																																																																																																																																																																																						border-bottom
+																																																																																																																																																																																					">
 
 													<strong>
 
@@ -2075,9 +2097,9 @@
 													{% if app.user.employe %}
 
 														<small class="
-																																																																																																																d-block
-																																																																																																																text-muted
-																																																																																																															">
+																																																																																																																																																																																																																d-block
+																																																																																																																																																																																																																text-muted
+																																																																																																																																																																																																															">
 
 															{{
 																app.user
@@ -2103,10 +2125,10 @@
 												<a class="dropdown-item" href="{{ path( 'app_user_change_password' ) }}">
 
 													<i class="
-																																																																																																			dropdown-icon
-																																																																																																			mdi
-																																																																																																			mdi-lock-outline
-																																																																																																		"></i>
+																																																																																																																																																																																							dropdown-icon
+																																																																																																																																																																																							mdi
+																																																																																																																																																																																							mdi-lock-outline
+																																																																																																																																																																																						"></i>
 
 													Modifier mon mot de passe
 
@@ -2116,10 +2138,10 @@
 												<a class="dropdown-item" href="{{ path( 'app_logout' ) }}">
 
 													<i class="
-																																																																																																			dropdown-icon
-																																																																																																			mdi
-																																																																																																			mdi-logout-variant
-																																																																																																		"></i>
+																																																																																																																																																																																							dropdown-icon
+																																																																																																																																																																																							mdi
+																																																																																																																																																																																							mdi-logout-variant
+																																																																																																																																																																																						"></i>
 
 													Déconnexion
 
@@ -2141,8 +2163,8 @@
 
 
 					{# ========================================================
-																																			   PAGE
-																																			   ======================================================== #}
+																																																																	   PAGE
+																																																																	   ======================================================== #}
 
 					<div class="container-fluid"> {% block body %}{% endblock %}
 
@@ -2154,8 +2176,8 @@
 
 
 				{# ============================================================
-																											   FOOTER
-																											   ============================================================ #}
+																																																			   FOOTER
+																																																			   ============================================================ #}
 
 				<footer class="footer">
 
@@ -2167,8 +2189,8 @@
 							{{ 'now'|date('Y') }}
 
 							MDG - ERP.
-																																										
-																																																Tous droits réservés.
+																																																																																				
+																																																																																										Tous droits réservés.
 
 						</div>
 
@@ -2187,8 +2209,8 @@
 
 
 			{# ================================================================
-																				   SCRIPTS
-																				   ================================================================ #}
+																																						   SCRIPTS
+																																						   ================================================================ #}
 
 			<script src="{{ asset( 'assets/js/vendors/jquery-3.2.1.min.js' ) }}"></script>
 
@@ -2248,17 +2270,17 @@
 
 
 			{# ================================================================
-																				   SWEETALERT
-																				   
-																				   UNE SEULE VERSION
-																				   ================================================================ #}
+																																						   SWEETALERT
+																																						   
+																																						   UNE SEULE VERSION
+																																						   ================================================================ #}
 
 			<script src="{{ asset( 'assets/plugins/sweet-alert/sweetalert2.all.min.js' ) }}"></script>
 
 
 			{# ================================================================
-																				   MENU DYNAMIQUE
-																				   ================================================================ #}
+																																						   MENU DYNAMIQUE
+																																						   ================================================================ #}
 
 			<script>
 
@@ -2436,8 +2458,8 @@ initialiserMenuMDG();
 
 
 			{# ================================================================
-																				   NOTIFICATIONS FLASH
-																				   ================================================================ #}
+																																						   NOTIFICATIONS FLASH
+																																						   ================================================================ #}
 
 			{% set notifications = {
 			success: app.flashes('success'),

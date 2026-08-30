@@ -1112,11 +1112,30 @@ const forms = document.querySelectorAll('.js-confirm-form');
 
 forms.forEach(function (form) {
 form.addEventListener('submit', function (event) {
+event.preventDefault();
+
 const message = form.dataset.message || 'Voulez-vous continuer ?';
 
-if (!window.confirm(message)) {
-event.preventDefault();
+if (typeof window.Swal === 'undefined') {
+if (window.confirm(message)) {
+form.submit();
 }
+
+return;
+}
+
+window.Swal.fire({
+icon: 'question',
+title: 'Confirmation',
+text: message,
+showCancelButton: true,
+confirmButtonText: 'Oui, continuer',
+cancelButtonText: 'Annuler'
+}).then(function (resultat) {
+if (resultat.isConfirmed) {
+form.submit();
+}
+});
 });
 });
 });

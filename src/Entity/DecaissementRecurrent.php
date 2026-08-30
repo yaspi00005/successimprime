@@ -17,6 +17,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
  */
 #[ORM\Entity(repositoryClass: DecaissementRecurrentRepository::class)]
 #[ORM\Table(name: 'decaissement_recurrent')]
+#[ORM\HasLifecycleCallbacks]
 class DecaissementRecurrent
 {
     public const FREQUENCE_MENSUELLE = 'mensuelle';

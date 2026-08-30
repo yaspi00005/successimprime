@@ -11,7 +11,8 @@ use Doctrine\ORM\EntityManagerInterface;
 final class PaiementService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager
+        private readonly EntityManagerInterface $entityManager,
+        private readonly MouvementTresorerieService $mouvementTresorerieService
     ) {
     }
 
@@ -91,10 +92,9 @@ final class PaiementService
             $mouvement = new MouvementTresorerie();
 
             $mouvement
-                ->setCompteTresorerie($compte)
-                ->setPaiement($paiement)
-                ->setSens(MouvementTresorerie::SENS_CREDIT)
-                ->setOrigine(MouvementTresorerie::ORIGINE_PAIEMENT)
+                ->setType(MouvementTresorerie::TYPE_ENCAISSEMENT)
+                ->setCategorie(MouvementTresorerie::CATEGORIE_VENTE)
+                ->setCompteDestination($compte)
                 ->setMontant($paiement->getMontant())
                 ->setReferenceExterne(
                     $this->construireReferencePaiement($paiement)
@@ -102,16 +102,17 @@ final class PaiementService
                 ->setLibelle(
                     $this->construireLibellePaiement($paiement)
                 )
-                ->setObservation($paiement->getObservation());
+                ->setDescription($paiement->getObservation());
+
+            $paiement->setMouvementTresorerie($mouvement);
 
             /*
-             * Cette méthode crédite le compte et mémorise
-             * le solde avant et après.
+             * enregistrer() crédite immédiatement le compte, sauf
+             * s’il s’agit d’un compte bancaire : le mouvement reste
+             * alors en attente d’une validation manuelle distincte
+             * (rapprochement bancaire).
              */
-            $mouvement->valider();
-
-            $this->entityManager->persist($mouvement);
-            $this->entityManager->flush();
+            $this->mouvementTresorerieService->enregistrer($mouvement);
 
             $connexion->commit();
 
@@ -179,7 +180,7 @@ final class PaiementService
                 LockMode::PESSIMISTIC_WRITE
             );
 
-            if (!$mouvement->estValide()) {
+            if (!$mouvement->isValide()) {
                 throw new \LogicException(
                     'Le mouvement de ce paiement n’est pas dans un état annulable.'
                 );
@@ -193,18 +194,12 @@ final class PaiementService
                 );
             }
 
-            $this->entityManager->lock(
-                $compte,
-                LockMode::PESSIMISTIC_WRITE
-            );
-
-            $this->entityManager->refresh($compte);
-
             /*
-             * annuler() exécute l’opération inverse :
-             * le crédit initial devient un débit.
+             * annulerValide() verrouille les comptes concernés,
+             * contrepasse le crédit initial (devient un débit) et
+             * marque le mouvement comme annulé.
              */
-            $mouvement->annuler($motif);
+            $this->mouvementTresorerieService->annulerValide($mouvement, $motif);
             $paiement->annuler($motif, $utilisateur);
 
             $this->entityManager->flush();

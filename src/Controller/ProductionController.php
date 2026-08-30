@@ -732,7 +732,7 @@ final class ProductionController extends AbstractController
                 'success',
                 sprintf(
                     'La production a démarré sur la machine %s.',
-                    $machine->getNom()
+                    $machine?->getNom() ?? 'du poste'
                 )
             );
         } catch (
@@ -980,6 +980,30 @@ public function terminer(
             $quantiteRebut,
             $observation
         );
+
+        /*
+         * ========================================================
+         * COMPTEUR D'USURE MACHINE
+         * ========================================================
+         *
+         * Suivi de l'usage uniquement (maintenance) : n'affecte pas
+         * l'amortissement, calculé sur le temps écoulé. Alimente
+         * compteurM2 ou compteurFeuilles selon le mode de facturation
+         * de la machine ; ignoré si la ligne n'a pas de dimensions
+         * (article en stock, saisie libre).
+         */
+        $machineUtilisee = $ordre->getMachine();
+
+        if ($machineUtilisee instanceof Machines) {
+            $largeurDetail = (float) ($detail->getLargeur() ?? 0);
+            $longueurDetail = (float) ($detail->getLongueur() ?? 0);
+
+            if ($largeurDetail > 0 && $longueurDetail > 0) {
+                $machineUtilisee->enregistrerUsage(
+                    $largeurDetail * $longueurDetail * $quantiteTraitee
+                );
+            }
+        }
 
         /*
          * ========================================================

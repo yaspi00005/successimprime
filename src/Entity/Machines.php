@@ -74,6 +74,14 @@ class Machines
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $compteurHeures = null;
 
+    /*
+     * Compteur en feuilles A4-équivalent (une A3 compte pour 2 A4),
+     * pour les machines facturées à la feuille. Distinct de
+     * compteurM2, réservé aux machines grand format.
+     */
+    #[ORM\Column(type: Types::INTEGER, options: ['default' => 0])]
+    private int $compteurFeuilles = 0;
+
     #[ORM\Column(length: 20)]
     private ?string $etat = null;
 
@@ -266,6 +274,18 @@ class Machines
         return $this;
     }
 
+    public function getCompteurFeuilles(): int
+    {
+        return $this->compteurFeuilles;
+    }
+
+    public function setCompteurFeuilles(int $compteurFeuilles): static
+    {
+        $this->compteurFeuilles = $compteurFeuilles;
+
+        return $this;
+    }
+
     public function getEtat(): ?string
     {
         return $this->etat;
@@ -444,6 +464,39 @@ public function setAdresseIp(string $adresseIp): static
     public function utiliseFeuille(): bool
     {
         return $this->modeFacturation === self::MODE_FACTURATION_FEUILLE;
+    }
+
+    /*
+     * Surface d'une feuille A4, en m² (0,21 x 0,297) — sert de
+     * référence pour convertir une surface imprimée en nombre de
+     * feuilles A4-équivalent (une A3 compte pour 2 A4).
+     */
+    private const SURFACE_A4_M2 = 0.21 * 0.297;
+
+    /**
+     * Ajoute l'usage d'une impression au compteur d'usure de la
+     * machine, uniquement pour suivre la maintenance — n'affecte pas
+     * le calcul de l'amortissement (basé sur le temps écoulé, voir
+     * getChargeAmortissementMensuelle()). Le compteur alimenté dépend
+     * du mode de facturation de la machine.
+     */
+    public function enregistrerUsage(float $surfaceM2Totale): void
+    {
+        if ($surfaceM2Totale <= 0) {
+            return;
+        }
+
+        if ($this->utiliseSurface()) {
+            $this->compteurM2 = ($this->compteurM2 ?? 0) + (int) round($surfaceM2Totale);
+
+            return;
+        }
+
+        if ($this->utiliseFeuille()) {
+            $this->compteurFeuilles += (int) round(
+                $surfaceM2Totale / self::SURFACE_A4_M2
+            );
+        }
     }
 
     public function getPrixAchat(): ?int

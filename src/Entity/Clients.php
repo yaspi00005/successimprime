@@ -128,7 +128,7 @@ class Clients
     #[Assert\PositiveOrZero(
         message: 'Le plafond de crédit ne peut pas être négatif.'
     )]
-    private ?int $plafondCredit = 0;
+    private ?int $plafondCredit = 100000;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $observation = null;

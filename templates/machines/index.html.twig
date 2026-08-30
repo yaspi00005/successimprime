@@ -279,6 +279,16 @@
 													</strong>
 												</div>
 
+												<div>
+													<small class="text-muted">
+														Feuilles :
+													</small>
+
+													<strong>
+														{{ machine.compteurFeuilles|default(0) }}
+													</strong>
+												</div>
+
 											</td>
 
 
@@ -716,6 +726,22 @@
 						</div>
 
 
+						{# COMPTEUR FEUILLES #}
+						<div class="col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineCreateCompteurFeuilles">
+									Compteur feuilles (A4-équivalent)
+								</label>
+
+								<input type="number" id="machineCreateCompteurFeuilles" class="form-control" min="0" step="1" value="0">
+
+							</div>
+
+						</div>
+
+
 						<div class="col-12">
 							<hr>
 							<h6 class="text-muted">Rentabilité / amortissement</h6>
@@ -1132,6 +1158,21 @@
 						</div>
 
 
+						<div class="col-md-6">
+
+							<div class="form-group">
+
+								<label class="form-label" for="machineEditCompteurFeuilles">
+									Compteur feuilles (A4-équivalent)
+								</label>
+
+								<input type="number" id="machineEditCompteurFeuilles" class="form-control" min="0" step="1">
+
+							</div>
+
+						</div>
+
+
 						<div class="col-12">
 							<hr>
 							<h6 class="text-muted">Rentabilité / amortissement</h6>
@@ -1468,6 +1509,8 @@ const compteurM2 = valeur('machineCreateCompteurM2');
 
 const compteurHeures = valeur('machineCreateCompteurHeures');
 
+const compteurFeuilles = valeur('machineCreateCompteurFeuilles');
+
 const etat = valeur('machineCreateEtat');
 
 const modeFacturation = valeur('machineCreateModeFacturation');
@@ -1594,6 +1637,8 @@ formData.append('dateMiseService', dateMiseService);
 formData.append('compteurM2', compteurM2 || '0');
 
 formData.append('compteurHeures', compteurHeures || '0');
+
+formData.append('compteurFeuilles', compteurFeuilles || '0');
 
 formData.append('etat', etat || 'disponible');
 
@@ -1763,6 +1808,8 @@ definirValeur('machineEditCompteurM2', machine.compteurM2 ?? 0);
 
 definirValeur('machineEditCompteurHeures', machine.compteurHeures ?? 0);
 
+definirValeur('machineEditCompteurFeuilles', machine.compteurFeuilles ?? 0);
+
 definirValeur('machineEditEtat', machine.etat || 'disponible');
 
 definirValeur('machineEditModeFacturation', machine.modeFacturation || 'metre_carre');
@@ -1824,6 +1871,8 @@ const dateMiseService = valeur('machineEditDateMiseService');
 const compteurM2 = valeur('machineEditCompteurM2');
 
 const compteurHeures = valeur('machineEditCompteurHeures');
+
+const compteurFeuilles = valeur('machineEditCompteurFeuilles');
 
 const etat = valeur('machineEditEtat');
 
@@ -1952,6 +2001,8 @@ formData.append('dateMiseService', dateMiseService);
 formData.append('compteurM2', compteurM2 || '0');
 
 formData.append('compteurHeures', compteurHeures || '0');
+
+formData.append('compteurFeuilles', compteurFeuilles || '0');
 
 formData.append('etat', etat || 'disponible');
 

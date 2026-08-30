@@ -433,6 +433,12 @@ final class MachinesController extends AbstractController
             0
         );
 
+        $compteurFeuilles = $this->recupererEntier(
+            $request,
+            'compteurFeuilles',
+            0
+        );
+
         /*
          * Dates.
          */
@@ -503,6 +509,7 @@ final class MachinesController extends AbstractController
             ->setNbTetes($nbTetes)
             ->setCompteurM2($compteurM2)
             ->setCompteurHeures($compteurHeures)
+            ->setCompteurFeuilles($compteurFeuilles)
             ->setEtat($etat)
             ->setModeFacturation($modeFacturation)
             ->setPrixAchat($prixAchat)
@@ -634,6 +641,9 @@ final class MachinesController extends AbstractController
 
             'compteurHeures' =>
                 $machine->getCompteurHeures(),
+
+            'compteurFeuilles' =>
+                $machine->getCompteurFeuilles(),
 
             'etat' => $machine->getEtat(),
 

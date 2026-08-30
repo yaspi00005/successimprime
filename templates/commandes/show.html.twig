@@ -224,6 +224,30 @@
 				{% endif %}
 
 
+				{% if
+					peutModifierCommande
+					and commande.statutTravaux != 'annulee'
+					and (
+						not commandeVerrouilleeProduction
+						or estAdmin
+					)
+				%}
+
+					<form method="post" action="{{ path( 'app_commandes_annuler', { id: commande.id } ) }}" class="js-confirm-form d-inline" data-message="Annuler la commande {{ commande.numero }} ? Cette action est irréversible.">
+
+						<input type="hidden" name="_token" value="{{ csrf_token( 'annuler-commande-' ~ commande.id ) }}">
+
+						<button type="submit" class="btn btn-sm btn-outline-danger mr-2 mb-2">
+							<i class="fe fe-x-circle mr-1"></i>
+							Annuler la commande
+						</button>
+
+					</form>
+
+				{% endif %}
+
+
+
 				{# ====================================================
 												   FACTURATION
 												   ==================================================== #}
@@ -245,6 +269,7 @@
 
 				{% if
 					peutModifierCommande
+					and commande.statutTravaux != 'annulee'
 					and (
 						not commandeVerrouilleeProduction
 						or estAdmin
@@ -259,6 +284,7 @@
 
 				{% elseif
 					commandeVerrouilleeProduction
+					and commande.statutTravaux != 'annulee'
 					and not estAdmin
 				%}
 
@@ -420,6 +446,9 @@
 
 							<small class="text-muted">
 								{{ reference }}
+								{% if commande.dateCommande %}
+									· {{ commande.dateCommande|date('d/m/Y') }}
+								{% endif %}
 							</small>
 
 						</div>
@@ -1105,6 +1134,29 @@
 
 										</div>
 
+										<div class="row mt-3">
+
+											<div class="col-12">
+
+												{% if (is_granted('ROLE_LIVRAISON') or estAdmin) and detail.estLivraisonDirecte and detail.statutProduction != 'livree' %}
+
+													<form method="post" action="{{ path( 'app_livraisons_livrer_directement', { id: detail.id } ) }}" class="js-confirm-form" data-message="Marquer « {{ detail.designation|default('ce travail') }} » comme livré ? Le stock réservé sera définitivement sorti.">
+
+														<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_direct_' ~ detail.id ) }}">
+
+														<button type="submit" class="btn btn-sm btn-success">
+															<i class="fe fe-truck mr-1"></i>
+															Marquer comme livré
+														</button>
+
+													</form>
+
+												{% endif %}
+
+											</div>
+
+										</div>
+
 									</div>
 
 								</div>
@@ -1522,5 +1574,34 @@
 
 		}
 	</style>
+
+{% endblock %}
+
+
+{% block javascripts %}
+
+	{{ parent() }}
+
+	<script>
+		document.addEventListener('DOMContentLoaded', function () {
+
+			const formulaires = document.querySelectorAll('.js-confirm-form');
+
+			formulaires.forEach(function (formulaire) {
+
+				formulaire.addEventListener('submit', function (event) {
+
+					const message = formulaire.dataset.message || 'Voulez-vous continuer ?';
+
+					if (!window.confirm(message)) {
+						event.preventDefault();
+					}
+
+				});
+
+			});
+
+		});
+	</script>
 
 {% endblock %}

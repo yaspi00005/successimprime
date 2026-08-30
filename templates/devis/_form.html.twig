@@ -137,7 +137,7 @@
 
 			{# MODE CONFIGURATION PRODUIT #}
 
-			<div class="js-zone-mode-configuration">
+			<div class="js-zone-mode-configuration" style="display:none;">
 
 				<div class="form-group">
 
@@ -2151,7 +2151,7 @@ zoneArticle.style.display = estArticle ? '' : 'none';
 
 
 if (zoneMode) {
-zoneMode.style.display = estProduit ? '' : 'none';
+zoneMode.style.display = 'none';
 }
 
 
@@ -2978,6 +2978,12 @@ if (produit) {
 const produitChange = function () {
 
 console.log('Produit changé :', produit.value);
+
+const optionProduit = produit.options[produit.selectedIndex];
+
+const nomProduit = optionProduit && produit.value ? optionProduit.textContent.trim() : '';
+
+definirValeurChamp(detail, 'designation', nomProduit, false);
 
 chargerConfigurationsProduit(detail, produit.value);
 };

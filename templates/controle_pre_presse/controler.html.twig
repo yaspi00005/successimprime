@@ -236,7 +236,20 @@
 
 		{# Formulaire autonome d'ajout d'un fichier traité.
 																																								   Il est déclaré ici pour éviter d'imbriquer deux formulaires HTML. #}
-		<form id="form-fichier-traite" method="post" enctype="multipart/form-data" action="{{ path('app_controle_pre_presse_ajouter_fichier_traite', {id: detail.id}) }}"></form>
+		{% set jetonTemporaireFichierTraite = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' %}
+		{% set indexTemporaireFichierTraite = 999999999 %}
+
+		{% set modeleUrlMorceauFichierTraite = path('app_controle_pre_presse_fichier_traite_morceau', {
+			jeton: jetonTemporaireFichierTraite,
+			index: indexTemporaireFichierTraite
+		}) %}
+
+		{% set modeleUrlMorceauFichierTraite = modeleUrlMorceauFichierTraite|replace({
+			(jetonTemporaireFichierTraite): '__JETON__',
+			(indexTemporaireFichierTraite ~ ''): '__INDEX__'
+		}) %}
+
+		<form id="form-fichier-traite" method="post" enctype="multipart/form-data" action="{{ path('app_controle_pre_presse_ajouter_fichier_traite', {id: detail.id}) }}" data-upload-initialiser-url="{{ path('app_controle_pre_presse_fichier_traite_initialiser', {id: detail.id}) }}" data-upload-morceau-url="{{ modeleUrlMorceauFichierTraite }}"></form>
 
 		{# ============================================================
 																																																								       FORMULAIRE DU CONTRÔLE
@@ -1323,6 +1336,159 @@ formulaire.submit();
 });
 });
 }
+});
+document.addEventListener('DOMContentLoaded', function () {
+/*
+ * ============================================================
+ * ENVOI PAR MORCEAUX (fichier traité)
+ * ============================================================
+ *
+ * Les champs de ce formulaire ("fichierTraite", "fichierSource"...)
+ * ne sont pas imbriqués dans <form id="form-fichier-traite"> : ils y
+ * sont rattachés via l'attribut form="form-fichier-traite" (pour
+ * éviter d'imbriquer deux <form> HTML sur cette page). Il faut donc
+ * les retrouver par leur id ou par [form="form-fichier-traite"],
+ * jamais par formulaire.querySelector(...).
+ */
+const formulaireFichierTraite = document.getElementById('form-fichier-traite');
+
+if (!formulaireFichierTraite) {
+return;
+}
+
+const initialiserUrl = formulaireFichierTraite.dataset.uploadInitialiserUrl;
+const morceauUrlModele = formulaireFichierTraite.dataset.uploadMorceauUrl;
+
+if (!initialiserUrl || !morceauUrlModele) {
+return;
+}
+
+const TAILLE_MORCEAU_FICHIER_TRAITE = 5 * 1024 * 1024;
+
+function construireUrlMorceauFichierTraite(jeton, index) {
+return morceauUrlModele
+.replace('__JETON__', jeton)
+.replace('__INDEX__', String(index));
+}
+
+formulaireFichierTraite.addEventListener('submit', function (event) {
+const champFichier = document.getElementById('fichierTraite');
+
+if (!champFichier || !champFichier.files || !champFichier.files.length) {
+return;
+}
+
+event.preventDefault();
+
+const fichier = champFichier.files[0];
+
+const champToken = document.querySelector('[form="form-fichier-traite"][name="_token"]');
+const bouton = document.querySelector('[form="form-fichier-traite"][type="submit"]');
+const champFichierSource = document.getElementById('fichierSource');
+const champFace = document.getElementById('faceTraitee');
+const champDesignation = document.getElementById('designationFichier');
+const champObservation = document.getElementById('observationFichier');
+
+const texteBoutonInitial = bouton ? bouton.innerHTML : '';
+
+if (bouton) {
+bouton.disabled = true;
+bouton.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Envoi en cours... 0 %';
+}
+
+(async function () {
+try {
+
+const jetonCsrf = champToken ? champToken.value : '';
+
+const nombreMorceaux = Math.max(
+1,
+Math.ceil(fichier.size / TAILLE_MORCEAU_FICHIER_TRAITE)
+);
+
+const reponseInit = await fetch(initialiserUrl, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRF-TOKEN': jetonCsrf,
+Accept: 'application/json'
+},
+body: JSON.stringify({
+nom: fichier.name,
+typeMime: fichier.type || 'application/octet-stream',
+taille: fichier.size,
+nombreMorceaux: nombreMorceaux,
+fichierSource: champFichierSource ? champFichierSource.value : '',
+face: champFace ? champFace.value : '',
+designation: champDesignation ? champDesignation.value : '',
+observation: champObservation ? champObservation.value : ''
+})
+});
+
+const donneesInit = await reponseInit.json();
+
+if (!reponseInit.ok || !donneesInit.jeton) {
+throw new Error(donneesInit.message || "Impossible d'initialiser l'envoi.");
+}
+
+const jeton = donneesInit.jeton;
+
+for (let index = 0; index < nombreMorceaux; index++) {
+
+const debut = index * TAILLE_MORCEAU_FICHIER_TRAITE;
+const fin = Math.min(fichier.size, debut + TAILLE_MORCEAU_FICHIER_TRAITE);
+
+const donneesMorceauFormulaire = new FormData();
+donneesMorceauFormulaire.append('morceau', fichier.slice(debut, fin), fichier.name);
+
+const reponseMorceau = await fetch(construireUrlMorceauFichierTraite(jeton, index), {
+method: 'POST',
+headers: {
+'X-CSRF-TOKEN': jetonCsrf
+},
+body: donneesMorceauFormulaire
+});
+
+const donneesMorceau = await reponseMorceau.json();
+
+if (!reponseMorceau.ok) {
+throw new Error(donneesMorceau.message || "L'envoi du fichier a été interrompu.");
+}
+
+const progression = typeof donneesMorceau.progression === 'number'
+? donneesMorceau.progression
+: Math.round(((index + 1) / nombreMorceaux) * 100);
+
+if (bouton) {
+bouton.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Envoi en cours... ' + progression + ' %';
+}
+}
+
+window.location.reload();
+
+} catch (erreur) {
+
+console.error(erreur);
+
+const messageErreur = erreur.message || 'Une erreur est survenue pendant l’envoi du fichier.';
+
+if (typeof window.Swal !== 'undefined') {
+window.Swal.fire({
+icon: 'error',
+title: 'Échec de l’envoi',
+text: messageErreur
+});
+} else {
+window.alert(messageErreur);
+}
+
+if (bouton) {
+bouton.disabled = false;
+bouton.innerHTML = texteBoutonInitial;
+}
+}
+})();
+});
 });
 	</script>
 {% endblock %}

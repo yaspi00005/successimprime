@@ -13,6 +13,8 @@ use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\GreaterThanOrEqual;
 use Symfony\Component\Validator\Constraints\NotNull;
@@ -23,54 +25,114 @@ use Doctrine\ORM\EntityRepository;
 
 class CommandesType extends AbstractType
 {
+    /**
+     * N'affiche que les clients actifs (statut = true, ou jamais
+     * renseigné pour les anciens clients créés avant ce champ).
+     *
+     * $inclureClientId permet de garder visible, en modification, le
+     * client déjà associé à la commande même s'il a été bloqué depuis
+     * — sinon le formulaire d'édition casserait sur les anciennes
+     * commandes.
+     */
+    private function optionsChampClients(?int $inclureClientId = null): array
+    {
+        return [
+            'class' => Clients::class,
+            'query_builder' => static function (
+                EntityRepository $er
+            ) use ($inclureClientId) {
+                $qb = $er->createQueryBuilder('c')
+                    ->orderBy('c.nom', 'ASC');
+
+                if ($inclureClientId !== null) {
+                    $qb
+                        ->andWhere('c.statut = :actif OR c.statut IS NULL OR c.id = :clientActuel')
+                        ->setParameter('clientActuel', $inclureClientId);
+                } else {
+                    $qb->andWhere('c.statut = :actif OR c.statut IS NULL');
+                }
+
+                return $qb->setParameter('actif', true);
+            },
+            'choice_label' => static function (
+                Clients $client
+            ): string {
+                $telephone = $client->getTelephone()
+                    ?: 'Sans téléphone';
+
+                $prenom = trim(
+                    (string) $client->getPrenom()
+                );
+
+                $nom = trim(
+                    (string) $client->getNom()
+                );
+
+                return trim(sprintf(
+                    '%s — %s %s',
+                    $telephone,
+                    $prenom,
+                    $nom
+                ));
+            },
+            'placeholder' => 'Sélectionnez un client',
+            'required' => true,
+            'choice_attr' => static function (
+                Clients $client
+            ): array {
+                return [
+                    'data-type-client' => $client->getTypeClient(),
+                ];
+            },
+            'attr' => [
+                'class' => 'form-select js-select-search',
+                'data-placeholder'
+                    => 'Téléphone, prénom ou nom...',
+            ],
+            'constraints' => [
+                new NotNull(
+                    message: 'Veuillez sélectionner un client.'
+                ),
+            ],
+        ];
+    }
+
     public function buildForm(
         FormBuilderInterface $builder,
         array $options
     ): void {
         $builder
-            ->add('clients', EntityType::class, [
-                'class' => Clients::class,
-                'choice_label' => static function (
-                    Clients $client
-                ): string {
-                    $telephone = $client->getTelephone()
-                        ?: 'Sans téléphone';
+            ->add(
+                'clients',
+                EntityType::class,
+                $this->optionsChampClients()
+            )
 
-                    $prenom = trim(
-                        (string) $client->getPrenom()
+            ->addEventListener(
+                FormEvents::PRE_SET_DATA,
+                function (FormEvent $event): void {
+                    $commande = $event->getData();
+
+                    $clientActuel = $commande instanceof Commandes
+                        ? $commande->getClients()
+                        : null;
+
+                    if (
+                        $clientActuel === null
+                        || $clientActuel->isStatut() !== false
+                    ) {
+                        return;
+                    }
+
+                    $event->getForm()->add(
+                        'clients',
+                        EntityType::class,
+                        $this->optionsChampClients(
+                            $clientActuel->getId()
+                        )
                     );
-
-                    $nom = trim(
-                        (string) $client->getNom()
-                    );
-
-                    return trim(sprintf(
-                        '%s — %s %s',
-                        $telephone,
-                        $prenom,
-                        $nom
-                    ));
-                },
-                'placeholder' => 'Sélectionnez un client',
-                'required' => true,
-                'choice_attr' => static function (
-                    Clients $client
-                ): array {
-                    return [
-                        'data-type-client' => $client->getTypeClient(),
-                    ];
-                },
-                'attr' => [
-                    'class' => 'form-select js-select-search',
-                    'data-placeholder'
-                        => 'Téléphone, prénom ou nom...',
-                ],
-                'constraints' => [
-                    new NotNull(
-                        message: 'Veuillez sélectionner un client.'
-                    ),
-                ],
-            ])
+                }
+            )
 
             ->add('dateLivraison', DateTimeType::class, [
                 'label' => 'Date de livraison',

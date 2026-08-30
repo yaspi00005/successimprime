@@ -1128,6 +1128,19 @@ public function livrer(
                 );
             }
 
+            /*
+             * Une ligne fraîchement créée (vente directe ou saisie
+             * libre) reste au statut par défaut "a_produire" tant
+             * que personne ne l'a explicitement basculée : on le
+             * fait ici avant de la préparer pour la livraison.
+             */
+            if (
+                $detail->getStatutProduction()
+                === CommandesDetails::PRODUCTION_A_PRODUIRE
+            ) {
+                $detail->marquerProductionNonRequise();
+            }
+
             $detail->marquerPreteLivraison();
 
             $em->flush();
@@ -1148,6 +1161,121 @@ public function livrer(
 
         return $this->redirectToRoute(
             'app_livraisons_index'
+        );
+    }
+
+    /*
+     * ============================================================
+     * LIVRAISON DIRECTE EN UN CLIC
+     * ============================================================
+     *
+     * Pour une ligne de vente directe (article en stock ou saisie
+     * libre, sans fabrication), enchaîne en une seule action tout
+     * le circuit (préparation, mise en livraison, sortie de stock
+     * et livraison), pour éviter de faire naviguer l'utilisateur
+     * entre plusieurs écrans pour un cas aussi simple.
+     * ============================================================
+     */
+    #[Route(
+        '/{id}/livrer-directement',
+        name: 'livrer_directement',
+        requirements: [
+            'id' => '\d+',
+        ],
+        methods: ['POST']
+    )]
+    public function livrerDirectement(
+        CommandesDetails $detail,
+        Request $request,
+        EntityManagerInterface $em,
+        StockService $stockService
+    ): Response {
+        $this->verifierJeton(
+            $request,
+            'livraison_direct_' . $detail->getId()
+        );
+
+        try {
+            if ($detail->isProductionNecessaire()) {
+                throw new \LogicException(
+                    'Cette ligne nécessite une production et ne peut pas être livrée directement.'
+                );
+            }
+
+            if (
+                $detail->getStatutProduction()
+                === CommandesDetails::PRODUCTION_A_PRODUIRE
+            ) {
+                $detail->marquerProductionNonRequise();
+            }
+
+            if (
+                $detail->getStatutProduction()
+                === CommandesDetails::PRODUCTION_NON_REQUISE
+            ) {
+                $detail->marquerPreteLivraison();
+            }
+
+            if (
+                $detail->getStatutProduction()
+                === CommandesDetails::PRODUCTION_PRETE_LIVRAISON
+            ) {
+                $detail->marquerEnLivraison();
+            }
+
+            if (
+                $detail->getStatutProduction()
+                !== CommandesDetails::PRODUCTION_EN_LIVRAISON
+            ) {
+                throw new \LogicException(
+                    'Cette ligne n’est pas dans un état permettant une livraison directe.'
+                );
+            }
+
+            if (
+                $detail->getTypeLigne()
+                === CommandesDetails::TYPE_ARTICLE
+            ) {
+                $article = $detail->getArticle();
+
+                $quantite = (float) $detail->getQuantite();
+
+                if ($article !== null && $quantite > 0) {
+                    $stockService->consommerPourDetail(
+                        $detail,
+                        StockSorties::ORIGINE_LIVRAISON,
+                        sprintf(
+                            'LIV-DIRECT-%06d',
+                            (int) $detail->getId()
+                        ),
+                        $quantite
+                    );
+                }
+            }
+
+            $detail->marquerLivree();
+
+            $em->flush();
+
+            $this->addFlash(
+                'success',
+                sprintf(
+                    '« %s » a été marqué comme livré.',
+                    $detail->getDesignation()
+                )
+            );
+        } catch (\LogicException $e) {
+            $this->addFlash(
+                'error',
+                $e->getMessage()
+            );
+        }
+
+        return $this->redirectToRoute(
+            'app_commandes_show',
+            [
+                'id' => $detail->getCommande()?->getId(),
+            ]
         );
     }
 

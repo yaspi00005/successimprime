@@ -3,12 +3,15 @@
 """
 Termine le correctif precedent (ajouter_decaissements_recurrents.py) :
 tous les fichiers ont ete crees avec succes chez vous, sauf le lien de
-menu dans templates/base.html.twig, dont l'indentation reelle differe
-de celle du bac a sable (meme situation deja rencontree sur ce projet).
+menu dans templates/base.html.twig. La structure reelle de ce fichier
+differe legerement de celle du bac a sable (un seul {% endif %} apres
+le lien "Mouvements de tresorerie", pas deux), en plus d'une
+indentation differente (espaces au lieu de tabulations).
 
-Ce script utilise une expression reguliere tolerante a l'indentation
-(au lieu d'un texte exact) pour ajouter le lien "Decaissements
-automatiques" sous Tresorerie, juste apres "Mouvements de tresorerie".
+Ce script utilise une expression reguliere tolerante a la fois a
+l'indentation ET a cette difference de structure pour ajouter le lien
+"Decaissements automatiques" sous Tresorerie, juste apres "Mouvements
+de tresorerie".
 
 Usage:
     python3 finir_menu_decaissements_recurrents.py /chemin/vers/successImprim
@@ -43,7 +46,8 @@ def verifier_racine(racine):
 
 
 MOTIF_MENU = re.compile(
-    r"(Mouvements\s+de\s+trésorerie\s*\n[ \t]*</a>\s*\n[ \t]*\{%-?\s*endif\s*-?%\}\s*\n\n?)"
+    r"(Mouvements\s+de\s+trésorerie[ \t]*\n(?:[ \t]*\n)*"
+    r"[ \t]*</a>[ \t]*\n(?:[ \t]*\n)*)"
     r"([ \t]*)(\{%-?\s*endif\s*-?%\})"
 )
 
@@ -51,14 +55,14 @@ MOTIF_MENU = re.compile(
 def _remplacement_menu(m):
     prefix = m.group(1)
     indent = m.group(2)
-    endif_final = m.group(3)
+    endif_existant = m.group(3)
 
     unite = "\t" if ("\t" in indent or indent == "") else "    "
     i1 = indent + unite
     i2 = i1 + unite
 
     return (
-        prefix + "\n"
+        prefix
         + indent + "{% if peutVoirComptesTresorerie %}\n\n"
         + i1 + "<a href=\"{{ path( 'app_decaissement_recurrent_index' ) }}\" "
         + "class=\"slide-item {{ routeCourante starts with 'app_decaissement_recurrent_' ? 'active' : '' }}\">\n\n"
@@ -66,7 +70,7 @@ def _remplacement_menu(m):
         + i2 + "Décaissements automatiques\n\n"
         + i1 + "</a>\n\n"
         + indent + "{% endif %}\n\n\n"
-        + indent + endif_final
+        + indent + endif_existant
     )
 
 

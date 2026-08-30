@@ -168,53 +168,6 @@ final class ControleCreditClientService
 
         /*
          * ============================================================
-         * RÈGLE 1
-         *
-         * CLIENT DE MOINS DE 3 MOIS
-         * ============================================================
-         *
-         * Nouveau client / client récent
-         * +
-         * aucune avance validée
-         *
-         * => INTERDICTION PRODUCTION
-         * ============================================================
-         */
-
-        if (
-            $clientMoinsDeTroisMois
-            &&
-            $avanceCommandeActuelle <= 0
-        ) {
-            return $this->resultat(
-                autorise: false,
-
-                motif:
-                    'Production bloquée : ce client a moins de 3 mois d’ancienneté et aucune avance validée n’a été enregistrée sur la commande actuelle.',
-
-                ancienneteMois:
-                    $ancienneteMois,
-
-                clientRecent:
-                    true,
-
-                plafondCredit:
-                    $plafondCredit,
-
-                totalCommande:
-                    $totalCommandeActuelle,
-
-                avanceCommande:
-                    $avanceCommandeActuelle,
-
-                resteCommande:
-                    $resteCommandeActuelle
-            );
-        }
-
-
-        /*
-         * ============================================================
          * COMMANDES ANTÉRIEURES
          * ============================================================
          *

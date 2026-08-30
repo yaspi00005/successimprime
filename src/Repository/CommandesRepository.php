@@ -212,9 +212,6 @@ final class CommandesRepository extends ServiceEntityRepository
 
         /*
          * Période.
-         *
-         * Remplace createdAt si ta propriété de date
-         * possède un autre nom dans Commandes.
          */
         if (!empty($filtres['date_debut'])) {
             try {
@@ -223,7 +220,7 @@ final class CommandesRepository extends ServiceEntityRepository
                 );
 
                 $qb
-                    ->andWhere('c.createdAt >= :dateDebut')
+                    ->andWhere('c.dateCommande >= :dateDebut')
                     ->setParameter('dateDebut', $dateDebut);
             } catch (\Exception) {
                 // La date invalide est ignorée.
@@ -237,7 +234,7 @@ final class CommandesRepository extends ServiceEntityRepository
                 );
 
                 $qb
-                    ->andWhere('c.createdAt <= :dateFin')
+                    ->andWhere('c.dateCommande <= :dateFin')
                     ->setParameter('dateFin', $dateFin);
             } catch (\Exception) {
                 // La date invalide est ignorée.

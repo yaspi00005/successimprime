@@ -517,9 +517,38 @@ final class CommandesController extends AbstractController
 
         /*
      * ============================================================
+     * COMMANDE ANNULÉE
+     * ============================================================
+     *
+     * Une commande annulée n'a plus lieu d'être modifiée, même par
+     * un administrateur : ses lignes ne sont plus "en circuit"
+     * (elles sont toutes PRODUCTION_ANNULEE), donc le verrouillage
+     * ci-dessous ne suffirait pas seul à la protéger.
+     */
+        if ($commande->getStatutTravaux() === 'annulee') {
+
+            $this->addFlash(
+                'error',
+                'Cette commande est annulée et ne peut plus être modifiée.'
+            );
+
+            return $this->redirectToRoute(
+                'app_commandes_show',
+                [
+                    'id' =>
+                    $commande->getId(),
+                ],
+                Response::HTTP_SEE_OTHER
+            );
+        }
+
+
+        /*
+     * ============================================================
      * ÉTAT AVANT MODIFICATION
      * ============================================================
      */
+
         $commandeEtaitValidee =
             $this->commandeEstValidee(
                 $commande
@@ -617,13 +646,14 @@ final class CommandesController extends AbstractController
 
                 /*
              * ========================================================
-             * ADMIN + CIRCUIT DÉJÀ COMMENCÉ
+             * CIRCUIT DÉJÀ COMMENCÉ
              * ========================================================
              *
-             * Même pour l'admin, on conserve les contrôles métier
-             * existants si nécessaire.
+             * Un admin peut modifier les lignes même après le
+             * démarrage de la production/livraison ; un utilisateur
+             * non-admin reste bloqué sur les changements structurels.
              */
-                if ($circuitDejaCommence) {
+                if ($circuitDejaCommence && !$this->isGranted('ROLE_ADMIN')) {
 
                     $this
                         ->verifierModificationStructurelleAutorisee(
@@ -899,6 +929,99 @@ final class CommandesController extends AbstractController
         }
 
         return $this->redirectToRoute('app_commandes_index', [], Response::HTTP_SEE_OTHER);
+    }
+
+    /**
+     * Annule une commande : tant que la production/livraison n'a pas
+     * commencé, n'importe quel utilisateur ROLE_COMMANDE peut le
+     * faire ; une fois le circuit commencé (même terminé/livré),
+     * seul un administrateur le peut encore.
+     *
+     * Choix assumé : aucune reprise automatique du stock déjà
+     * consommé, des factures ou des paiements existants — comme pour
+     * l'annulation d'un ordre de production déjà terminé, on se
+     * contente de tracer le fait et de prévenir l'utilisateur ;
+     * les régularisations éventuelles restent manuelles.
+     */
+    #[Route('/{id}/annuler', name: 'app_commandes_annuler', methods: ['POST'])]
+    public function annuler(Request $request, Commandes $commande, EntityManagerInterface $entityManager): Response
+    {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException('Vous devez être connecté pour annuler une commande.');
+        }
+
+        if (!$this->isCsrfTokenValid('annuler-commande-' . $commande->getId(), $request->getPayload()->getString('_token'))) {
+            $this->addFlash('error', 'Jeton de sécurité invalide.');
+
+            return $this->redirectToRoute('app_commandes_show', ['id' => $commande->getId()], Response::HTTP_SEE_OTHER);
+        }
+
+        if ($commande->getStatutTravaux() === 'annulee') {
+            $this->addFlash('warning', 'Cette commande est déjà annulée.');
+
+            return $this->redirectToRoute('app_commandes_show', ['id' => $commande->getId()], Response::HTTP_SEE_OTHER);
+        }
+
+        if ($this->commandeACommenceSonCircuit($commande) && !$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash(
+                'error',
+                'Cette commande a déjà commencé sa production ou sa livraison. Seul un administrateur peut encore l’annuler.'
+            );
+
+            return $this->redirectToRoute('app_commandes_show', ['id' => $commande->getId()], Response::HTTP_SEE_OTHER);
+        }
+
+        $stockDejaConsomme = false;
+
+        foreach ($commande->getCommandesDetails() as $detail) {
+            if (!$detail instanceof CommandesDetails) {
+                continue;
+            }
+
+            if (
+                in_array(
+                    $detail->getStatutProduction(),
+                    [
+                        CommandesDetails::PRODUCTION_TERMINEE,
+                        CommandesDetails::PRODUCTION_PRETE_LIVRAISON,
+                        CommandesDetails::PRODUCTION_EN_LIVRAISON,
+                        CommandesDetails::PRODUCTION_LIVREE,
+                    ],
+                    true
+                )
+            ) {
+                $stockDejaConsomme = true;
+            }
+
+            $detail->setStatutProduction(CommandesDetails::PRODUCTION_ANNULEE);
+        }
+
+        $note = sprintf(
+            '[Commande annulée le %s par %s]',
+            (new \DateTimeImmutable())->format('d/m/Y H:i'),
+            $user->getUserIdentifier()
+        );
+
+        $observationExistante = $commande->getObservation();
+        $commande->setObservation(
+            $observationExistante !== null && trim($observationExistante) !== ''
+                ? $observationExistante . "\n\n" . $note
+                : $note
+        );
+
+        $entityManager->flush();
+
+        $message = sprintf('La commande %s a été annulée.', $commande->getNumero() ?? ('#' . $commande->getId()));
+
+        if ($stockDejaConsomme) {
+            $message .= ' Attention : du stock avait déjà été consommé pour cette commande et n’a pas été recrédité automatiquement.';
+        }
+
+        $this->addFlash('success', $message);
+
+        return $this->redirectToRoute('app_commandes_show', ['id' => $commande->getId()], Response::HTTP_SEE_OTHER);
     }
 
     private function rattacherFichiers(

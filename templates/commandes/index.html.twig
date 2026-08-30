@@ -320,6 +320,7 @@
 							<thead>
 								<tr>
 									<th scope="col">Commande</th>
+									<th scope="col">Date</th>
 									<th scope="col">Client</th>
 									<th scope="col">Agent</th>
 									<th scope="col">Travaux</th>
@@ -347,6 +348,15 @@
 											<div class="small text-muted">
 												#{{ commande.id }}
 											</div>
+										</td>
+
+										{# Date de la commande #}
+										<td>
+											{% if commande.dateCommande %}
+												{{ commande.dateCommande|date('d/m/Y') }}
+											{% else %}
+												<span class="text-muted">—</span>
+											{% endif %}
 										</td>
 
 										{# 2. Client #}
@@ -454,7 +464,7 @@
 									</tr>
 								{% else %}
 									<tr>
-										<td colspan="9">
+										<td colspan="10">
 											<div class="empty-state">
 												<i class="fa fa-inbox"></i>
 

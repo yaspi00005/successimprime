@@ -8,6 +8,7 @@ use App\Entity\ControlePrePresse;
 use App\Entity\OrdreProduction;
 use App\Entity\User;
 
+use App\Repository\CommandeDetailFichierRepository;
 use App\Repository\CommandesDetailsRepository;
 use App\Repository\OrdreProductionRepository;
 
@@ -1263,34 +1264,469 @@ public function controler(
             ['id' => $detail->getId()]
         );
     }
+
+    /*
+     * ============================================================
+     * ENVOI PAR MORCEAUX (fichier traité)
+     * ============================================================
+     *
+     * Les fichiers traités en pré-presse (TIFF haute résolution,
+     * scans...) peuvent être très volumineux. Plutôt que de dépendre
+     * uniquement des réglages upload_max_filesize/post_max_size de
+     * PHP (souvent trop bas par défaut, et pas toujours modifiables
+     * facilement sur le serveur du client), l'envoi se fait ici
+     * découpé en petits morceaux, sur le même principe que
+     * FichierUploadController (déjà utilisé pour les fichiers
+     * originaux du client) : chaque morceau est une requête HTTP
+     * indépendante et légère, réassemblée une fois tous les morceaux
+     * reçus. L'ancienne route ajouterFichierTraite() reste en place
+     * en secours (si JavaScript est indisponible).
+     *
+     * Le plafond ci-dessous ne dépend plus des limites PHP
+     * (upload_max_filesize/post_max_size, prévues pour un envoi en un
+     * seul bloc) : chaque morceau est petit quelle que soit la taille
+     * totale du fichier. Il protège seulement l'espace disque du
+     * serveur contre un envoi anormalement énorme — les fichiers
+     * prépresse de plusieurs gigaoctets (TIFF haute résolution, grand
+     * format) restent donc acceptés.
+     */
+    private const TAILLE_MAX_MORCEAUX = 5 * 1024 * 1024 * 1024;
+    private const NOMBRE_MORCEAUX_MAX = 10000;
+
     #[Route(
-        '/fichier/{id}/visualiser',
-        name: 'visualiser_fichier',
+        '/travail/{id}/fichier-traite/initialiser',
+        name: 'fichier_traite_initialiser',
         requirements: ['id' => '\d+'],
-        methods: ['GET']
+        methods: ['POST']
     )]
-    public function visualiserFichier(
-        CommandeDetailFichier $fichier
-    ): BinaryFileResponse {
-        if (!$fichier->isActif()) {
-            throw $this->createNotFoundException(
-                'Le fichier demandé est indisponible.'
+    public function initialiserFichierTraite(
+        CommandesDetails $detail,
+        Request $request,
+        EntityManagerInterface $entityManager,
+        SluggerInterface $slugger
+    ): JsonResponse {
+        $utilisateur = $this->getUser();
+
+        if (!$utilisateur instanceof User) {
+            return $this->json(
+                ['message' => 'Vous devez être connecté.'],
+                Response::HTTP_UNAUTHORIZED
             );
         }
 
-        $projet = (string) $this->getParameter('kernel.project_dir');
+        if (!$this->isCsrfTokenValid(
+            'ajouter_fichier_traite_' . $detail->getId(),
+            (string) $request->headers->get('X-CSRF-TOKEN')
+        )) {
+            return $this->json(
+                ['message' => 'Jeton de sécurité invalide.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        try {
+            $donnees = $request->toArray();
+        } catch (\Throwable) {
+            return $this->json(
+                ['message' => 'Le corps JSON de la requête est invalide.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        $nomOriginal = trim((string) ($donnees['nom'] ?? ''));
+        $typeMime = trim((string) ($donnees['typeMime'] ?? ''))
+            ?: 'application/octet-stream';
+        $taille = (int) ($donnees['taille'] ?? 0);
+        $nombreMorceaux = (int) ($donnees['nombreMorceaux'] ?? 0);
+        $fichierSourceId = (int) ($donnees['fichierSource'] ?? 0);
+
+        if ($nomOriginal === '' || $taille <= 0 || $nombreMorceaux <= 0) {
+            return $this->json(
+                ['message' => 'Informations du fichier invalides.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        if ($taille > self::TAILLE_MAX_MORCEAUX) {
+            return $this->json(
+                ['message' => sprintf(
+                    'Le fichier dépasse la taille maximale autorisée de %d Go.',
+                    (int) (self::TAILLE_MAX_MORCEAUX / 1024 / 1024 / 1024)
+                )],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        if ($nombreMorceaux > self::NOMBRE_MORCEAUX_MAX) {
+            return $this->json(
+                ['message' => 'Le fichier est trop volumineux pour être envoyé par morceaux.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        $fichierSource = null;
+
+        foreach ($detail->getFichiers() as $fichierDetail) {
+            if ($fichierDetail->getId() === $fichierSourceId) {
+                $fichierSource = $fichierDetail;
+                break;
+            }
+        }
+
+        if (!$fichierSource instanceof CommandeDetailFichier) {
+            return $this->json(
+                ['message' => 'Sélectionnez le fichier original correspondant.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        $nomSansExtension = pathinfo($nomOriginal, PATHINFO_FILENAME);
+        $nomSecurise = $slugger->slug($nomSansExtension)->lower();
+        $extension = strtolower(pathinfo($nomOriginal, PATHINFO_EXTENSION)) ?: 'bin';
+
+        $jeton = bin2hex(random_bytes(32));
+
+        $nomStockage = sprintf(
+            '%s-v%d-%s.%s',
+            $nomSecurise,
+            $fichierSource->getVersion() + 1,
+            bin2hex(random_bytes(8)),
+            $extension
+        );
+
+        $repertoireRelatif = sprintf(
+            'uploads/prepresse/commande_%d/detail_%d',
+            $detail->getCommande()->getId(),
+            $detail->getId()
+        );
 
         /*
-     * Répertoire réel de stockage :
+         * Préfixe la désignation de la ligne de commande, comme pour
+         * l'envoi classique (ajouterFichierTraite).
+         */
+        $designationDetail = trim((string) $detail->getDesignation());
+
+        $nomOriginalAffiche = $designationDetail !== ''
+            ? sprintf('%s - %s', $designationDetail, $nomOriginal)
+            : $nomOriginal;
+
+        $face = trim((string) ($donnees['face'] ?? ''));
+        $designationFichier = trim((string) ($donnees['designation'] ?? ''));
+
+        $fichierTraite = new CommandeDetailFichier();
+
+        $fichierTraite
+            ->setJetonUpload($jeton)
+            ->setCommandeDetail($detail)
+            ->setFichierSource($fichierSource)
+            ->setNomOriginal($nomOriginalAffiche)
+            ->setNomStockage($nomStockage)
+            ->setChemin($repertoireRelatif . '/' . $nomStockage)
+            ->setTypeMime($typeMime)
+            ->setTaille($taille)
+            ->setNombreMorceaux($nombreMorceaux)
+            ->setMorceauxRecus(0)
+            ->setStatut(CommandeDetailFichier::STATUT_EN_COURS)
+            ->setOrigine(CommandeDetailFichier::ORIGINE_INTERNE)
+            ->setEtat(CommandeDetailFichier::ETAT_TRAITE)
+            ->setVersion($fichierSource->getVersion() + 1)
+            ->setFace($face !== '' ? $face : $fichierSource->getFace())
+            ->setDesignation($designationFichier !== '' ? $designationFichier : 'Fichier traité')
+            ->setGroupeFichier($fichierSource->getGroupeFichier())
+            ->setQuantiteAProduire($fichierSource->getQuantiteAProduire())
+            ->setObservation(
+                trim((string) ($donnees['observation'] ?? '')) ?: null
+            )
+            ->setAjoutePar($utilisateur);
+
+        $detail->addFichier($fichierTraite);
+
+        $entityManager->persist($fichierTraite);
+        $entityManager->flush();
+
+        return $this->json([
+            'jeton' => $jeton,
+            'morceauxRecus' => 0,
+            'nombreMorceaux' => $nombreMorceaux,
+        ], Response::HTTP_CREATED);
+    }
+
+    #[Route(
+        '/fichier-traite/{jeton}/morceaux/{index}',
+        name: 'fichier_traite_morceau',
+        requirements: [
+            'jeton' => '[a-f0-9]{64}',
+            'index' => '\d+',
+        ],
+        methods: ['POST']
+    )]
+    public function envoyerMorceauFichierTraite(
+        string $jeton,
+        int $index,
+        Request $request,
+        CommandeDetailFichierRepository $repository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $utilisateur = $this->getUser();
+
+        if (!$utilisateur instanceof User) {
+            return $this->json(
+                ['message' => 'Vous devez être connecté.'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $fichier = $repository->findOneBy(['jetonUpload' => $jeton]);
+
+        if (!$fichier instanceof CommandeDetailFichier) {
+            return $this->json(
+                ['message' => 'Session d’upload introuvable.'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        $detailId = $fichier->getCommandeDetail()?->getId();
+
+        if (
+            $detailId === null
+            || !$this->isCsrfTokenValid(
+                'ajouter_fichier_traite_' . $detailId,
+                (string) $request->headers->get('X-CSRF-TOKEN')
+            )
+        ) {
+            return $this->json(
+                ['message' => 'Jeton de sécurité invalide.'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
+
+        if ($fichier->getStatut() === CommandeDetailFichier::STATUT_TERMINE) {
+            return $this->json([
+                'jeton' => $jeton,
+                'statut' => CommandeDetailFichier::STATUT_TERMINE,
+                'progression' => 100,
+            ]);
+        }
+
+        $nombreMorceaux = $fichier->getNombreMorceaux();
+
+        if (
+            $nombreMorceaux === null
+            || $index < 0
+            || $index >= $nombreMorceaux
+        ) {
+            return $this->json(
+                ['message' => 'Index du morceau invalide.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        /** @var UploadedFile|null $morceau */
+        $morceau = $request->files->get('morceau');
+
+        if (!$morceau instanceof UploadedFile || !$morceau->isValid()) {
+            return $this->json(
+                ['message' => 'Morceau absent ou invalide.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        $dossierTemporaire = $this->getParameter('kernel.project_dir')
+            . '/var/uploads/prepresse_tmp/' . $jeton;
+
+        if (
+            !is_dir($dossierTemporaire)
+            && !mkdir($dossierTemporaire, 0775, true)
+            && !is_dir($dossierTemporaire)
+        ) {
+            return $this->json(
+                ['message' => 'Impossible de créer le dossier temporaire.'],
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+
+        $cheminMorceau = $dossierTemporaire . '/' . sprintf('%08d.part', $index);
+
+        /*
+         * Si le morceau existe déjà, on ne le compte pas deux fois :
+         * cela permet de reprendre un transfert interrompu.
+         */
+        if (!is_file($cheminMorceau)) {
+            $morceau->move($dossierTemporaire, basename($cheminMorceau));
+        }
+
+        $morceauxRecus = count(glob($dossierTemporaire . '/*.part') ?: []);
+
+        $fichier->setMorceauxRecus($morceauxRecus);
+
+        if ($morceauxRecus === $nombreMorceaux) {
+            try {
+                $this->assemblerFichierTraite($fichier, $dossierTemporaire);
+            } catch (\Throwable $exception) {
+                return $this->json(
+                    ['message' => $exception->getMessage()],
+                    Response::HTTP_INTERNAL_SERVER_ERROR
+                );
+            }
+        }
+
+        $entityManager->flush();
+
+        $progression = (int) floor(
+            ($fichier->getMorceauxRecus() / $nombreMorceaux) * 100
+        );
+
+        return $this->json([
+            'jeton' => $jeton,
+            'morceauxRecus' => $fichier->getMorceauxRecus(),
+            'nombreMorceaux' => $nombreMorceaux,
+            'progression' => min(100, $progression),
+            'statut' => $fichier->getStatut(),
+        ]);
+    }
+
+    private function assemblerFichierTraite(
+        CommandeDetailFichier $fichier,
+        string $dossierTemporaire
+    ): void {
+        $projet = (string) $this->getParameter('kernel.project_dir');
+        $chemin = (string) $fichier->getChemin();
+
+        $repertoireAbsolu = $projet . '/public/' . dirname($chemin);
+
+        if (
+            !is_dir($repertoireAbsolu)
+            && !mkdir($repertoireAbsolu, 0775, true)
+            && !is_dir($repertoireAbsolu)
+        ) {
+            throw new \RuntimeException(
+                'Impossible de créer le dossier final.'
+            );
+        }
+
+        $cheminFinal = $projet . '/public/' . $chemin;
+        $cheminAssemblage = $cheminFinal . '.assemblage';
+
+        $sortie = fopen($cheminAssemblage, 'wb');
+
+        if ($sortie === false) {
+            throw new \RuntimeException(
+                'Impossible de créer le fichier final.'
+            );
+        }
+
+        try {
+            for (
+                $index = 0;
+                $index < (int) $fichier->getNombreMorceaux();
+                $index++
+            ) {
+                $cheminMorceau = $dossierTemporaire . '/' . sprintf('%08d.part', $index);
+
+                if (!is_file($cheminMorceau)) {
+                    throw new \RuntimeException(
+                        sprintf('Le morceau %d est absent.', $index)
+                    );
+                }
+
+                $entree = fopen($cheminMorceau, 'rb');
+
+                if ($entree === false) {
+                    throw new \RuntimeException(
+                        sprintf('Impossible de lire le morceau %d.', $index)
+                    );
+                }
+
+                stream_copy_to_stream($entree, $sortie);
+                fclose($entree);
+            }
+        } catch (\Throwable $exception) {
+            @unlink($cheminAssemblage);
+            throw $exception;
+        } finally {
+            fclose($sortie);
+        }
+
+        $tailleReelle = filesize($cheminAssemblage);
+
+        if ($tailleReelle === false || $tailleReelle !== $fichier->getTaille()) {
+            @unlink($cheminAssemblage);
+
+            throw new \RuntimeException(
+                'La taille du fichier assemblé est incorrecte.'
+            );
+        }
+
+        if (!rename($cheminAssemblage, $cheminFinal)) {
+            @unlink($cheminAssemblage);
+            throw new \RuntimeException(
+                'Impossible de finaliser le fichier assemblé.'
+            );
+        }
+
+        $typeMime = mime_content_type($cheminFinal);
+
+        if (is_string($typeMime)) {
+            $fichier->setTypeMime($typeMime);
+        }
+
+        $fichier->marquerUploadTermine();
+
+        foreach (glob($dossierTemporaire . '/*.part') ?: [] as $morceau) {
+            @unlink($morceau);
+        }
+
+        @rmdir($dossierTemporaire);
+    }
+    /*
+     * Retrouve le chemin reel sur disque d'un fichier de commande,
+     * quel que soit le circuit d'upload par lequel il est arrive :
+     *   - fichiers "traites" en pre-presse (ajouterFichierTraite) :
+     *     stockes sous public/{chemin} (chemin relatif enregistre
+     *     en base) ;
+     *   - fichiers originaux du client (FichierUploadController) :
+     *     stockes a plat sous var/uploads/commandes/{nomStockage},
+     *     sans valeur de "chemin" en base.
+     * Sans ceci, seul le deuxieme circuit fonctionnait : visualiser
+     * ou telecharger un fichier traite renvoyait une 404.
+     */
+    private function resoudreCheminFichierStocke(
+        CommandeDetailFichier $fichier
+    ): ?string {
+        $projet = (string) $this->getParameter('kernel.project_dir');
+        $chemin = trim((string) $fichier->getChemin());
+
+        if ($chemin !== '') {
+            $racinePublique = realpath($projet . '/public');
+
+            if ($racinePublique !== false) {
+                $cheminComplet = realpath(
+                    $projet . '/public/' . $chemin
+                );
+
+                if (
+                    $cheminComplet !== false
+                    && str_starts_with(
+                        $cheminComplet,
+                        $racinePublique . DIRECTORY_SEPARATOR
+                    )
+                    && is_file($cheminComplet)
+                    && is_readable($cheminComplet)
+                ) {
+                    return $cheminComplet;
+                }
+            }
+        }
+
+        /*
+     * Repertoire reel de stockage (circuit historique) :
      * var/uploads/commandes
      */
         $racineStockage = $projet . '/var/uploads/commandes';
         $racineReelle = realpath($racineStockage);
 
         if ($racineReelle === false || !is_dir($racineReelle)) {
-            throw $this->createNotFoundException(
-                'Le répertoire de stockage est introuvable.'
-            );
+            return null;
         }
 
         $nomStockage = basename(
@@ -1298,9 +1734,7 @@ public function controler(
         );
 
         if ($nomStockage === '' || $nomStockage === '.') {
-            throw $this->createNotFoundException(
-                'Le nom de stockage du fichier est invalide.'
-            );
+            return null;
         }
 
         $cheminRecherche = $racineStockage
@@ -1323,9 +1757,7 @@ public function controler(
             || !is_file($cheminComplet)
             || !is_readable($cheminComplet)
         ) {
-            throw $this->createNotFoundException(
-                'Le fichier est introuvable sur le serveur.'
-            );
+            return null;
         }
 
         /*
@@ -1355,6 +1787,31 @@ public function controler(
             if (is_file($cheminApercu) && is_readable($cheminApercu)) {
                 $cheminComplet = $cheminApercu;
             }
+        }
+
+        return $cheminComplet;
+    }
+    #[Route(
+        '/fichier/{id}/visualiser',
+        name: 'visualiser_fichier',
+        requirements: ['id' => '\d+'],
+        methods: ['GET']
+    )]
+    public function visualiserFichier(
+        CommandeDetailFichier $fichier
+    ): BinaryFileResponse {
+        if (!$fichier->isActif()) {
+            throw $this->createNotFoundException(
+                'Le fichier demandé est indisponible.'
+            );
+        }
+
+        $cheminComplet = $this->resoudreCheminFichierStocke($fichier);
+
+        if ($cheminComplet === null) {
+            throw $this->createNotFoundException(
+                'Le fichier est introuvable sur le serveur.'
+            );
         }
         $typeMime = mime_content_type($cheminComplet);
 
@@ -1399,39 +1856,9 @@ public function controler(
             );
         }
 
-        $projet = (string) $this->getParameter('kernel.project_dir');
-        $racineStockage = $projet . '/var/uploads/commandes';
-        $racineReelle = realpath($racineStockage);
+        $cheminComplet = $this->resoudreCheminFichierStocke($fichier);
 
-        if ($racineReelle === false || !is_dir($racineReelle)) {
-            throw $this->createNotFoundException(
-                'Le répertoire de stockage est introuvable.'
-            );
-        }
-
-        $nomStockage = basename(
-            trim((string) $fichier->getNomStockage())
-        );
-
-        if ($nomStockage === '' || $nomStockage === '.') {
-            throw $this->createNotFoundException(
-                'Le nom de stockage est invalide.'
-            );
-        }
-
-        $cheminComplet = realpath(
-            $racineReelle . DIRECTORY_SEPARATOR . $nomStockage
-        );
-
-        if (
-            $cheminComplet === false
-            || !str_starts_with(
-                $cheminComplet,
-                $racineReelle . DIRECTORY_SEPARATOR
-            )
-            || !is_file($cheminComplet)
-            || !is_readable($cheminComplet)
-        ) {
+        if ($cheminComplet === null) {
             throw $this->createNotFoundException(
                 'Le fichier original est introuvable sur le serveur.'
             );
