@@ -68,8 +68,14 @@ class Machines
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTime $DateMiseService = null;
 
-    #[ORM\Column(type: Types::INTEGER)]
-    private ?int $compteurM2 = null;
+    /*
+     * En m² decimaux (Types::FLOAT) et non plus en entier : un
+     * arrondi a chaque impression individuelle ferait disparaitre
+     * tous les petits travaux (moins de 0,5 m²) avant meme qu'ils
+     * ne s'additionnent. Voir enregistrerUsage().
+     */
+    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    private ?float $compteurM2 = null;
 
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $compteurHeures = null;
@@ -250,12 +256,12 @@ class Machines
         return $this;
     }
 
-    public function getCompteurM2(): ?int
+    public function getCompteurM2(): ?float
     {
         return $this->compteurM2;
     }
 
-    public function setCompteurM2(int $compteurM2): static
+    public function setCompteurM2(float $compteurM2): static
     {
         $this->compteurM2 = $compteurM2;
 
@@ -487,7 +493,7 @@ public function setAdresseIp(string $adresseIp): static
         }
 
         if ($this->utiliseSurface()) {
-            $this->compteurM2 = ($this->compteurM2 ?? 0) + (int) round($surfaceM2Totale);
+            $this->compteurM2 = round(($this->compteurM2 ?? 0) + $surfaceM2Totale, 2);
 
             return;
         }

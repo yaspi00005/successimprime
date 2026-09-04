@@ -48,8 +48,12 @@ final class ControlePrePresseController extends AbstractController
             ->addSelect('commande', 'produit', 'fichier')
             ->innerJoin('detail.commande', 'commande')
             ->leftJoin('detail.produit', 'produit')
-            ->innerJoin('detail.fichiers', 'fichier')
-            ->andWhere('fichier.actif = :actif')
+            ->leftJoin(
+                'detail.fichiers',
+                'fichier',
+                'WITH',
+                'fichier.actif = :actif'
+            )
             ->andWhere('detail.prePresseNecessaire = :prepresseNecessaire')
             ->setParameter('actif', true)
             ->setParameter('prepresseNecessaire', true)

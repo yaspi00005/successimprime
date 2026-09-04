@@ -943,6 +943,15 @@
 													</a>
 
 
+											<a href="{{ path('app_consommables_index') }}" class="slide-item {{ routeCourante starts with 'app_consommables_' ? 'active' : '' }}">
+
+												<i class="fa fa-minus-circle mr-2"></i>
+
+												Consommables
+
+											</a>
+
+
 													{# =====================================
 																																																																																																																																																																									   PRÉPRESSE
 																																																																																																																																																																									   
@@ -969,6 +978,15 @@
 																																																																																																																																																																																																																"></i>
 
 															Prépresse
+
+														</a>
+
+
+														<a href="{{ path( 'app_fichier_dossier_partage' ) }}" class="slide-item {{ routeCourante starts with 'app_fichier_dossier_partage' ? 'active' : '' }}">
+
+															<i class="fa fa-folder-open-o mr-2"></i>
+
+															Dossier partagé
 
 														</a>
 
@@ -1723,6 +1741,13 @@
 													<a href="{{ path( 'app_lot_etiquette_index' ) }}" class="slide-item">
 
 														Lots d'étiquettes
+
+													</a>
+
+
+													<a href="{{ path( 'app_fichier_dossier_partage' ) }}" class="slide-item">
+
+														Dossier partagé (import fichiers)
 
 													</a>
 

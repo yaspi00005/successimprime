@@ -9,8 +9,8 @@
 {% block body %}
 
 	{# ================================================================
-			   DONNÉES PRINCIPALES
-			   ================================================================ #}
+						   DONNÉES PRINCIPALES
+						   ================================================================ #}
 
 	{% set reference =
 		commande.reference
@@ -27,22 +27,22 @@
 		commande.commandesDetails|default([])
 	%}
 
-{#
-	 # commande.statut / commande.etat sont des booléens (paiement en
-	 # attente / travaux en cours), pas un statut de travail -- le
-	 # badge ci-dessous doit se baser sur commande.statutTravaux (la
-	 # même méthode déjà utilisée par commandes/index.html.twig), qui
-	 # calcule un vrai statut ('annulee', 'preparation', 'livraison',
-	 # 'livree', 'vide') à partir de l'état de production des lignes.
-	 #}
+	{#
+				 # commande.statut / commande.etat sont des booléens (paiement en
+				 # attente / travaux en cours), pas un statut de travail -- le
+				 # badge ci-dessous doit se baser sur commande.statutTravaux (la
+				 # même méthode déjà utilisée par commandes/index.html.twig), qui
+				 # calcule un vrai statut ('annulee', 'preparation', 'livraison',
+				 # 'livree', 'vide') à partir de l'état de production des lignes.
+				 #}
 	{% set statutTravaux =
 		commande.statutTravaux
 	%}
 
 
 	{# ================================================================
-			   PERMISSIONS
-			   ================================================================ #}
+						   PERMISSIONS
+						   ================================================================ #}
 
 	{% set estAdmin =
 		is_granted('ROLE_ADMIN')
@@ -93,12 +93,12 @@
 
 
 	{# ================================================================
-			   VERROUILLAGE PRODUCTION
-			   ================================================================
-			   
-			   Dès qu'une ligne est réellement entrée en production,
-			   une personne non Admin ne peut plus modifier la commande.
-			   ================================================================ #}
+						   VERROUILLAGE PRODUCTION
+						   ================================================================
+						   
+						   Dès qu'une ligne est réellement entrée en production,
+						   une personne non Admin ne peut plus modifier la commande.
+						   ================================================================ #}
 
 	{% set commandeVerrouilleeProduction = false %}
 
@@ -128,8 +128,8 @@
 
 
 	{# ================================================================
-			   MONTANTS
-			   ================================================================ #}
+						   MONTANTS
+						   ================================================================ #}
 
 	{% set totalTtc =
 		commande.totalTtc|default(0)
@@ -152,8 +152,8 @@
 
 
 		{# ============================================================
-						   EN-TÊTE
-						   ============================================================ #}
+												   EN-TÊTE
+												   ============================================================ #}
 
 		<div class="page-header">
 
@@ -187,8 +187,8 @@
 			<div>
 
 				{# ====================================================
-												   RETOUR
-												   ==================================================== #}
+																								   RETOUR
+																								   ==================================================== #}
 
 				<a href="{{ path('app_commandes_index') }}" class="btn btn-sm btn-light mr-2 mb-2">
 					<i class="fe fe-arrow-left mr-1"></i>
@@ -198,8 +198,8 @@
 
 
 				{# ====================================================
-												   PAIEMENT
-												   ==================================================== #}
+																								   PAIEMENT
+																								   ==================================================== #}
 
 				{% if peutEncaisser %}
 
@@ -247,10 +247,9 @@
 				{% endif %}
 
 
-
 				{# ====================================================
-												   FACTURATION
-												   ==================================================== #}
+																								   FACTURATION
+																								   ==================================================== #}
 
 				{% if peutFacturer %}
 
@@ -264,8 +263,8 @@
 
 
 				{# ====================================================
-												   MODIFIER
-												   ==================================================== #}
+																								   MODIFIER
+																								   ==================================================== #}
 
 				{% if
 					peutModifierCommande
@@ -298,8 +297,8 @@
 
 
 				{# ====================================================
-												   CONTRÔLE PRÉPRESSE
-												   ==================================================== #}
+																								   CONTRÔLE PRÉPRESSE
+																								   ==================================================== #}
 
 				{% if peutControlePrePresse %}
 
@@ -313,8 +312,8 @@
 
 
 				{# ====================================================
-												   IMPRIMER
-												   ==================================================== #}
+																								   IMPRIMER
+																								   ==================================================== #}
 
 				{% if peutImprimerCommande %}
 
@@ -332,24 +331,24 @@
 
 
 		{# ============================================================
-						   MESSAGES FLASH
-						   ============================================================ #}
+												   MESSAGES FLASH
+												   ============================================================ #}
 
 		{% for type, messages in app.flashes %}
 
 			{% for message in messages %}
 
 				<div class="
-																		alert
-																		alert-{{
-																			type == 'error'
-																				? 'danger'
-																				: type
-																		}}
-																		alert-dismissible
-																		fade
-																		show
-																	">
+																																				alert
+																																				alert-{{
+																																					type == 'error'
+																																						? 'danger'
+																																						: type
+																																				}}
+																																				alert-dismissible
+																																				fade
+																																				show
+																																			">
 
 					{{ message }}
 
@@ -365,8 +364,8 @@
 
 
 		{# ============================================================
-						   ALERTE PRODUCTION
-						   ============================================================ #}
+												   ALERTE PRODUCTION
+												   ============================================================ #}
 
 		{% if commandeVerrouilleeProduction %}
 
@@ -384,7 +383,7 @@
 
 						<span>
 							Au moins un travail de cette commande
-																					est déjà entré en production.
+																																										est déjà entré en production.
 						</span>
 
 						{% if estAdmin %}
@@ -393,7 +392,7 @@
 
 								<strong>
 									Vous êtes administrateur :
-																											la modification reste autorisée.
+																																																						la modification reste autorisée.
 								</strong>
 
 							</div>
@@ -423,8 +422,8 @@
 
 
 			{# ========================================================
-									   COLONNE PRINCIPALE
-									   ======================================================== #}
+																		   COLONNE PRINCIPALE
+																		   ======================================================== #}
 
 			<div class="col-xl-8 col-lg-8">
 
@@ -432,11 +431,11 @@
 				<div class="card">
 
 					<div class="
-																					card-header
-																					d-flex
-																					justify-content-between
-																					align-items-center
-																				">
+																																										card-header
+																																										d-flex
+																																										justify-content-between
+																																										align-items-center
+																																									">
 
 						<div>
 
@@ -447,7 +446,8 @@
 							<small class="text-muted">
 								{{ reference }}
 								{% if commande.dateCommande %}
-									· {{ commande.dateCommande|date('d/m/Y') }}
+									·
+									{{ commande.dateCommande|date('d/m/Y') }}
 								{% endif %}
 							</small>
 
@@ -504,7 +504,7 @@
 							<div class="alert alert-info mb-0">
 
 								Aucun travail n’est associé
-																								à cette commande.
+																																																à cette commande.
 
 							</div>
 
@@ -525,18 +525,18 @@
 
 
 									{# ========================================
-																											   EN-TÊTE DU TRAVAIL
-																											   ======================================== #}
+																																																						   EN-TÊTE DU TRAVAIL
+																																																						   ======================================== #}
 
 									<div class="
-																																	bg-light
-																																	border-bottom
-																																	p-3
-																																	d-flex
-																																	justify-content-between
-																																	align-items-center
-																																	text-primary
-																																">
+																																																																		bg-light
+																																																																		border-bottom
+																																																																		p-3
+																																																																		d-flex
+																																																																		justify-content-between
+																																																																		align-items-center
+																																																																		text-primary
+																																																																	">
 
 										<div>
 
@@ -558,6 +558,12 @@
 
 												Travail n°
 												{{ loop.index }}
+
+											</small>
+
+											<small class=" d-block" title="À utiliser en préfixe du nom de fichier pour l'import depuis le dossier partagé">
+
+												Réf: #{{ detail.id }}
 
 											</small>
 
@@ -588,8 +594,8 @@
 
 
 										{# ====================================
-																														   INFORMATIONS TECHNIQUES
-																														   ==================================== #}
+																																																												   INFORMATIONS TECHNIQUES
+																																																												   ==================================== #}
 
 										<div class="row">
 
@@ -743,8 +749,8 @@
 
 
 										{# ====================================
-																														   FINITIONS
-																														   ==================================== #}
+																																																												   FINITIONS
+																																																												   ==================================== #}
 
 										{% if
 											detail.finitions
@@ -762,11 +768,11 @@
 												<div class="table-responsive">
 
 													<table class="
-																																													table
-																																													table-sm
-																																													table-bordered
-																																													mb-0
-																																												">
+																																																																																										table
+																																																																																										table-sm
+																																																																																										table-bordered
+																																																																																										mb-0
+																																																																																									">
 
 														<thead class="bg-light">
 
@@ -864,9 +870,9 @@
 
 
 																	<td class="
-																																																									text-right
-																																																									font-weight-bold
-																																																								">
+																																																																																																																		text-right
+																																																																																																																		font-weight-bold
+																																																																																																																	">
 
 																		{{
 																			finition
@@ -899,8 +905,8 @@
 
 
 										{# ====================================
-																														   DESCRIPTION
-																														   ==================================== #}
+																																																												   DESCRIPTION
+																																																												   ==================================== #}
 
 										{% if detail.description|default('') %}
 
@@ -911,11 +917,11 @@
 												</small>
 
 												<div class="
-																																										border
-																																										rounded
-																																										bg-light
-																																										p-2
-																																									">
+																																																																																				border
+																																																																																				rounded
+																																																																																				bg-light
+																																																																																				p-2
+																																																																																			">
 
 													{{ detail.description|nl2br }}
 
@@ -927,8 +933,8 @@
 
 
 										{# ====================================
-																														   OBSERVATION
-																														   ==================================== #}
+																																																												   OBSERVATION
+																																																												   ==================================== #}
 
 										{% if detail.observation|default('') %}
 
@@ -939,11 +945,11 @@
 												</small>
 
 												<div class="
-																																										border
-																																										rounded
-																																										bg-light
-																																										p-2
-																																									">
+																																																																																				border
+																																																																																				rounded
+																																																																																				bg-light
+																																																																																				p-2
+																																																																																			">
 
 													{{ detail.observation|nl2br }}
 
@@ -955,8 +961,8 @@
 
 
 										{# ====================================
-																														   FICHIERS CLIENT
-																														   ==================================== #}
+																																																												   FICHIERS CLIENT
+																																																												   ==================================== #}
 
 										{% set fichiers =
 											detail.fichiers|default([])
@@ -981,25 +987,25 @@
 													{% for fichier in fichiers %}
 
 														<div class="
-																																																list-group-item
-																																																d-flex
-																																																flex-wrap
-																																																justify-content-between
-																																																align-items-center
-																																															">
+																																																																																																list-group-item
+																																																																																																d-flex
+																																																																																																flex-wrap
+																																																																																																justify-content-between
+																																																																																																align-items-center
+																																																																																															">
 
 															<div class="
-																																																			mr-3
-																																																			mb-2
-																																																			mb-sm-0
-																																																		">
+																																																																																																						mr-3
+																																																																																																						mb-2
+																																																																																																						mb-sm-0
+																																																																																																					">
 
 																<i class="
-																																																				fe
-																																																				fe-file
-																																																				text-primary
-																																																				mr-2
-																																																			"></i>
+																																																																																																							fe
+																																																																																																							fe-file
+																																																																																																							text-primary
+																																																																																																							mr-2
+																																																																																																						"></i>
 
 																<strong>
 
@@ -1064,8 +1070,8 @@
 
 
 										{# ====================================
-																														   TOTAUX DU TRAVAIL
-																														   ==================================== #}
+																																																												   TOTAUX DU TRAVAIL
+																																																												   ==================================== #}
 
 										<div class="row mt-3">
 
@@ -1138,9 +1144,9 @@
 
 											<div class="col-12">
 
-												{% if (is_granted('ROLE_LIVRAISON') or estAdmin) and detail.estLivraisonDirecte and detail.statutProduction != 'livree' %}
+												{% if (is_granted('ROLE_LIVRAISON') or estAdmin) and detail.statutProduction != 'livree' %}
 
-													<form method="post" action="{{ path( 'app_livraisons_livrer_directement', { id: detail.id } ) }}" class="js-confirm-form" data-message="Marquer « {{ detail.designation|default('ce travail') }} » comme livré ? Le stock réservé sera définitivement sorti.">
+													<form method="post" action="{{ path( 'app_livraisons_livrer_directement', { id: detail.id } ) }}" class="js-confirm-form" data-message="Marquer « {{ detail.designation|default('ce travail') }} » comme livré, sans passer par le contrôle prépresse ni la production ? Le stock réservé sera définitivement sorti.">
 
 														<input type="hidden" name="_token" value="{{ csrf_token( 'livraison_direct_' ~ detail.id ) }}">
 
@@ -1173,16 +1179,16 @@
 
 
 			{# ========================================================
-									   COLONNE DROITE
-									   ======================================================== #}
+																		   COLONNE DROITE
+																		   ======================================================== #}
 
 			<div
 				class="col-xl-4 col-lg-4">
 
 
 				{# ====================================================
-												   CLIENT
-												   ==================================================== #}
+																								   CLIENT
+																								   ==================================================== #}
 
 				<div class="card">
 
@@ -1220,11 +1226,11 @@
 							<p class="mb-2">
 
 								<i class="
-																												fe
-																												fe-phone
-																												mr-2
-																												text-primary
-																											"></i>
+																																																							fe
+																																																							fe-phone
+																																																							mr-2
+																																																							text-primary
+																																																						"></i>
 
 								{{ client.telephone }}
 
@@ -1238,11 +1244,11 @@
 							<p class="mb-2">
 
 								<i class="
-																												fe
-																												fe-mail
-																												mr-2
-																												text-primary
-																											"></i>
+																																																							fe
+																																																							fe-mail
+																																																							mr-2
+																																																							text-primary
+																																																						"></i>
 
 								{{ client.email }}
 
@@ -1256,11 +1262,11 @@
 							<p class="mb-0">
 
 								<i class="
-																												fe
-																												fe-map-pin
-																												mr-2
-																												text-primary
-																											"></i>
+																																																							fe
+																																																							fe-map-pin
+																																																							mr-2
+																																																							text-primary
+																																																						"></i>
 
 								{{ client.adresse }}
 
@@ -1274,8 +1280,8 @@
 
 
 				{# ====================================================
-												   RÉCAPITULATIF
-												   ==================================================== #}
+																								   RÉCAPITULATIF
+																								   ==================================================== #}
 
 				<div class="card">
 
@@ -1291,10 +1297,10 @@
 					<div class="card-body">
 
 						<div class="
-																								d-flex
-																								justify-content-between
-																								mb-3
-																							">
+																																																d-flex
+																																																justify-content-between
+																																																mb-3
+																																															">
 
 							<span>
 								Total HT
@@ -1320,10 +1326,10 @@
 
 
 						<div class="
-																								d-flex
-																								justify-content-between
-																								mb-3
-																							">
+																																																d-flex
+																																																justify-content-between
+																																																mb-3
+																																															">
 
 							<span>
 								Remise
@@ -1349,10 +1355,10 @@
 
 
 						<div class="
-																								d-flex
-																								justify-content-between
-																								mb-3
-																							">
+																																																d-flex
+																																																justify-content-between
+																																																mb-3
+																																															">
 
 							<span>
 								TVA
@@ -1370,20 +1376,20 @@
 
 
 						<div class="
-																								d-flex
-																								justify-content-between
-																								mb-3
-																							">
+																																																d-flex
+																																																justify-content-between
+																																																mb-3
+																																															">
 
 							<span class="h5 mb-0">
 								Total TTC
 							</span>
 
 							<strong class="
-																											h5
-																											mb-0
-																											text-primary
-																										">
+																																																						h5
+																																																						mb-0
+																																																						text-primary
+																																																					">
 
 								{{
 									totalTtc
@@ -1402,10 +1408,10 @@
 
 
 						<div class="
-																								d-flex
-																								justify-content-between
-																								mb-3
-																							">
+																																																d-flex
+																																																justify-content-between
+																																																mb-3
+																																															">
 
 							<span>
 								Montant payé
@@ -1430,9 +1436,9 @@
 
 
 						<div class="
-																								d-flex
-																								justify-content-between
-																							">
+																																																d-flex
+																																																justify-content-between
+																																															">
 
 							<span>
 								Reste à payer
@@ -1457,8 +1463,8 @@
 
 
 						{# ================================================
-																		   ACTION PAIEMENT DANS LE RÉCAPITULATIF
-																		   ================================================ #}
+																																				   ACTION PAIEMENT DANS LE RÉCAPITULATIF
+																																				   ================================================ #}
 
 						{% if peutEncaisser %}
 
@@ -1476,11 +1482,11 @@
 							{% else %}
 
 								<div class="
-																														alert
-																														alert-success
-																														text-center
-																														mb-0
-																													">
+																																																												alert
+																																																												alert-success
+																																																												text-center
+																																																												mb-0
+																																																											">
 
 									<i class="fa fa-check-circle mr-1"></i>
 
@@ -1500,8 +1506,8 @@
 
 
 				{# ====================================================
-												   OBSERVATION COMMANDE
-												   ==================================================== #}
+																								   OBSERVATION COMMANDE
+																								   ==================================================== #}
 
 				{% if commande.observation|default('') %}
 
@@ -1585,23 +1591,23 @@
 	<script>
 		document.addEventListener('DOMContentLoaded', function () {
 
-			const formulaires = document.querySelectorAll('.js-confirm-form');
+const formulaires = document.querySelectorAll('.js-confirm-form');
 
-			formulaires.forEach(function (formulaire) {
+formulaires.forEach(function (formulaire) {
 
-				formulaire.addEventListener('submit', function (event) {
+formulaire.addEventListener('submit', function (event) {
 
-					const message = formulaire.dataset.message || 'Voulez-vous continuer ?';
+const message = formulaire.dataset.message || 'Voulez-vous continuer ?';
 
-					if (!window.confirm(message)) {
-						event.preventDefault();
-					}
+if (!window.confirm(message)) {
+event.preventDefault();
+}
 
-				});
+});
 
-			});
+});
 
-		});
+});
 	</script>
 
 {% endblock %}

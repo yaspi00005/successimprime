@@ -1196,12 +1196,14 @@ public function livrer(
         );
 
         try {
-            if ($detail->isProductionNecessaire()) {
-                throw new \LogicException(
-                    'Cette ligne nécessite une production et ne peut pas être livrée directement.'
-                );
-            }
-
+            /*
+             * Bouton de secours : permet de fermer n'importe quelle
+             * ligne (avec ou sans fabrication, avec ou sans contrôle
+             * prépresse) quand elle a déjà été traitée/remise au
+             * client en dehors du logiciel. On force donc le passage
+             * à "non requise" si la production n'a pas encore
+             * démarré, quel que soit le type de ligne.
+             */
             if (
                 $detail->getStatutProduction()
                 === CommandesDetails::PRODUCTION_A_PRODUIRE
@@ -1232,25 +1234,25 @@ public function livrer(
                 );
             }
 
-            if (
-                $detail->getTypeLigne()
-                === CommandesDetails::TYPE_ARTICLE
-            ) {
-                $article = $detail->getArticle();
+            /*
+             * Sortie de stock quel que soit le type de ligne :
+             * calculerBesoinsDetail() sait determiner s'il y a
+             * reellement une reservation a consommer (article de
+             * vente directe, ou produit dont la gestion de stock est
+             * activee) et ne fait rien sinon.
+             */
+            $quantite = (float) $detail->getQuantite();
 
-                $quantite = (float) $detail->getQuantite();
-
-                if ($article !== null && $quantite > 0) {
-                    $stockService->consommerPourDetail(
-                        $detail,
-                        StockSorties::ORIGINE_LIVRAISON,
-                        sprintf(
-                            'LIV-DIRECT-%06d',
-                            (int) $detail->getId()
-                        ),
-                        $quantite
-                    );
-                }
+            if ($quantite > 0) {
+                $stockService->consommerPourDetail(
+                    $detail,
+                    StockSorties::ORIGINE_LIVRAISON,
+                    sprintf(
+                        'LIV-DIRECT-%06d',
+                        (int) $detail->getId()
+                    ),
+                    $quantite
+                );
             }
 
             $detail->marquerLivree();

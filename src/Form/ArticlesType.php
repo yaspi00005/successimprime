@@ -86,6 +86,17 @@ final class ArticlesType extends AbstractType
             false,
     ]
 )
+->add(
+    'consommableProduction',
+    CheckboxType::class,
+    [
+        'label' =>
+            'Cet article peut aussi être retiré manuellement du stock en production (écran Consommables)',
+
+        'required' =>
+            false,
+    ]
+)
             ->add(
                 'unite',
                 ChoiceType::class,

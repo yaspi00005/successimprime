@@ -191,18 +191,6 @@
 							</div>
 
 							<div class="form-group">
-								<label class="form-label">Statut de paiement</label>
-								<select name="statut" class="form-control custom-select">
-									<option value="">Tous les statuts</option>
-									{% for statut in statuts|default([]) %}
-										<option value="{{ statut.id }}" {{ filtres.statut|default('') == statut.id ? 'selected' : '' }}>
-											{{ statut }}
-										</option>
-									{% endfor %}
-								</select>
-							</div>
-
-							<div class="form-group">
 								<label class="form-label">État des travaux</label>
 								<select name="etat" class="form-control custom-select">
 									<option value="">Tous les états</option>

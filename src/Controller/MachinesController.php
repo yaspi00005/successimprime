@@ -421,10 +421,10 @@ final class MachinesController extends AbstractController
         /*
          * Compteurs.
          */
-        $compteurM2 = $this->recupererEntier(
+        $compteurM2 = $this->recupererDecimal(
             $request,
             'compteurM2',
-            0
+            0.0
         );
 
         $compteurHeures = $this->recupererEntier(
@@ -603,6 +603,38 @@ final class MachinesController extends AbstractController
         }
 
         return (int) $valeur;
+    }
+
+    /*
+     * Comme recupererEntier(), mais accepte les decimales -- utilise
+     * pour compteurM2, alimente automatiquement avec des surfaces
+     * fractionnaires (voir Machines::enregistrerUsage()).
+     */
+    private function recupererDecimal(
+        Request $request,
+        string $champ,
+        float $valeurParDefaut = 0.0
+    ): float {
+        $valeur = trim(
+            (string) $request->request->get($champ)
+        );
+
+        if ($valeur === '') {
+            return $valeurParDefaut;
+        }
+
+        $valeur = str_replace(',', '.', $valeur);
+
+        if (!is_numeric($valeur)) {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    'Le champ %s doit contenir un nombre.',
+                    $champ
+                )
+            );
+        }
+
+        return max(0.0, (float) $valeur);
     }
 
     /*

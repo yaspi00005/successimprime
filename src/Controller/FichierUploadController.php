@@ -4,12 +4,14 @@ namespace App\Controller;
 
 use App\Entity\CommandeDetailFichier;
 use App\Repository\CommandeDetailFichierRepository;
+use App\Repository\CommandesDetailsRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Attribute\Route;
@@ -22,6 +24,7 @@ final class FichierUploadController extends AbstractController
 
     private string $dossierTemporaire;
     private string $dossierFinal;
+    private string $dossierPartage;
 
     public function __construct(
         KernelInterface $kernel
@@ -32,9 +35,13 @@ final class FichierUploadController extends AbstractController
         $this->dossierFinal =
             $kernel->getProjectDir().'/var/uploads/commandes';
 
+        $this->dossierPartage =
+            $kernel->getProjectDir().'/var/uploads/dossier_partage';
+
         foreach ([
             $this->dossierTemporaire,
             $this->dossierFinal,
+            $this->dossierPartage,
         ] as $dossier) {
             if (
                 !is_dir($dossier)
@@ -404,6 +411,167 @@ final class FichierUploadController extends AbstractController
         }
 
         return $response;
+    }
+
+    #[Route(
+        '/dossier-partage',
+        name: 'app_fichier_dossier_partage',
+        methods: ['GET']
+    )]
+    public function dossierPartage(): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_PREPRESSE');
+
+        $fichiers = [];
+
+        foreach (glob($this->dossierPartage.'/*') ?: [] as $chemin) {
+            if (!is_file($chemin)) {
+                continue;
+            }
+
+            $nom = basename($chemin);
+
+            $fichiers[] = [
+                'nom' => $nom,
+                'taille' => filesize($chemin) ?: 0,
+                'referenceValide' => (bool) preg_match('/^\d+[-_]/', $nom),
+            ];
+        }
+
+        return $this->render('commande_fichiers/dossier_partage.html.twig', [
+            'fichiers' => $fichiers,
+            'cheminDossier' => $this->dossierPartage,
+        ]);
+    }
+
+    #[Route(
+        '/dossier-partage/importer',
+        name: 'app_fichier_dossier_partage_importer',
+        methods: ['POST']
+    )]
+    public function importerDossierPartage(
+        Request $request,
+        CommandesDetailsRepository $commandesDetailsRepository,
+        EntityManagerInterface $entityManager
+    ): Response {
+        $this->denyAccessUnlessGranted('ROLE_PREPRESSE');
+
+        if (!$this->isCsrfTokenValid(
+            'dossier-partage-importer',
+            (string) $request->request->get('_token')
+        )) {
+            $this->addFlash(
+                'error',
+                'Jeton de sécurité invalide, merci de réessayer.'
+            );
+
+            return $this->redirectToRoute('app_fichier_dossier_partage');
+        }
+
+        $importes = [];
+        $ignores = [];
+
+        foreach (glob($this->dossierPartage.'/*') ?: [] as $chemin) {
+            if (!is_file($chemin)) {
+                continue;
+            }
+
+            $nom = basename($chemin);
+
+            /*
+             * Convention de nommage attendue :
+             * <id du travail>_nom-du-fichier.ext
+             * ou <id du travail>-nom-du-fichier.ext
+             *
+             * L'id du travail est affiché sur la fiche de la
+             * commande (« Réf: #123 ») à côté de chaque travail.
+             */
+            if (!preg_match('/^(\d+)[-_](.+)$/', $nom, $correspondances)) {
+                $ignores[] = $nom.' (nom sans référence de travail en préfixe)';
+                continue;
+            }
+
+            $detailId = (int) $correspondances[1];
+            $nomOriginal = $correspondances[2];
+
+            $detail = $commandesDetailsRepository->find($detailId);
+
+            if ($detail === null) {
+                $ignores[] = $nom.' (aucun travail avec la référence #'.$detailId.')';
+                continue;
+            }
+
+            $extension = strtolower(
+                pathinfo($nomOriginal, PATHINFO_EXTENSION)
+            );
+
+            $nomStockage = bin2hex(random_bytes(32));
+
+            if ($extension !== '') {
+                $nomStockage .= '.'.preg_replace(
+                    '/[^a-z0-9]/i',
+                    '',
+                    $extension
+                );
+            }
+
+            $cheminFinal = $this->dossierFinal.'/'.$nomStockage;
+
+            /*
+             * rename() déplace le fichier sans le recopier : même
+             * un fichier de plusieurs Go est instantané, puisque
+             * le dossier partagé et le dossier final sont sur le
+             * même disque.
+             */
+            if (!rename($chemin, $cheminFinal)) {
+                $ignores[] = $nom.' (impossible de déplacer le fichier)';
+                continue;
+            }
+
+            $typeMime = mime_content_type($cheminFinal);
+
+            $fichier = (new CommandeDetailFichier())
+                ->setJetonUpload(bin2hex(random_bytes(32)))
+                ->setCommandeDetail($detail)
+                ->setNomOriginal($nomOriginal)
+                ->setNomStockage($nomStockage)
+                ->setTypeMime(
+                    is_string($typeMime) ? $typeMime : 'application/octet-stream'
+                )
+                ->setTaille((int) (filesize($cheminFinal) ?: 0))
+                ->setNombreMorceaux(1)
+                ->setMorceauxRecus(1)
+                ->marquerUploadTermine();
+
+            $entityManager->persist($fichier);
+
+            $importes[] = $nomOriginal.' → travail #'.$detailId;
+        }
+
+        $entityManager->flush();
+
+        if ($importes !== []) {
+            $this->addFlash(
+                'success',
+                count($importes).' fichier(s) importé(s) : '.implode(', ', $importes)
+            );
+        }
+
+        if ($ignores !== []) {
+            $this->addFlash(
+                'error',
+                count($ignores).' fichier(s) ignoré(s) : '.implode(', ', $ignores)
+            );
+        }
+
+        if ($importes === [] && $ignores === []) {
+            $this->addFlash(
+                'success',
+                'Le dossier partagé est vide, rien à importer.'
+            );
+        }
+
+        return $this->redirectToRoute('app_fichier_dossier_partage');
     }
 
     private function assemblerFichier(

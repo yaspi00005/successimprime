@@ -114,6 +114,20 @@ class Articles
 )]
 private bool $vendable = true;
 
+/*
+ * Indépendant de "vendable" : un article peut être vendu
+ * directement au client ET servir de matière première
+ * consommée manuellement en production (ex. bâche vinyle),
+ * alors qu'un article uniquement vendable (ex. kakémono) ne
+ * doit pas apparaître dans l'écran Consommables.
+ */
+#[ORM\Column(
+    options: [
+        'default' => false,
+    ]
+)]
+private bool $consommableProduction = false;
+
 
 
 /**
@@ -535,6 +549,19 @@ public function setVendable(
     bool $vendable
 ): static {
     $this->vendable = $vendable;
+
+    return $this;
+}
+
+public function isConsommableProduction(): bool
+{
+    return $this->consommableProduction;
+}
+
+public function setConsommableProduction(
+    bool $consommableProduction
+): static {
+    $this->consommableProduction = $consommableProduction;
 
     return $this;
 }

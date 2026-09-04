@@ -123,6 +123,11 @@
 
 			<div>
 
+				<a href="{{ path('app_clients_pdf_impayes', { publicId: client.publicId }) }}" class="btn btn-danger" target="_blank">
+					<i class="fa fa-file-pdf-o mr-1"></i>
+					PDF des impayés
+				</a>
+
 				<a href="{{ path('app_clients_index') }}" class="btn btn-light">
 					<i class="fa fa-arrow-left mr-1"></i>
 					Retour

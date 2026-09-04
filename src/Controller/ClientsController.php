@@ -18,6 +18,8 @@ use App\Repository\CommandesRepository;
 use App\Repository\DevisRepository;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 #[Route('/clients')]
 final class ClientsController extends AbstractController
@@ -1067,6 +1069,138 @@ final class ClientsController extends AbstractController
                     $pourcentageCredit,
                 ],
             ]
+        );
+    }
+
+    #[Route(
+        '/fiche/{publicId}/impayes.pdf',
+        name: 'app_clients_pdf_impayes',
+        methods: ['GET']
+    )]
+    public function pdfImpayes(
+        #[MapEntity(mapping: [
+            'publicId' => 'publicId',
+        ])]
+        Clients $client,
+        CommandesRepository $commandesRepository
+    ): Response {
+        $commandes = $commandesRepository->findBy(
+            [
+                'clients' => $client,
+                'deleted' => false,
+            ],
+            [
+                'dateCommande' => 'DESC',
+            ]
+        );
+
+        /*
+         * Même calcul que ClientsController::show() : le
+         * statut réel du paiement se calcule à partir des
+         * paiements validés, jamais depuis un champ figé
+         * (montantApayer/statutPaiement en base ne sont pas
+         * fiables, voir CommandesRepository).
+         */
+        $commandesImpayees = [];
+        $totalCommandes = 0;
+        $totalPaye = 0;
+        $totalReste = 0;
+
+        foreach ($commandes as $commande) {
+            $montantCommande = (int) $commande->getTotalTtc();
+            $totalPayeCommande = 0;
+
+            foreach ($commande->getPaiements() as $paiement) {
+                if ($paiement->getStatut() !== Paiements::STATUT_VALIDE) {
+                    continue;
+                }
+
+                $totalPayeCommande += (int) $paiement->getMontant();
+            }
+
+            $resteCommande = max(0, $montantCommande - $totalPayeCommande);
+
+            if ($resteCommande <= 0) {
+                continue;
+            }
+
+            $commandesImpayees[] = [
+                'commande' => $commande,
+                'totalTtc' => $montantCommande,
+                'totalPaye' => $totalPayeCommande,
+                'resteAPayer' => $resteCommande,
+            ];
+
+            $totalCommandes += $montantCommande;
+            $totalPaye += $totalPayeCommande;
+            $totalReste += $resteCommande;
+        }
+
+        $projectDir = $this->getParameter('kernel.project_dir');
+
+        $html = $this->renderView(
+            'clients/pdf_impayes.html.twig',
+            [
+                'client' => $client,
+                'commandes' => $commandesImpayees,
+                'totalCommandes' => $totalCommandes,
+                'totalPaye' => $totalPaye,
+                'totalReste' => $totalReste,
+                'genereLe' => new \DateTimeImmutable(),
+                'logo' => $this->imageVersDataUri(
+                    $projectDir . '/public/assets/images/brand/logo2.png'
+                ),
+            ]
+        );
+
+        $options = new Options();
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $contenuPdf = $dompdf->output();
+
+        return new Response(
+            $contenuPdf,
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => sprintf(
+                    'inline; filename="impayes-%s.pdf"',
+                    preg_replace('/[^A-Za-z0-9_-]/', '-', $client->getNomComplet())
+                ),
+                'Content-Length' => (string) strlen($contenuPdf),
+            ]
+        );
+    }
+
+    private function imageVersDataUri(string $chemin): ?string
+    {
+        if (!is_file($chemin) || !is_readable($chemin)) {
+            return null;
+        }
+
+        $contenu = file_get_contents($chemin);
+
+        if ($contenu === false) {
+            return null;
+        }
+
+        $mime = mime_content_type($chemin);
+
+        if (!$mime) {
+            $mime = 'image/png';
+        }
+
+        return sprintf(
+            'data:%s;base64,%s',
+            $mime,
+            base64_encode($contenu)
         );
     }
 

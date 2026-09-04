@@ -49,7 +49,7 @@ final class EmployesController extends AbstractController
                 $employe->setPhotos($nomPhoto);
 
             } catch (FileException $e) {
-                dd($e->getMessage());
+                // dd($e->getMessage());
             }
         }
 
@@ -69,7 +69,7 @@ final class EmployesController extends AbstractController
                 $employe->setCin($nomCin);
 
             } catch (FileException $e) {
-                dd($e->getMessage());
+                // dd($e->getMessage());
             }
         }
 

@@ -897,12 +897,12 @@ public function convertirCommande(
         );
 
     } catch (\Throwable $exception) {
-        dd(
-            $exception::class,
-            $exception->getMessage(),
-            $exception->getFile(),
-            $exception->getLine()
-        );
+        // dd(
+        //     $exception::class,
+        //     $exception->getMessage(),
+        //     $exception->getFile(),
+        //     $exception->getLine()
+        // );
     }
 
     return $this->redirectToRoute(

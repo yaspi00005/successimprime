@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Ajoute le suivi automatique de l'usure des machines : chaque
-impression terminée ajuste desormais le compteur de la machine
-utilisee (compteur_m2 pour les machines facturees au metre carre,
-nouveau compteur_feuilles en A4-equivalent pour les machines
-facturees a la feuille). L'amortissement reste calcule sur le temps
-ecoule (inchange) -- ce compteur sert uniquement a anticiper la
-maintenance.
+Ajoute le suivi automatique du compteur d'usure des machines
+(m2 ou feuilles selon le mode de facturation), incremente a chaque
+impression terminee. Fonctionnalite jamais livree jusqu'ici -- le
+code existait deja mais aucun script n'avait ete envoye.
 
-5 endroits modifies :
-  1) src/Entity/Machines.php : nouveau champ compteur_feuilles +
-     methode enregistrerUsage().
-  2) src/Controller/ProductionController.php : au moment de terminer
-     une production, calcule la surface imprimee (largeur x longueur
-     x quantite traitee) et l'ajoute au compteur de la machine.
-  3) src/Controller/MachinesController.php : le compteur feuilles est
-     lisible/modifiable manuellement comme les deux autres compteurs.
-  4) templates/machines/index.html.twig : affichage + champs de
-     creation/modification pour le nouveau compteur.
-  5) migrations/Version20260826120000.php (nouveau fichier) : ajoute
-     la colonne compteur_feuilles.
+Touche 5 endroits :
+  1. Nouvelle migration : colonne machines.compteur_feuilles ;
+  2. src/Entity/Machines.php : champ compteurFeuilles +
+     methode enregistrerUsage() ;
+  3. src/Controller/ProductionController.php : appel de
+     enregistrerUsage() a la fin de chaque production ;
+  4. src/Controller/MachinesController.php : lecture/ecriture du
+     champ compteurFeuilles (creation/edition/AJAX) ;
+  5. templates/machines/index.html.twig : affichage "Feuilles"
+     et champs de saisie dans les modales creation/edition.
+
+IMPORTANT : ce script modifie du code, il ne modifie PAS la base
+de donnees. Executez ensuite obligatoirement :
+    php bin/console doctrine:migrations:migrate
+pour creer la colonne compteur_feuilles.
 
 Usage:
     python3 ajouter_compteur_usure_machine.py /chemin/vers/successImprim
@@ -54,242 +54,41 @@ def verifier_racine(racine):
     print()
 
 
-def php_lint(chemin_absolu):
-    try:
-        resultat = subprocess.run(
-            ["php", "-l", chemin_absolu],
-            capture_output=True, text=True, timeout=30
-        )
-        print("  php -l : " + resultat.stdout.strip() + resultat.stderr.strip())
-    except Exception:
-        pass
 
 
-def remplacer_unique(chemin_relatif, contenu, ancien, nouveau, description):
-    if ancien not in contenu:
-        print("[ECHEC] " + chemin_relatif + " : '" + description + "' introuvable -> abandon (rien ecrit).")
-        return None
-    return contenu.replace(ancien, nouveau, 1)
+MIGRATION_CONTENU = '<?php\n\ndeclare(strict_types=1);\n\nnamespace DoctrineMigrations;\n\nuse Doctrine\\DBAL\\Schema\\Schema;\nuse Doctrine\\Migrations\\AbstractMigration;\n\nfinal class Version20260826120000 extends AbstractMigration\n{\n    public function getDescription(): string\n    {\n        return "Ajoute machines.compteur_feuilles (compteur d\'usure en "\n            . "feuilles A4-equivalent, pour les machines facturees a la feuille).";\n    }\n\n    public function up(Schema $schema): void\n    {\n        $this->addSql(\n            \'ALTER TABLE machines ADD compteur_feuilles INT DEFAULT 0 NOT NULL\'\n        );\n    }\n\n    public function down(Schema $schema): void\n    {\n        $this->addSql(\'ALTER TABLE machines DROP compteur_feuilles\');\n    }\n}\n'
 
 
-# ============================================================
-# 1) src/Entity/Machines.php
-# ============================================================
-
-ANCIEN_CHAMP = """    #[ORM\\Column(type: Types::INTEGER)]
-    private ?int $compteurHeures = null;"""
-
-NOUVEAU_CHAMP = """    #[ORM\\Column(type: Types::INTEGER)]
-    private ?int $compteurHeures = null;
-
-    /*
-     * Compteur en feuilles A4-équivalent (une A3 compte pour 2 A4),
-     * pour les machines facturées à la feuille. Distinct de
-     * compteurM2, réservé aux machines grand format.
-     */
-    #[ORM\\Column(type: Types::INTEGER, options: ['default' => 0])]
-    private int $compteurFeuilles = 0;"""
-
-ANCIEN_GETTER = """    public function getCompteurHeures(): ?int
-    {
-        return $this->compteurHeures;
-    }
-
-    public function setCompteurHeures(int $compteurHeures): static
-    {
-        $this->compteurHeures = $compteurHeures;
-
-        return $this;
-    }"""
-
-NOUVEAU_GETTER = """    public function getCompteurHeures(): ?int
-    {
-        return $this->compteurHeures;
-    }
-
-    public function setCompteurHeures(int $compteurHeures): static
-    {
-        $this->compteurHeures = $compteurHeures;
-
-        return $this;
-    }
-
-    public function getCompteurFeuilles(): int
-    {
-        return $this->compteurFeuilles;
-    }
-
-    public function setCompteurFeuilles(int $compteurFeuilles): static
-    {
-        $this->compteurFeuilles = $compteurFeuilles;
-
-        return $this;
-    }"""
-
-ANCIEN_UTILISE_FEUILLE = """    public function utiliseFeuille(): bool
-    {
-        return $this->modeFacturation === self::MODE_FACTURATION_FEUILLE;
-    }"""
-
-NOUVEAU_UTILISE_FEUILLE = """    public function utiliseFeuille(): bool
-    {
-        return $this->modeFacturation === self::MODE_FACTURATION_FEUILLE;
-    }
-
-    /*
-     * Surface d'une feuille A4, en m² (0,21 x 0,297) — sert de
-     * référence pour convertir une surface imprimée en nombre de
-     * feuilles A4-équivalent (une A3 compte pour 2 A4).
-     */
-    private const SURFACE_A4_M2 = 0.21 * 0.297;
-
-    /**
-     * Ajoute l'usage d'une impression au compteur d'usure de la
-     * machine, uniquement pour suivre la maintenance — n'affecte pas
-     * le calcul de l'amortissement (basé sur le temps écoulé, voir
-     * getChargeAmortissementMensuelle()). Le compteur alimenté dépend
-     * du mode de facturation de la machine.
-     */
-    public function enregistrerUsage(float $surfaceM2Totale): void
-    {
-        if ($surfaceM2Totale <= 0) {
-            return;
-        }
-
-        if ($this->utiliseSurface()) {
-            $this->compteurM2 = ($this->compteurM2 ?? 0) + (int) round($surfaceM2Totale);
-
-            return;
-        }
-
-        if ($this->utiliseFeuille()) {
-            $this->compteurFeuilles += (int) round(
-                $surfaceM2Totale / self::SURFACE_A4_M2
-            );
-        }
-    }"""
-
-MARQUEUR_MACHINES = "enregistrerUsage"
 
 
-def corriger_machines(racine):
-    chemin_relatif = "src/Entity/Machines.php"
+def creer_migration(racine):
+    chemin_relatif = "migrations/Version20260826120000.php"
     chemin_absolu = os.path.join(racine, chemin_relatif)
 
-    print("-" * 70)
-    print(chemin_relatif)
-    print("-" * 70)
-
-    if not os.path.isfile(chemin_absolu):
-        print("[ABSENT] " + chemin_relatif + " n'existe pas du tout sur le disque.")
-        return False
-
-    with open(chemin_absolu, "r", encoding="utf-8") as f:
-        contenu = f.read()
-
-    if MARQUEUR_MACHINES in contenu:
-        print("[SKIP] " + chemin_relatif + " contient deja '" + MARQUEUR_MACHINES + "' (deja applique).")
+    if os.path.isfile(chemin_absolu):
+        print("[SKIP] " + chemin_relatif + " existe deja (deja applique).")
         return True
 
-    contenu2 = remplacer_unique(chemin_relatif, contenu, ANCIEN_CHAMP, NOUVEAU_CHAMP, "champ compteurHeures")
-    if contenu2 is None:
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n -B2 -A2 \"compteurHeures = null\" " + chemin_relatif)
-        return False
-
-    contenu3 = remplacer_unique(chemin_relatif, contenu2, ANCIEN_GETTER, NOUVEAU_GETTER, "getter/setter compteurHeures")
-    if contenu3 is None:
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n -A10 \"function getCompteurHeures\" " + chemin_relatif)
-        return False
-
-    contenu4 = remplacer_unique(chemin_relatif, contenu3, ANCIEN_UTILISE_FEUILLE, NOUVEAU_UTILISE_FEUILLE, "methode utiliseFeuille")
-    if contenu4 is None:
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n -A5 \"function utiliseFeuille\" " + chemin_relatif)
-        return False
+    os.makedirs(os.path.dirname(chemin_absolu), exist_ok=True)
 
     with open(chemin_absolu, "w", encoding="utf-8", newline="") as f:
-        f.write(contenu4)
+        f.write(MIGRATION_CONTENU)
         f.flush()
         os.fsync(f.fileno())
 
-    with open(chemin_absolu, "r", encoding="utf-8", newline="") as f:
-        relu = f.read()
-
-    if relu != contenu4:
-        print("[ECHEC VERIFICATION] " + chemin_relatif + " : le contenu relu ne correspond pas.")
-        return False
-
-    print("[OK VERIFIE] " + chemin_relatif)
+    print("[OK CREE] " + chemin_relatif)
     print("  Chemin reel : " + os.path.realpath(chemin_absolu))
-    php_lint(chemin_absolu)
     return True
 
 
-# ============================================================
-# 2) src/Controller/ProductionController.php
-# ============================================================
-
-ANCIEN_TERMINER = """        $ordre->terminer(
-            $utilisateur,
-            $quantiteProduite,
-            $quantiteRebut,
-            $observation
-        );
-
-        /*
-         * ========================================================
-         * NOTIFICATION
-         * ========================================================"""
-
-NOUVEAU_TERMINER = """        $ordre->terminer(
-            $utilisateur,
-            $quantiteProduite,
-            $quantiteRebut,
-            $observation
-        );
-
-        /*
-         * ========================================================
-         * COMPTEUR D'USURE MACHINE
-         * ========================================================
-         *
-         * Suivi de l'usage uniquement (maintenance) : n'affecte pas
-         * l'amortissement, calculé sur le temps écoulé. Alimente
-         * compteurM2 ou compteurFeuilles selon le mode de facturation
-         * de la machine ; ignoré si la ligne n'a pas de dimensions
-         * (article en stock, saisie libre).
-         */
-        $machineUtilisee = $ordre->getMachine();
-
-        if ($machineUtilisee instanceof Machines) {
-            $largeurDetail = (float) ($detail->getLargeur() ?? 0);
-            $longueurDetail = (float) ($detail->getLongueur() ?? 0);
-
-            if ($largeurDetail > 0 && $longueurDetail > 0) {
-                $machineUtilisee->enregistrerUsage(
-                    $largeurDetail * $longueurDetail * $quantiteTraitee
-                );
-            }
-        }
-
-        /*
-         * ========================================================
-         * NOTIFICATION
-         * ========================================================"""
-
-MARQUEUR_PRODUCTION = "COMPTEUR D'USURE MACHINE"
-
-
-def corriger_production(racine):
-    chemin_relatif = "src/Controller/ProductionController.php"
+def appliquer_paires(racine, chemin_relatif, marqueur, paires, diagnostic, repetitions=None):
+    """
+    paires: liste de (ancien, nouveau). Chaque paire est appliquee
+    independamment (si une echoue, les autres sont quand meme
+    tentees) ; repetitions permet de forcer un nombre de
+    remplacements pour une paire donnee (par defaut 1).
+    """
     chemin_absolu = os.path.join(racine, chemin_relatif)
-
-    print()
-    print("-" * 70)
-    print(chemin_relatif)
-    print("-" * 70)
 
     if not os.path.isfile(chemin_absolu):
         print("[ABSENT] " + chemin_relatif + " n'existe pas du tout sur le disque.")
@@ -298,397 +97,36 @@ def corriger_production(racine):
     with open(chemin_absolu, "r", encoding="utf-8") as f:
         contenu = f.read()
 
-    if MARQUEUR_PRODUCTION in contenu:
-        print("[SKIP] " + chemin_relatif + " contient deja la logique du compteur d'usure (deja applique).")
+    if marqueur in contenu:
+        print("[SKIP] " + chemin_relatif + " contient deja le correctif (deja applique).")
         return True
 
-    if "use App\\Entity\\Machines;" not in contenu:
-        print("[ECHEC] " + chemin_relatif + " : import de Machines introuvable -> abandon (rien ecrit).")
+    contenu_original = contenu
+    tout_ok = True
+
+    for index, ancien_nouveau in enumerate(paires):
+        ancien, nouveau = ancien_nouveau[0], ancien_nouveau[1]
+        n = repetitions.get(index, 1) if repetitions else 1
+
+        if nouveau in contenu:
+            print("  [SKIP bloc " + str(index) + "] deja present.")
+            continue
+
+        occurrences = contenu.count(ancien)
+
+        if occurrences < n:
+            print("  [ECHEC bloc " + str(index) + "] reference introuvable (" + str(occurrences) + " trouvee(s), " + str(n) + " attendue(s)).")
+            tout_ok = False
+            continue
+
+        contenu = contenu.replace(ancien, nouveau, n)
+        print("  [OK bloc " + str(index) + "] applique.")
+
+    if contenu == contenu_original:
+        print("[ECHEC] " + chemin_relatif + " : aucun bloc n'a pu etre applique -> abandon (rien ecrit).")
         print("  Copiez-moi le resultat de :")
-        print("    grep -n \"^use App\\\\\\\\Entity\" " + chemin_relatif)
+        print("    " + diagnostic)
         return False
-
-    contenu_corrige = remplacer_unique(chemin_relatif, contenu, ANCIEN_TERMINER, NOUVEAU_TERMINER, "fin de la methode terminer()")
-
-    if contenu_corrige is None:
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n -B3 -A10 \"NOTIFICATION\" " + chemin_relatif + " | head -30")
-        return False
-
-    with open(chemin_absolu, "w", encoding="utf-8", newline="") as f:
-        f.write(contenu_corrige)
-        f.flush()
-        os.fsync(f.fileno())
-
-    with open(chemin_absolu, "r", encoding="utf-8", newline="") as f:
-        relu = f.read()
-
-    if relu != contenu_corrige:
-        print("[ECHEC VERIFICATION] " + chemin_relatif + " : le contenu relu ne correspond pas.")
-        return False
-
-    print("[OK VERIFIE] " + chemin_relatif)
-    print("  Chemin reel : " + os.path.realpath(chemin_absolu))
-    php_lint(chemin_absolu)
-    return True
-
-
-# ============================================================
-# 3) src/Controller/MachinesController.php
-# ============================================================
-
-ANCIEN_LECTURE = """        $compteurHeures = $this->recupererEntier(
-            $request,
-            'compteurHeures',
-            0
-        );"""
-
-NOUVELLE_LECTURE = """        $compteurHeures = $this->recupererEntier(
-            $request,
-            'compteurHeures',
-            0
-        );
-
-        $compteurFeuilles = $this->recupererEntier(
-            $request,
-            'compteurFeuilles',
-            0
-        );"""
-
-ANCIENNE_AFFECTATION = """            ->setCompteurM2($compteurM2)
-            ->setCompteurHeures($compteurHeures)
-            ->setEtat($etat)"""
-
-NOUVELLE_AFFECTATION = """            ->setCompteurM2($compteurM2)
-            ->setCompteurHeures($compteurHeures)
-            ->setCompteurFeuilles($compteurFeuilles)
-            ->setEtat($etat)"""
-
-ANCIEN_TABLEAU = """            'compteurHeures' =>
-                $machine->getCompteurHeures(),
-
-            'etat' => $machine->getEtat(),"""
-
-NOUVEAU_TABLEAU = """            'compteurHeures' =>
-                $machine->getCompteurHeures(),
-
-            'compteurFeuilles' =>
-                $machine->getCompteurFeuilles(),
-
-            'etat' => $machine->getEtat(),"""
-
-MARQUEUR_MACHINES_CONTROLLER = "compteurFeuilles"
-
-
-def corriger_machines_controller(racine):
-    chemin_relatif = "src/Controller/MachinesController.php"
-    chemin_absolu = os.path.join(racine, chemin_relatif)
-
-    print()
-    print("-" * 70)
-    print(chemin_relatif)
-    print("-" * 70)
-
-    if not os.path.isfile(chemin_absolu):
-        print("[ABSENT] " + chemin_relatif + " n'existe pas du tout sur le disque.")
-        return False
-
-    with open(chemin_absolu, "r", encoding="utf-8") as f:
-        contenu = f.read()
-
-    if MARQUEUR_MACHINES_CONTROLLER in contenu:
-        print("[SKIP] " + chemin_relatif + " contient deja 'compteurFeuilles' (deja applique).")
-        return True
-
-    contenu2 = remplacer_unique(chemin_relatif, contenu, ANCIEN_LECTURE, NOUVELLE_LECTURE, "lecture compteurHeures")
-    if contenu2 is None:
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n -A6 \"compteurHeures = .this->recupererEntier\" " + chemin_relatif)
-        return False
-
-    contenu3 = remplacer_unique(chemin_relatif, contenu2, ANCIENNE_AFFECTATION, NOUVELLE_AFFECTATION, "affectation setCompteurHeures")
-    if contenu3 is None:
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n -B2 -A2 \"setCompteurHeures\" " + chemin_relatif)
-        return False
-
-    contenu4 = remplacer_unique(chemin_relatif, contenu3, ANCIEN_TABLEAU, NOUVEAU_TABLEAU, "tableau compteurHeures")
-    if contenu4 is None:
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n -B2 -A4 \"'compteurHeures' =>\" " + chemin_relatif)
-        return False
-
-    with open(chemin_absolu, "w", encoding="utf-8", newline="") as f:
-        f.write(contenu4)
-        f.flush()
-        os.fsync(f.fileno())
-
-    with open(chemin_absolu, "r", encoding="utf-8", newline="") as f:
-        relu = f.read()
-
-    if relu != contenu4:
-        print("[ECHEC VERIFICATION] " + chemin_relatif + " : le contenu relu ne correspond pas.")
-        return False
-
-    print("[OK VERIFIE] " + chemin_relatif)
-    print("  Chemin reel : " + os.path.realpath(chemin_absolu))
-    php_lint(chemin_absolu)
-    return True
-
-
-# ============================================================
-# 4) templates/machines/index.html.twig
-# ============================================================
-
-ANCIEN_AFFICHAGE = """<div>
-													<small class="text-muted">
-														Heures :
-													</small>
-
-													<strong>
-														{{ machine.compteurHeures
-                                                        is not null
-                                                        ? machine.compteurHeures
-                                                        : 0
-                                                    }}
-													</strong>
-												</div>
-
-											</td>"""
-
-NOUVEL_AFFICHAGE = """<div>
-													<small class="text-muted">
-														Heures :
-													</small>
-
-													<strong>
-														{{ machine.compteurHeures
-                                                        is not null
-                                                        ? machine.compteurHeures
-                                                        : 0
-                                                    }}
-													</strong>
-												</div>
-
-												<div>
-													<small class="text-muted">
-														Feuilles :
-													</small>
-
-													<strong>
-														{{ machine.compteurFeuilles|default(0) }}
-													</strong>
-												</div>
-
-											</td>"""
-
-ANCIEN_CHAMP_CREATE = """						{# COMPTEUR HEURES #}
-						<div class="col-md-6">
-
-							<div class="form-group">
-
-								<label class="form-label" for="machineCreateCompteurHeures">
-									Compteur heures
-								</label>
-
-								<input type="number" id="machineCreateCompteurHeures" class="form-control" min="0" step="1" value="0">
-
-							</div>
-
-						</div>
-
-
-						<div class="col-12">
-							<hr>
-							<h6 class="text-muted">Rentabilité / amortissement</h6>
-						</div>"""
-
-NOUVEAU_CHAMP_CREATE = """						{# COMPTEUR HEURES #}
-						<div class="col-md-6">
-
-							<div class="form-group">
-
-								<label class="form-label" for="machineCreateCompteurHeures">
-									Compteur heures
-								</label>
-
-								<input type="number" id="machineCreateCompteurHeures" class="form-control" min="0" step="1" value="0">
-
-							</div>
-
-						</div>
-
-
-						{# COMPTEUR FEUILLES #}
-						<div class="col-md-6">
-
-							<div class="form-group">
-
-								<label class="form-label" for="machineCreateCompteurFeuilles">
-									Compteur feuilles (A4-équivalent)
-								</label>
-
-								<input type="number" id="machineCreateCompteurFeuilles" class="form-control" min="0" step="1" value="0">
-
-							</div>
-
-						</div>
-
-
-						<div class="col-12">
-							<hr>
-							<h6 class="text-muted">Rentabilité / amortissement</h6>
-						</div>"""
-
-ANCIEN_CHAMP_EDIT = """								<label class="form-label" for="machineEditCompteurHeures">
-									Compteur heures
-								</label>
-
-								<input type="number" id="machineEditCompteurHeures" class="form-control" min="0" step="1">
-
-							</div>
-
-						</div>
-
-
-						<div class="col-12">
-							<hr>
-							<h6 class="text-muted">Rentabilité / amortissement</h6>
-						</div>
-
-
-						<div class="col-md-4">
-
-							<div class="form-group">"""
-
-NOUVEAU_CHAMP_EDIT = """								<label class="form-label" for="machineEditCompteurHeures">
-									Compteur heures
-								</label>
-
-								<input type="number" id="machineEditCompteurHeures" class="form-control" min="0" step="1">
-
-							</div>
-
-						</div>
-
-
-						<div class="col-md-6">
-
-							<div class="form-group">
-
-								<label class="form-label" for="machineEditCompteurFeuilles">
-									Compteur feuilles (A4-équivalent)
-								</label>
-
-								<input type="number" id="machineEditCompteurFeuilles" class="form-control" min="0" step="1">
-
-							</div>
-
-						</div>
-
-
-						<div class="col-12">
-							<hr>
-							<h6 class="text-muted">Rentabilité / amortissement</h6>
-						</div>
-
-
-						<div class="col-md-4">
-
-							<div class="form-group">"""
-
-ANCIEN_JS_CREATE_VAR = """const compteurM2 = valeur('machineCreateCompteurM2');
-
-const compteurHeures = valeur('machineCreateCompteurHeures');
-
-const etat = valeur('machineCreateEtat');"""
-
-NOUVEAU_JS_CREATE_VAR = """const compteurM2 = valeur('machineCreateCompteurM2');
-
-const compteurHeures = valeur('machineCreateCompteurHeures');
-
-const compteurFeuilles = valeur('machineCreateCompteurFeuilles');
-
-const etat = valeur('machineCreateEtat');"""
-
-ANCIEN_JS_EDIT_DEFINIR = """definirValeur('machineEditCompteurM2', machine.compteurM2 ?? 0);
-
-definirValeur('machineEditCompteurHeures', machine.compteurHeures ?? 0);"""
-
-NOUVEAU_JS_EDIT_DEFINIR = """definirValeur('machineEditCompteurM2', machine.compteurM2 ?? 0);
-
-definirValeur('machineEditCompteurHeures', machine.compteurHeures ?? 0);
-
-definirValeur('machineEditCompteurFeuilles', machine.compteurFeuilles ?? 0);"""
-
-ANCIEN_JS_EDIT_VAR = """const compteurM2 = valeur('machineEditCompteurM2');
-
-const compteurHeures = valeur('machineEditCompteurHeures');"""
-
-NOUVEAU_JS_EDIT_VAR = """const compteurM2 = valeur('machineEditCompteurM2');
-
-const compteurHeures = valeur('machineEditCompteurHeures');
-
-const compteurFeuilles = valeur('machineEditCompteurFeuilles');"""
-
-ANCIEN_FORMDATA = "formData.append('compteurHeures', compteurHeures || '0');"
-NOUVEAU_FORMDATA = (
-    "formData.append('compteurHeures', compteurHeures || '0');\n\n"
-    "formData.append('compteurFeuilles', compteurFeuilles || '0');"
-)
-
-MARQUEUR_TWIG = "compteurFeuilles"
-
-
-def corriger_twig(racine):
-    chemin_relatif = "templates/machines/index.html.twig"
-    chemin_absolu = os.path.join(racine, chemin_relatif)
-
-    print()
-    print("-" * 70)
-    print(chemin_relatif)
-    print("-" * 70)
-
-    if not os.path.isfile(chemin_absolu):
-        print("[ABSENT] " + chemin_relatif + " n'existe pas du tout sur le disque.")
-        return False
-
-    with open(chemin_absolu, "r", encoding="utf-8") as f:
-        contenu = f.read()
-
-    if MARQUEUR_TWIG in contenu:
-        print("[SKIP] " + chemin_relatif + " contient deja 'compteurFeuilles' (deja applique).")
-        return True
-
-    etapes = [
-        (ANCIEN_AFFICHAGE, NOUVEL_AFFICHAGE, "affichage du compteur dans le tableau"),
-        (ANCIEN_CHAMP_CREATE, NOUVEAU_CHAMP_CREATE, "champ 'compteur feuilles' (creation)"),
-        (ANCIEN_CHAMP_EDIT, NOUVEAU_CHAMP_EDIT, "champ 'compteur feuilles' (modification)"),
-        (ANCIEN_JS_CREATE_VAR, NOUVEAU_JS_CREATE_VAR, "variable JS (creation)"),
-        (ANCIEN_JS_EDIT_DEFINIR, NOUVEAU_JS_EDIT_DEFINIR, "pre-remplissage JS (modification)"),
-        (ANCIEN_JS_EDIT_VAR, NOUVEAU_JS_EDIT_VAR, "variable JS (modification)"),
-    ]
-
-    for ancien, nouveau, description in etapes:
-        resultat = remplacer_unique(chemin_relatif, contenu, ancien, nouveau, description)
-        if resultat is None:
-            print("  Copiez-moi le resultat de :")
-            print("    grep -n \"machineCreateCompteurHeures\\|machineEditCompteurHeures\" " + chemin_relatif)
-            return False
-        contenu = resultat
-
-    # Les 2 occurrences de "formData.append('compteurHeures', ...)"
-    # (creation et modification) sont identiques : on ajoute la ligne
-    # compteurFeuilles apres CHACUNE d'elles.
-    nombre_formdata = contenu.count(ANCIEN_FORMDATA)
-
-    if nombre_formdata != 2:
-        print("[ECHEC] " + chemin_relatif + " : attendu 2 occurrences de \"formData.append('compteurHeures'...)\", trouve " + str(nombre_formdata) + " -> abandon (rien ecrit).")
-        print("  Copiez-moi le resultat de :")
-        print("    grep -n \"formData.append('compteurHeures'\" " + chemin_relatif)
-        return False
-
-    contenu = contenu.replace(ANCIEN_FORMDATA, NOUVEAU_FORMDATA)
 
     with open(chemin_absolu, "w", encoding="utf-8", newline="") as f:
         f.write(contenu)
@@ -702,91 +140,152 @@ def corriger_twig(racine):
         print("[ECHEC VERIFICATION] " + chemin_relatif + " : le contenu relu ne correspond pas.")
         return False
 
-    print("[OK VERIFIE] " + chemin_relatif)
+    print("[OK VERIFIE] " + chemin_relatif + (" (partiel, voir ci-dessus)" if not tout_ok else ""))
     print("  Chemin reel : " + os.path.realpath(chemin_absolu))
-    return True
+    return tout_ok
 
 
-# ============================================================
-# 5) migrations/Version20260826120000.php (nouveau fichier)
-# ============================================================
 
-CONTENU_MIGRATION = '''<?php
+MACHINES_PHP_PAIRES = [
+    (
+        '    #[ORM\\Column(type: Types::INTEGER)]\n    private ?int $nbTetes = null;\n\n    #[ORM\\Column(type: Types::DATE_MUTABLE)]\n    private ?\\DateTime $dateAchat = null;\n\n    #[ORM\\Column(type: Types::DATE_MUTABLE)]\n    private ?\\DateTime $DateMiseService = null;\n\n    #[ORM\\Column(type: Types::INTEGER)]\n    private ?int $compteurM2 = null;\n\n    #[ORM\\Column(type: Types::INTEGER)]\n    private ?int $compteurHeures = null;\n\n    #[ORM\\Column(length: 20)]\n    private ?string $etat = null;\n\n    #[ORM\\Column(length: 50, unique: true, nullable: true)]\n    private ?string $numeroMachine = null;\n\n    #[ORM\\Column(length: 45, unique: true)]\n    private ?string $adresseIp = null;\n\n    /*\n     * ============================================================\n     * RENTABILITÉ / AMORTISSEMENT\n     * ============================================================\n     */\n',
+        "    #[ORM\\Column(type: Types::INTEGER)]\n    private ?int $nbTetes = null;\n\n    #[ORM\\Column(type: Types::DATE_MUTABLE)]\n    private ?\\DateTime $dateAchat = null;\n\n    #[ORM\\Column(type: Types::DATE_MUTABLE)]\n    private ?\\DateTime $DateMiseService = null;\n\n    #[ORM\\Column(type: Types::INTEGER)]\n    private ?int $compteurM2 = null;\n\n    #[ORM\\Column(type: Types::INTEGER)]\n    private ?int $compteurHeures = null;\n\n    /*\n     * Compteur en feuilles A4-équivalent (une A3 compte pour 2 A4),\n     * pour les machines facturées à la feuille. Distinct de\n     * compteurM2, réservé aux machines grand format.\n     */\n    #[ORM\\Column(type: Types::INTEGER, options: ['default' => 0])]\n    private int $compteurFeuilles = 0;\n\n    #[ORM\\Column(length: 20)]\n    private ?string $etat = null;\n\n    #[ORM\\Column(length: 50, unique: true, nullable: true)]\n    private ?string $numeroMachine = null;\n\n    #[ORM\\Column(length: 45, unique: true)]\n    private ?string $adresseIp = null;\n\n    /*\n     * ============================================================\n     * RENTABILITÉ / AMORTISSEMENT\n     * ============================================================\n     */\n",
+    ),
+    (
+        '        return $this;\n    }\n\n    public function getCompteurHeures(): ?int\n    {\n        return $this->compteurHeures;\n    }\n\n    public function setCompteurHeures(int $compteurHeures): static\n    {\n        $this->compteurHeures = $compteurHeures;\n\n        return $this;\n    }\n\n    public function getEtat(): ?string\n    {\n        return $this->etat;\n    }\n\n    public function setEtat(string $etat): static\n    {\n        $this->etat = $etat;\n\n        return $this;\n    }\n\n    /**\n     * @return Collection<int, CommandesDetails>\n     */',
+        '        return $this;\n    }\n\n    public function getCompteurHeures(): ?int\n    {\n        return $this->compteurHeures;\n    }\n\n    public function setCompteurHeures(int $compteurHeures): static\n    {\n        $this->compteurHeures = $compteurHeures;\n\n        return $this;\n    }\n\n    public function getCompteurFeuilles(): int\n    {\n        return $this->compteurFeuilles;\n    }\n\n    public function setCompteurFeuilles(int $compteurFeuilles): static\n    {\n        $this->compteurFeuilles = $compteurFeuilles;\n\n        return $this;\n    }\n\n    public function getEtat(): ?string\n    {\n        return $this->etat;\n    }\n\n    public function setEtat(string $etat): static\n    {\n        $this->etat = $etat;\n\n        return $this;\n    }\n\n    /**\n     * @return Collection<int, CommandesDetails>\n     */',
+    ),
+    (
+        '    public function getModeFacturationLabel(): string\n    {\n        return self::MODES_FACTURATION_LABELS[$this->modeFacturation] ?? $this->modeFacturation;\n    }\n\n    public function utiliseSurface(): bool\n    {\n        return $this->modeFacturation === self::MODE_FACTURATION_METRE_CARRE;\n    }\n\n    public function utiliseFeuille(): bool\n    {\n        return $this->modeFacturation === self::MODE_FACTURATION_FEUILLE;\n    }\n\n    public function getPrixAchat(): ?int\n    {\n        return $this->prixAchat;\n    }\n\n    public function setPrixAchat(?int $prixAchat): static\n    {\n        $this->prixAchat = $prixAchat;\n\n        return $this;\n    }\n\n    public function getDureeAmortissementMois(): ?int\n    {\n        return $this->dureeAmortissementMois;',
+        "    public function getModeFacturationLabel(): string\n    {\n        return self::MODES_FACTURATION_LABELS[$this->modeFacturation] ?? $this->modeFacturation;\n    }\n\n    public function utiliseSurface(): bool\n    {\n        return $this->modeFacturation === self::MODE_FACTURATION_METRE_CARRE;\n    }\n\n    public function utiliseFeuille(): bool\n    {\n        return $this->modeFacturation === self::MODE_FACTURATION_FEUILLE;\n    }\n\n    /*\n     * Surface d'une feuille A4, en m² (0,21 x 0,297) — sert de\n     * référence pour convertir une surface imprimée en nombre de\n     * feuilles A4-équivalent (une A3 compte pour 2 A4).\n     */\n    private const SURFACE_A4_M2 = 0.21 * 0.297;\n\n    /**\n     * Ajoute l'usage d'une impression au compteur d'usure de la\n     * machine, uniquement pour suivre la maintenance — n'affecte pas\n     * le calcul de l'amortissement (basé sur le temps écoulé, voir\n     * getChargeAmortissementMensuelle()). Le compteur alimenté dépend\n     * du mode de facturation de la machine.\n     */\n    public function enregistrerUsage(float $surfaceM2Totale): void\n    {\n        if ($surfaceM2Totale <= 0) {\n            return;\n        }\n\n        if ($this->utiliseSurface()) {\n            $this->compteurM2 = ($this->compteurM2 ?? 0) + (int) round($surfaceM2Totale);\n\n            return;\n        }\n\n        if ($this->utiliseFeuille()) {\n            $this->compteurFeuilles += (int) round(\n                $surfaceM2Totale / self::SURFACE_A4_M2\n            );\n        }\n    }\n\n    public function getPrixAchat(): ?int\n    {\n        return $this->prixAchat;\n    }\n\n    public function setPrixAchat(?int $prixAchat): static\n    {\n        $this->prixAchat = $prixAchat;\n\n        return $this;\n    }\n\n    public function getDureeAmortissementMois(): ?int\n    {\n        return $this->dureeAmortissementMois;",
+    ),
+]
 
-declare(strict_types=1);
+PRODUCTION_PHP_PAIRES = [
+    (
+        '$ordre->terminer(\n            $utilisateur,\n            $quantiteProduite,\n            $quantiteRebut,\n            $observation\n        );\n\n        /*\n         * ========================================================\n         * NOTIFICATION',
+        "$ordre->terminer(\n            $utilisateur,\n            $quantiteProduite,\n            $quantiteRebut,\n            $observation\n        );\n\n        /*\n         * ========================================================\n         * COMPTEUR D'USURE MACHINE\n         * ========================================================\n         *\n         * Suivi de l'usage uniquement (maintenance) : n'affecte pas\n         * l'amortissement, calculé sur le temps écoulé. Alimente\n         * compteurM2 ou compteurFeuilles selon le mode de facturation\n         * de la machine ; ignoré si la ligne n'a pas de dimensions\n         * (article en stock, saisie libre).\n         */\n        $machineUtilisee = $ordre->getMachine();\n\n        if ($machineUtilisee instanceof Machines) {\n            $largeurDetail = (float) ($detail->getLargeur() ?? 0);\n            $longueurDetail = (float) ($detail->getLongueur() ?? 0);\n\n            if ($largeurDetail > 0 && $longueurDetail > 0) {\n                $machineUtilisee->enregistrerUsage(\n                    $largeurDetail * $longueurDetail * $quantiteTraitee\n                );\n            }\n        }\n\n        /*\n         * ========================================================\n         * NOTIFICATION",
+    ),
+]
 
-namespace DoctrineMigrations;
+MACHINESCONTROLLER_PHP_PAIRES = [
+    (
+        "        /*\n         * Compteurs.\n         */\n        $compteurM2 = $this->recupererEntier(\n            $request,\n            'compteurM2',\n            0\n        );\n\n        $compteurHeures = $this->recupererEntier(\n            $request,\n            'compteurHeures',\n            0\n        );\n\n        /*\n         * Dates.\n         */\n        $dateAchat = $this->recupererDate(\n            $request,\n            'dateAchat'\n        );\n\n        $dateMiseService = $this->recupererDate(\n            $request,\n            'dateMiseService'\n        );\n\n        /*\n         * Rentabilité / amortissement.",
+        "        /*\n         * Compteurs.\n         */\n        $compteurM2 = $this->recupererEntier(\n            $request,\n            'compteurM2',\n            0\n        );\n\n        $compteurHeures = $this->recupererEntier(\n            $request,\n            'compteurHeures',\n            0\n        );\n\n        $compteurFeuilles = $this->recupererEntier(\n            $request,\n            'compteurFeuilles',\n            0\n        );\n\n        /*\n         * Dates.\n         */\n        $dateAchat = $this->recupererDate(\n            $request,\n            'dateAchat'\n        );\n\n        $dateMiseService = $this->recupererDate(\n            $request,\n            'dateMiseService'\n        );\n\n        /*\n         * Rentabilité / amortissement.",
+    ),
+    (
+        '\n        /*\n         * Affectation.\n         */\n        $machine\n            ->setNom($nom)\n            ->setAdresseIp($adresseIp)\n            ->setMarque($marque)\n            ->setModeles($modeles)\n            ->setNumeroSerie($numeroSerie)\n            ->setTypeMachine($typeMachine)\n            ->setLargeurImpression($largeurImpression)\n            ->setNbTetes($nbTetes)\n            ->setCompteurM2($compteurM2)\n            ->setCompteurHeures($compteurHeures)\n            ->setEtat($etat)\n            ->setModeFacturation($modeFacturation)\n            ->setPrixAchat($prixAchat)\n            ->setDureeAmortissementMois($dureeAmortissementMois)\n            ->setRevenuAvantSuivi($revenuAvantSuivi)\n            ->setDateDebutSuivi($dateDebutSuivi);\n\n        if ($dateAchat !== null) {\n            $machine->setDateAchat(\n                $dateAchat\n            );\n        }\n\n        if ($dateMiseService !== null) {\n            $machine->setDateMiseService(',
+        '\n        /*\n         * Affectation.\n         */\n        $machine\n            ->setNom($nom)\n            ->setAdresseIp($adresseIp)\n            ->setMarque($marque)\n            ->setModeles($modeles)\n            ->setNumeroSerie($numeroSerie)\n            ->setTypeMachine($typeMachine)\n            ->setLargeurImpression($largeurImpression)\n            ->setNbTetes($nbTetes)\n            ->setCompteurM2($compteurM2)\n            ->setCompteurHeures($compteurHeures)\n            ->setCompteurFeuilles($compteurFeuilles)\n            ->setEtat($etat)\n            ->setModeFacturation($modeFacturation)\n            ->setPrixAchat($prixAchat)\n            ->setDureeAmortissementMois($dureeAmortissementMois)\n            ->setRevenuAvantSuivi($revenuAvantSuivi)\n            ->setDateDebutSuivi($dateDebutSuivi);\n\n        if ($dateAchat !== null) {\n            $machine->setDateAchat(\n                $dateAchat\n            );\n        }\n\n        if ($dateMiseService !== null) {\n            $machine->setDateMiseService(',
+    ),
+    (
+        "                : null,\n\n            'dateMiseService' =>\n                $machine->getDateMiseService()\n                    ? $machine\n                        ->getDateMiseService()\n                        ->format('Y-m-d')\n                    : null,\n\n            'compteurM2' =>\n                $machine->getCompteurM2(),\n\n            'compteurHeures' =>\n                $machine->getCompteurHeures(),\n\n            'etat' => $machine->getEtat(),\n\n            'modeFacturation' => $machine->getModeFacturation(),\n            'prixAchat' => $machine->getPrixAchat(),\n            'dureeAmortissementMois' => $machine->getDureeAmortissementMois(),\n            'revenuAvantSuivi' => $machine->getRevenuAvantSuivi(),\n\n            'dateDebutSuivi' => $machine->getDateDebutSuivi()\n                ? $machine->getDateDebutSuivi()->format('Y-m-d')\n                : null,\n        ];\n    }\n\n    /*\n     * ============================================================",
+        "                : null,\n\n            'dateMiseService' =>\n                $machine->getDateMiseService()\n                    ? $machine\n                        ->getDateMiseService()\n                        ->format('Y-m-d')\n                    : null,\n\n            'compteurM2' =>\n                $machine->getCompteurM2(),\n\n            'compteurHeures' =>\n                $machine->getCompteurHeures(),\n\n            'compteurFeuilles' =>\n                $machine->getCompteurFeuilles(),\n\n            'etat' => $machine->getEtat(),\n\n            'modeFacturation' => $machine->getModeFacturation(),\n            'prixAchat' => $machine->getPrixAchat(),\n            'dureeAmortissementMois' => $machine->getDureeAmortissementMois(),\n            'revenuAvantSuivi' => $machine->getRevenuAvantSuivi(),\n\n            'dateDebutSuivi' => $machine->getDateDebutSuivi()\n                ? $machine->getDateDebutSuivi()->format('Y-m-d')\n                : null,\n        ];\n    }\n\n    /*\n     * ============================================================",
+    ),
+]
 
-use Doctrine\\DBAL\\Schema\\Schema;
-use Doctrine\\Migrations\\AbstractMigration;
+MACHINES_TWIG_PAIRES = [
+    (
+        '\t\t\t\t\t\t\t\t\t\t\t\t\t\t{{ machine.compteurHeures\n                                                        is not null\n                                                        ? machine.compteurHeures\n                                                        : 0\n                                                    }}\n\t\t\t\t\t\t\t\t\t\t\t\t\t</strong>\n\t\t\t\t\t\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t\t\t\t\t\t</td>\n\n\n\t\t\t\t\t\t\t\t\t\t\t{# ==================================================\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                           ÉTAT\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                           ================================================== #}\n\t\t\t\t\t\t\t\t\t\t\t<td class="text-center\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                                   align-middle">',
+        '\t\t\t\t\t\t\t\t\t\t\t\t\t\t{{ machine.compteurHeures\n                                                        is not null\n                                                        ? machine.compteurHeures\n                                                        : 0\n                                                    }}\n\t\t\t\t\t\t\t\t\t\t\t\t\t</strong>\n\t\t\t\t\t\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t\t\t\t\t\t\t<div>\n\t\t\t\t\t\t\t\t\t\t\t\t\t<small class="text-muted">\n\t\t\t\t\t\t\t\t\t\t\t\t\t\tFeuilles :\n\t\t\t\t\t\t\t\t\t\t\t\t\t</small>\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t<strong>\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t{{ machine.compteurFeuilles|default(0) }}\n\t\t\t\t\t\t\t\t\t\t\t\t\t</strong>\n\t\t\t\t\t\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t\t\t\t\t\t</td>\n\n\n\t\t\t\t\t\t\t\t\t\t\t{# ==================================================\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                           ÉTAT\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                           ================================================== #}\n\t\t\t\t\t\t\t\t\t\t\t<td class="text-center\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t                                                   align-middle">',
+    ),
+    (
+        '\n\t\t\t\t\t\t\t\t<input type="number" id="machineCreateCompteurHeures" class="form-control" min="0" step="1" value="0">\n\n\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t<div class="col-12">\n\t\t\t\t\t\t\t<hr>\n\t\t\t\t\t\t\t<h6 class="text-muted">Rentabilité / amortissement</h6>\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t{# MODE FACTURATION #}\n\t\t\t\t\t\t<div class="col-md-4">',
+        '\n\t\t\t\t\t\t\t\t<input type="number" id="machineCreateCompteurHeures" class="form-control" min="0" step="1" value="0">\n\n\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t{# COMPTEUR FEUILLES #}\n\t\t\t\t\t\t<div class="col-md-6">\n\n\t\t\t\t\t\t\t<div class="form-group">\n\n\t\t\t\t\t\t\t\t<label class="form-label" for="machineCreateCompteurFeuilles">\n\t\t\t\t\t\t\t\t\tCompteur feuilles (A4-équivalent)\n\t\t\t\t\t\t\t\t</label>\n\n\t\t\t\t\t\t\t\t<input type="number" id="machineCreateCompteurFeuilles" class="form-control" min="0" step="1" value="0">\n\n\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t<div class="col-12">\n\t\t\t\t\t\t\t<hr>\n\t\t\t\t\t\t\t<h6 class="text-muted">Rentabilité / amortissement</h6>\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t{# MODE FACTURATION #}\n\t\t\t\t\t\t<div class="col-md-4">',
+    ),
+    (
+        '\n\t\t\t\t\t\t\t\t<input type="number" id="machineEditCompteurHeures" class="form-control" min="0" step="1">\n\n\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t<div class="col-12">\n\t\t\t\t\t\t\t<hr>\n\t\t\t\t\t\t\t<h6 class="text-muted">Rentabilité / amortissement</h6>\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t<div class="col-md-4">\n',
+        '\n\t\t\t\t\t\t\t\t<input type="number" id="machineEditCompteurHeures" class="form-control" min="0" step="1">\n\n\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t<div class="col-md-6">\n\n\t\t\t\t\t\t\t<div class="form-group">\n\n\t\t\t\t\t\t\t\t<label class="form-label" for="machineEditCompteurFeuilles">\n\t\t\t\t\t\t\t\t\tCompteur feuilles (A4-équivalent)\n\t\t\t\t\t\t\t\t</label>\n\n\t\t\t\t\t\t\t\t<input type="number" id="machineEditCompteurFeuilles" class="form-control" min="0" step="1">\n\n\t\t\t\t\t\t\t</div>\n\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t<div class="col-12">\n\t\t\t\t\t\t\t<hr>\n\t\t\t\t\t\t\t<h6 class="text-muted">Rentabilité / amortissement</h6>\n\t\t\t\t\t\t</div>\n\n\n\t\t\t\t\t\t<div class="col-md-4">\n',
+    ),
+    (
+        "const dateAchat = valeur('machineCreateDateAchat');\n\nconst dateMiseService = valeur('machineCreateDateMiseService');\n\nconst compteurM2 = valeur('machineCreateCompteurM2');\n\nconst compteurHeures = valeur('machineCreateCompteurHeures');\n\nconst etat = valeur('machineCreateEtat');\n\nconst modeFacturation = valeur('machineCreateModeFacturation');\n\nconst prixAchat = valeur('machineCreatePrixAchat');\n\nconst dureeAmortissementMois = valeur('machineCreateDureeAmortissementMois');\n",
+        "const dateAchat = valeur('machineCreateDateAchat');\n\nconst dateMiseService = valeur('machineCreateDateMiseService');\n\nconst compteurM2 = valeur('machineCreateCompteurM2');\n\nconst compteurHeures = valeur('machineCreateCompteurHeures');\n\nconst compteurFeuilles = valeur('machineCreateCompteurFeuilles');\n\nconst etat = valeur('machineCreateEtat');\n\nconst modeFacturation = valeur('machineCreateModeFacturation');\n\nconst prixAchat = valeur('machineCreatePrixAchat');\n\nconst dureeAmortissementMois = valeur('machineCreateDureeAmortissementMois');\n",
+    ),
+    (
+        "formData.append('dateAchat', dateAchat);\n\nformData.append('dateMiseService', dateMiseService);\n\nformData.append('compteurM2', compteurM2 || '0');\n\nformData.append('compteurHeures', compteurHeures || '0');\n\nformData.append('etat', etat || 'disponible');\n\nformData.append('modeFacturation', modeFacturation || 'metre_carre');\n\nformData.append('prixAchat', prixAchat);\n\nformData.append('dureeAmortissementMois', dureeAmortissementMois);\n",
+        "formData.append('dateAchat', dateAchat);\n\nformData.append('dateMiseService', dateMiseService);\n\nformData.append('compteurM2', compteurM2 || '0');\n\nformData.append('compteurHeures', compteurHeures || '0');\n\nformData.append('compteurFeuilles', compteurFeuilles || '0');\n\nformData.append('etat', etat || 'disponible');\n\nformData.append('modeFacturation', modeFacturation || 'metre_carre');\n\nformData.append('prixAchat', prixAchat);\n\nformData.append('dureeAmortissementMois', dureeAmortissementMois);\n",
+    ),
+    (
+        "definirValeur('machineEditDateAchat', machine.dateAchat);\n\ndefinirValeur('machineEditDateMiseService', machine.dateMiseService);\n\ndefinirValeur('machineEditCompteurM2', machine.compteurM2 ?? 0);\n\ndefinirValeur('machineEditCompteurHeures', machine.compteurHeures ?? 0);\n\ndefinirValeur('machineEditEtat', machine.etat || 'disponible');\n\ndefinirValeur('machineEditModeFacturation', machine.modeFacturation || 'metre_carre');\n\ndefinirValeur('machineEditPrixAchat', machine.prixAchat);\n\ndefinirValeur('machineEditDureeAmortissementMois', machine.dureeAmortissementMois);\n",
+        "definirValeur('machineEditDateAchat', machine.dateAchat);\n\ndefinirValeur('machineEditDateMiseService', machine.dateMiseService);\n\ndefinirValeur('machineEditCompteurM2', machine.compteurM2 ?? 0);\n\ndefinirValeur('machineEditCompteurHeures', machine.compteurHeures ?? 0);\n\ndefinirValeur('machineEditCompteurFeuilles', machine.compteurFeuilles ?? 0);\n\ndefinirValeur('machineEditEtat', machine.etat || 'disponible');\n\ndefinirValeur('machineEditModeFacturation', machine.modeFacturation || 'metre_carre');\n\ndefinirValeur('machineEditPrixAchat', machine.prixAchat);\n\ndefinirValeur('machineEditDureeAmortissementMois', machine.dureeAmortissementMois);\n",
+    ),
+    (
+        "const dateAchat = valeur('machineEditDateAchat');\n\nconst dateMiseService = valeur('machineEditDateMiseService');\n\nconst compteurM2 = valeur('machineEditCompteurM2');\n\nconst compteurHeures = valeur('machineEditCompteurHeures');\n\nconst etat = valeur('machineEditEtat');\n\nconst modeFacturation = valeur('machineEditModeFacturation');\n\nconst prixAchat = valeur('machineEditPrixAchat');\n\nconst dureeAmortissementMois = valeur('machineEditDureeAmortissementMois');\n",
+        "const dateAchat = valeur('machineEditDateAchat');\n\nconst dateMiseService = valeur('machineEditDateMiseService');\n\nconst compteurM2 = valeur('machineEditCompteurM2');\n\nconst compteurHeures = valeur('machineEditCompteurHeures');\n\nconst compteurFeuilles = valeur('machineEditCompteurFeuilles');\n\nconst etat = valeur('machineEditEtat');\n\nconst modeFacturation = valeur('machineEditModeFacturation');\n\nconst prixAchat = valeur('machineEditPrixAchat');\n\nconst dureeAmortissementMois = valeur('machineEditDureeAmortissementMois');\n",
+    ),
+]
 
-final class Version20260826120000 extends AbstractMigration
-{
-    public function getDescription(): string
-    {
-        return "Ajoute machines.compteur_feuilles (compteur d'usure en "
-            . "feuilles A4-equivalent, pour les machines facturees a la feuille).";
-    }
-
-    public function up(Schema $schema): void
-    {
-        $this->addSql(
-            'ALTER TABLE machines ADD compteur_feuilles INT DEFAULT 0 NOT NULL'
-        );
-    }
-
-    public function down(Schema $schema): void
-    {
-        $this->addSql('ALTER TABLE machines DROP compteur_feuilles');
-    }
-}
-'''
 
 
-def creer_migration(racine):
-    chemin_relatif = "migrations/Version20260826120000.php"
-    chemin_absolu = os.path.join(racine, chemin_relatif)
-
-    print()
-    print("-" * 70)
-    print(chemin_relatif)
-    print("-" * 70)
-
-    if os.path.isfile(chemin_absolu):
-        print("[SKIP] " + chemin_relatif + " existe deja (deja applique).")
-        return True
-
-    dossier = os.path.dirname(chemin_absolu)
-    os.makedirs(dossier, exist_ok=True)
-
-    with open(chemin_absolu, "w", encoding="utf-8", newline="") as f:
-        f.write(CONTENU_MIGRATION)
-        f.flush()
-        os.fsync(f.fileno())
-
-    with open(chemin_absolu, "r", encoding="utf-8", newline="") as f:
-        relu = f.read()
-
-    if relu != CONTENU_MIGRATION:
-        print("[ECHEC VERIFICATION] " + chemin_relatif + " : le contenu relu ne correspond pas.")
-        return False
-
-    print("[OK VERIFIE] " + chemin_relatif + " (nouveau fichier cree)")
-    php_lint(chemin_absolu)
-    return True
+MARQUEUR_MACHINES_PHP = "public function enregistrerUsage"
+MARQUEUR_PRODUCTION_PHP = "COMPTEUR D'USURE MACHINE"
+MARQUEUR_MACHINESCONTROLLER_PHP = "compteurFeuilles = $this->recupererEntier"
+MARQUEUR_MACHINES_TWIG = "machineCreateCompteurFeuilles"
 
 
 def main():
     racine = sys.argv[1] if len(sys.argv) >= 2 else "."
     verifier_racine(racine)
 
-    resultats = [
-        corriger_machines(racine),
-        corriger_production(racine),
-        corriger_machines_controller(racine),
-        corriger_twig(racine),
-        creer_migration(racine),
-    ]
+    resultats = []
+
+    print("-" * 70)
+    print("migrations/Version20260826120000.php (nouveau fichier)")
+    print("-" * 70)
+    resultats.append(creer_migration(racine))
+    print()
+
+    print("-" * 70)
+    print("src/Entity/Machines.php")
+    print("-" * 70)
+    resultats.append(appliquer_paires(
+        racine, "src/Entity/Machines.php", MARQUEUR_MACHINES_PHP,
+        MACHINES_PHP_PAIRES,
+        "grep -n -B2 -A10 \"compteurHeures\" src/Entity/Machines.php"
+    ))
+    print()
+
+    print("-" * 70)
+    print("src/Controller/ProductionController.php")
+    print("-" * 70)
+    resultats.append(appliquer_paires(
+        racine, "src/Controller/ProductionController.php", MARQUEUR_PRODUCTION_PHP,
+        PRODUCTION_PHP_PAIRES,
+        "grep -n -B3 -A3 \"ordre->terminer\" src/Controller/ProductionController.php"
+    ))
+    print()
+
+    print("-" * 70)
+    print("src/Controller/MachinesController.php")
+    print("-" * 70)
+    resultats.append(appliquer_paires(
+        racine, "src/Controller/MachinesController.php", MARQUEUR_MACHINESCONTROLLER_PHP,
+        MACHINESCONTROLLER_PHP_PAIRES,
+        "grep -n -B2 -A5 \"compteurHeures = \\$this\" src/Controller/MachinesController.php"
+    ))
+    print()
+
+    print("-" * 70)
+    print("templates/machines/index.html.twig")
+    print("-" * 70)
+    resultats.append(appliquer_paires(
+        racine, "templates/machines/index.html.twig", MARQUEUR_MACHINES_TWIG,
+        MACHINES_TWIG_PAIRES,
+        "grep -n \"machineCreateCompteurHeures\\|machineEditCompteurHeures\" templates/machines/index.html.twig",
+        repetitions={4: 2}
+    ))
+    print()
+
+    try:
+        r1 = subprocess.run(["php", "-l", os.path.join(racine, "src/Entity/Machines.php")], capture_output=True, text=True, timeout=30)
+        print("php -l Machines.php : " + r1.stdout.strip() + r1.stderr.strip())
+
+        r2 = subprocess.run(["php", "-l", os.path.join(racine, "src/Controller/ProductionController.php")], capture_output=True, text=True, timeout=30)
+        print("php -l ProductionController.php : " + r2.stdout.strip() + r2.stderr.strip())
+
+        r3 = subprocess.run(["php", "-l", os.path.join(racine, "src/Controller/MachinesController.php")], capture_output=True, text=True, timeout=30)
+        print("php -l MachinesController.php : " + r3.stdout.strip() + r3.stderr.strip())
+    except Exception:
+        pass
 
     print()
     print("=" * 70)
@@ -794,23 +293,15 @@ def main():
     print("=" * 70)
 
     if all(resultats):
-        print("Tout est en place. Lancez maintenant :")
+        print("Tout est en place. Lancez maintenant, DANS CET ORDRE :")
         print("  php bin/console doctrine:migrations:migrate")
         print("  php bin/console cache:clear")
         print()
-        print("A chaque production terminee, le compteur de la machine")
-        print("utilisee s'ajuste automatiquement :")
-        print("  - compteur m2 pour les machines facturees au metre carre ;")
-        print("  - nouveau compteur feuilles (A4-equivalent) pour les")
-        print("    machines facturees a la feuille.")
-        print()
-        print("Vous pouvez aussi corriger ces compteurs manuellement sur la")
-        print("fiche d'une machine, comme avant.")
-        print()
-        print("L'amortissement (Rentabilite) continue d'etre calcule sur le")
-        print("temps ecoule, sans changement.")
+        print("A partir de maintenant, chaque impression terminee sur une")
+        print("machine incremente automatiquement son compteur m2 (ou")
+        print("feuilles, selon le mode de facturation de la machine).")
     else:
-        print("Au moins un fichier n'a pas pu etre modifie (voir [ECHEC] ci-dessus).")
+        print("Un ou plusieurs fichiers n'ont pas pu etre modifies (voir [ECHEC] ci-dessus).")
         print("Recopiez-moi TOUT ce resume, je corrige avant de vous renvoyer le script.")
 
 

@@ -114,9 +114,15 @@
 										</td>
 
 										<td class="text-center">
-											<span class="badge badge-primary">
-												{{ detail.fichiers|length }}
-											</span>
+											{% if detail.fichiers is empty %}
+												<span class="badge badge-danger">
+													Fichier manquant
+												</span>
+											{% else %}
+												<span class="badge badge-primary">
+													{{ detail.fichiers|length }}
+												</span>
+											{% endif %}
 										</td>
 
 										<td>
@@ -163,10 +169,17 @@
 										</td>
 
 										<td class="text-center">
-											<a href="{{ path( 'app_controle_pre_presse_controler', {id: detail.id} ) }}" class="btn btn-sm btn-primary">
-												<i class="fe fe-check-square mr-1"></i>
-												Contrôler
-											</a>
+											{% if detail.fichiers is empty %}
+												<a href="{{ path( 'app_commandes_edit', {id: detail.commande.id} ) }}" class="btn btn-sm btn-warning">
+													<i class="fe fe-upload mr-1"></i>
+													Ajouter le fichier
+												</a>
+											{% else %}
+												<a href="{{ path( 'app_controle_pre_presse_controler', {id: detail.id} ) }}" class="btn btn-sm btn-primary">
+													<i class="fe fe-check-square mr-1"></i>
+													Contrôler
+												</a>
+											{% endif %}
 										</td>
 									</tr>
 								{% endfor %}

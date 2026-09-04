@@ -46,22 +46,23 @@ final class CommandesRepository extends ServiceEntityRepository
          * restent bloqués à true pour toujours, ce qui rendait ce
          * filtre inopérant et laissait apparaître indéfiniment les
          * commandes déjà payées et déjà livrées. Le paiement réel est
-         * recalculé à partir de montantAPayer/totalTtc (comme pour le
-         * filtre "paiement" plus bas), et les travaux réels à partir
-         * du statut de production des lignes (comme pour
-         * Commandes::getStatutTravaux()).
+         * lu depuis c.statutPaiement (mis à jour à chaque validation
+         * de paiement, voir CommandesController), et les travaux
+         * réels à partir du statut de production des lignes (comme
+         * pour Commandes::getStatutTravaux()).
          */
         if (!$rechercheActive && $affichage !== 'toutes') {
             $qb
                 ->andWhere(
                     $qb->expr()->orX(
-                        'COALESCE(c.montantApayer, 0) < c.totalTtc',
+                        'c.statutPaiement != :statutPayeDefaut',
                         $qb->expr()->andX(
                             'd.statutProduction IS NOT NULL',
                             'd.statutProduction NOT IN (:statutsTermines)'
                         )
                     )
                 )
+                ->setParameter('statutPayeDefaut', Commandes::PAIEMENT_PAYE)
                 ->setParameter(
                     'statutsTermines',
                     [
@@ -191,24 +192,31 @@ final class CommandesRepository extends ServiceEntityRepository
         }
 
         /*
-         * Filtre par situation réelle du paiement.
+         * Filtre par situation réelle du paiement, lue directement
+         * depuis c.statutPaiement (impayee/partielle/payee), mise à
+         * jour à chaque validation de paiement. Le champ
+         * c.montantApayer utilisé auparavant ici n'est qu'une copie
+         * figée du devis d'origine, jamais mise à jour ensuite : le
+         * filtre ne retournait donc presque aucun résultat correct.
          */
-        match ($filtres['paiement'] ?? '') {
-            'impayee' => $qb->andWhere(
-                'COALESCE(c.montantApayer, 0) = 0'
-            ),
-
-            'partielle' => $qb->andWhere(
-                'COALESCE(c.montantApayer, 0) > 0
-                 AND COALESCE(c.montantApayer, 0) < c.totalTtc'
-            ),
-
-            'payee' => $qb->andWhere(
-                'COALESCE(c.montantApayer, 0) >= c.totalTtc'
-            ),
-
-            default => null,
-        };
+        if (
+            in_array(
+                $filtres['paiement'] ?? '',
+                [
+                    Commandes::PAIEMENT_IMPAYE,
+                    Commandes::PAIEMENT_PARTIEL,
+                    Commandes::PAIEMENT_PAYE,
+                ],
+                true
+            )
+        ) {
+            $qb
+                ->andWhere('c.statutPaiement = :statutPaiementFiltre')
+                ->setParameter(
+                    'statutPaiementFiltre',
+                    $filtres['paiement']
+                );
+        }
 
         /*
          * Période.
@@ -279,7 +287,7 @@ final class CommandesRepository extends ServiceEntityRepository
 
             'reste_desc' => $qb
                 ->addSelect(
-                    '(c.totalTtc - COALESCE(c.montantAPayer, 0))
+                    '(c.totalTtc - COALESCE(c.montantApayer, 0))
                      AS HIDDEN resteAPayer'
                 )
                 ->orderBy('resteAPayer', 'DESC'),
