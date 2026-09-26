@@ -52,12 +52,22 @@ class DevisType extends AbstractType
                         (string) $client->getNom()
                     );
 
-                    return trim(sprintf(
+                    $raisonSociale = trim(
+                        (string) $client->getRaisonSociale()
+                    );
+
+                    $libelle = trim(sprintf(
                         '%s — %s %s',
                         $telephone,
                         $prenom,
                         $nom
                     ));
+
+                    if ($raisonSociale !== '') {
+                        $libelle .= ' — ' . $raisonSociale;
+                    }
+
+                    return $libelle;
                 },
                 'placeholder' => 'Sélectionnez un client',
                 'required' => true,

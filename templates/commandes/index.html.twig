@@ -184,7 +184,7 @@
 									<option value="">Tous les clients</option>
 									{% for client in clients|default([]) %}
 										<option value="{{ client.id }}" {{ filtres.client|default('') == client.id ? 'selected' : '' }}>
-											{{ client }}
+											{{ client.telephone|default('Sans téléphone') }} — {{ (client.prenom|default('') ~ ' ' ~ client.nom|default(''))|trim }}{% if client.raisonSociale %} — {{ client.raisonSociale }}{% endif %}
 										</option>
 									{% endfor %}
 								</select>

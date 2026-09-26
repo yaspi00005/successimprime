@@ -2847,7 +2847,17 @@ if (libre) {
 
 if (designation) {
 designation.readOnly = false;
+
+/*
+ * On ne vide la designation que lors d'un vrai changement de
+ * type par l'utilisateur (pas au chargement initial d'une ligne
+ * existante en saisie libre, sinon la designation deja
+ * enregistree disparait a chaque ouverture du formulaire de
+ * modification).
+ */
+if (viaChangementUtilisateur) {
 designation.value = '';
+}
 }
 
 definirValeur(detail, 'article', '');
