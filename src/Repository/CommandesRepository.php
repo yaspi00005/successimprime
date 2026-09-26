@@ -17,6 +17,30 @@ final class CommandesRepository extends ServiceEntityRepository
     }
 
     /**
+     * Toutes les commandes non soldées (impayées ou partiellement
+     * payées), quelle que soit leur ancienneté : utilisé par
+     * RappelPaiementService, qui calcule lui-même l'ancienneté en
+     * jours de chaque commande pour savoir si une règle de rappel
+     * "tous les N jours" tombe aujourd'hui. Le tri par statutTravaux
+     * (annulée exclue) se fait ensuite en PHP, comme pour le PDF des
+     * impayés (getStatutTravaux() est calculé, pas une colonne).
+     *
+     * @return array<int, Commandes>
+     */
+    public function findToutesNonSoldees(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->leftJoin('c.clients', 'cl')
+            ->addSelect('cl')
+            ->andWhere('c.deleted = :deleted')
+            ->andWhere('c.statutPaiement != :statutPaye')
+            ->setParameter('deleted', false)
+            ->setParameter('statutPaye', Commandes::PAIEMENT_PAYE)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Sans recherche :
      * - statut = true : paiement en attente ;
      * - ou etat = true : travaux en cours.

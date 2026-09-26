@@ -1559,6 +1559,11 @@ const articleUrl = "{{ path(
         { id: 0 }
     ) }}";
 
+const optionsManuellesUrl = "{{ path(
+        'app_commande_catalogue_options_manuelles',
+        { id: 0 }
+    ) }}";
+
 
 console.log('URL configurations :', configurationsProduitUrl);
 console.log('URL configuration :', configurationUrl);
@@ -1716,15 +1721,22 @@ return champ ? champ.value : 'produit';
 
 
 function valeurModeConfiguration(detail) {
+/*
+ * Alignement sur la commande : une ligne produit fonctionne
+ * toujours en mode "manuel" (voir appliquerModeConfiguration()).
+ * Le groupe de radios modeConfiguration est desormais cache en
+ * permanence, donc jamais coche : lire la valeur statique d'un
+ * radio non coche (champDetail(...).value) renvoyait toujours
+ * "automatique" (le premier radio de la liste), quel que soit
+ * l'etat reel. On retombe directement sur "manuel".
+ */
 const coche = detail.querySelector('[name$="[modeConfiguration]"]:checked');
 
 if (coche) {
 return coche.value;
 }
 
-const champ = champDetail(detail, 'modeConfiguration');
-
-return champ ? champ.value : 'automatique';
+return 'manuel';
 }
 
 
@@ -1894,12 +1906,16 @@ break;
          * aux lignes Produit.
          */
 if (valeurTypeLigne(detail) === 'produit') {
-if (valeurModeConfiguration(detail) === 'automatique') {
-montant += montantFinitionsAutomatiques(detail);
-
-} else {
+/*
+ * Alignement sur la commande : une ligne produit est toujours en
+ * mode "manuel" (voir appliquerModeConfiguration()). Cette
+ * fonction ne doit donc compter que les finitions manuelles --
+ * valeurModeConfiguration() retombant systematiquement sur
+ * "automatique" une fois le groupe de radios cache, l'ancienne
+ * condition ignorait le prix des finitions manuelles dans le
+ * total affiche.
+ */
 montant += montantFinitionsManuelles(detail);
-}
 }
 
 
@@ -2187,13 +2203,16 @@ const modeCalcul = champDetail(detail, 'modeCalcul');
          * modeConfiguration
          */
 detail.querySelectorAll('[name$="[modeConfiguration]"]').forEach(function (champ) { /*
-                     * On retire required quand caché.
+                     * Toujours retirer required : .js-zone-mode-configuration
+                     * est en permanence masqué (voir zoneMode ci-dessus), donc
+                     * un required ici fait planter la validation HTML5 du
+                     * navigateur ("not focusable") et bloque l'envoi du devis.
                      *
                      * On ne désactive PAS ces radios ici,
                      * car le serveur possède encore
                      * modeConfiguration dans l'entité.
                      */
-champ.required = estProduit;
+champ.required = false;
 });
 
 
@@ -2378,6 +2397,103 @@ calculerDetail(detail);
 /* =========================================================
        ARTICLE AJAX
        ========================================================= */
+
+/*
+ * Charge le prix de base et le mode de calcul du produit
+ * lui-meme (meme endpoint que la commande :
+ * app_commande_catalogue_options_manuelles), independamment de
+ * toute configuration catalogue.
+ */
+/*
+ * Masque (et desactive) les options d'un <select> qui ne font pas
+ * partie de la liste autorisee -- meme fonction que la commande.
+ */
+function filtrerOptions(select, idsAutorises) {
+if (! select) {
+return;
+}
+
+const autorises = new Set((idsAutorises || []).map(String));
+
+let valeurEncoreValide = false;
+
+Array.from(select.options).forEach(function (option) {
+if (! option.value) {
+return;
+}
+
+const visible = autorises.has(String(option.value));
+
+option.hidden = ! visible;
+
+option.disabled = ! visible;
+
+if (visible && option.value === select.value) {
+valeurEncoreValide = true;
+}
+});
+
+if (! valeurEncoreValide) {
+select.value = '';
+}
+
+if (window.jQuery && window.jQuery.fn.select2 && window.jQuery(select).hasClass('select2-hidden-accessible')) {
+window.jQuery(select).trigger('change.select2');
+}
+}
+
+
+async function chargerInfosProduitBase(detail, produitId) {
+if (! produitId) {
+return;
+}
+
+try {
+
+const response = await fetch(construireUrl(optionsManuellesUrl, produitId));
+
+const json = await response.json();
+
+if (! response.ok || ! json.success) {
+throw new Error(json.message || 'Impossible de charger le produit.');
+}
+
+const infosProduit = json.produit || {};
+
+definirValeurChamp(detail, 'prixUnitaire', infosProduit.prixBase || 0, false);
+
+definirValeurChamp(detail, 'modeCalcul', infosProduit.modeCalcul || 'unite', false);
+
+/*
+ * definirValeurChamp() est appele ci-dessus avec declencherEvenement
+ * = false, donc le listener 'change' du champ modeCalcul (qui
+ * affiche Largeur/Longueur quand le mode est "metre" ou
+ * "metre_carre", voir plus bas dans ce fichier) ne se declenche
+ * pas tout seul ici. On reproduit directement ce qu'il fait.
+ */
+detail.dataset.modeDimension = ['metre', 'metre_carre'].includes(infosProduit.modeCalcul || 'unite') ? 'mesure' : '';
+
+actualiserDimensions(detail);
+
+filtrerOptions(champDetail(detail, 'typeImpression'), (json.typesImpression || []).map(function (t) {
+return t.id;
+}));
+
+filtrerOptions(champDetail(detail, 'support'), (json.supports || []).map(function (s) {
+return s.id;
+}));
+
+filtrerOptions(champDetail(detail, 'format'), (json.formats || []).map(function (f) {
+return f.id;
+}));
+
+calculerDetail(detail);
+
+} catch (erreur) {
+console.error('Erreur infos produit :', erreur);
+}
+}
+
 
 async function chargerArticle(detail) {
 if (valeurTypeLigne(detail) !== 'article') {
@@ -2878,6 +2994,32 @@ return 'Aucun résultat trouvé';
 searching: function () {
 return 'Recherche...';
 }
+},
+
+/*
+ * filtrerOptions() marque les options non liees au produit
+ * choisi avec option.disabled = true (Type d'impression /
+ * Support / Format). Select2 construit sa propre liste
+ * deroulante et ignore par defaut les attributs
+ * "hidden"/"disabled" du <select> natif : sans ce matcher,
+ * les options desactivees restaient visibles et
+ * selectionnables dans le menu Select2, alors qu'elles ne
+ * l'etaient plus dans le <select> natif.
+ */
+matcher: function (params, data) {
+if (data.element && data.element.disabled) {
+return null;
+}
+
+const terme = (params.term || '').trim().toUpperCase();
+
+if (terme === '') {
+return data;
+}
+
+const texte = (data.text || '').toUpperCase();
+
+return texte.indexOf(terme) > -1 ? data : null;
 }
 });
 });
@@ -2985,7 +3127,14 @@ const nomProduit = optionProduit && produit.value ? optionProduit.textContent.tr
 
 definirValeurChamp(detail, 'designation', nomProduit, false);
 
-chargerConfigurationsProduit(detail, produit.value);
+/*
+ * Alignement sur la commande : le prix et le mode de calcul
+ * viennent directement du produit (Produits::prixBase), pas
+ * d'une configuration catalogue -- chargerConfigurationsProduit()
+ * ne fait que preparer un menu "Configuration" qui reste cache
+ * (mode toujours "manuel", voir valeurModeConfiguration()).
+ */
+chargerInfosProduitBase(detail, produit.value);
 };
 
 

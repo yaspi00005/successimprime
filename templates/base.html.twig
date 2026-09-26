@@ -393,6 +393,40 @@
 
 				font-weight: 600;
 			}
+
+
+			.notifyimg {
+
+				width: 42px;
+				height: 42px;
+
+				border-radius: 50%;
+
+				display: flex;
+				align-items: center;
+				justify-content: center;
+
+				color: #fff;
+				font-size: 16px;
+
+				flex-shrink: 0;
+
+				margin-right: 12px;
+			}
+
+
+			.notifications .dropdown-menu,
+			.messagerie .dropdown-menu {
+
+				max-width: 380px;
+			}
+
+
+			.notifications .dropdown-item,
+			.messagerie .dropdown-item {
+
+				white-space: normal;
+			}
 		</style>
 
 
@@ -777,6 +811,27 @@
 															Clients
 
 														</a>
+
+														{% if is_granted('ROLE_PAIEMENT_ENCAISSER') %}
+
+															<a href="{{ path('app_clients_soldes') }}" class="
+																																	slide-item
+																																	{{
+																																		routeCourante
+																																		==
+																																		'app_clients_soldes'
+																																			? 'active'
+																																			: ''
+																																	}}
+																																">
+
+																<i class="fa fa-coins mr-2"></i>
+
+																Soldes clients
+
+															</a>
+
+														{% endif %}
 
 													{% endif %}
 
@@ -1374,7 +1429,89 @@
 													{% endif %}
 
 
-													{# =====================================
+																										{# =====================================
+														   COMMUNICATIONS
+														   ===================================== #}
+
+													{% if is_granted('ROLE_ADMIN') %}
+
+														<h6 class="
+															text-uppercase
+															mt-4
+															mb-3
+														">
+															Communications
+														</h6>
+
+
+														<a href="{{ path( 'app_modele_message_index' ) }}" class="
+															slide-item
+															{{
+																routeCourante
+																starts with
+																'app_modele_message_'
+																	? 'active'
+																	: ''
+															}}
+														">
+
+															<i class="
+																fa
+																fa-file-text-o
+																mr-2
+															"></i>
+
+															Modèles de message
+
+														</a>
+
+
+														<a href="{{ path( 'app_regle_rappel_paiement_index' ) }}" class="
+															slide-item
+															{{
+																routeCourante
+																starts with
+																'app_regle_rappel_paiement_'
+																	? 'active'
+																	: ''
+															}}
+														">
+
+															<i class="
+																fa
+																fa-bell-o
+																mr-2
+															"></i>
+
+															Rappels de paiement
+
+														</a>
+
+														<a href="{{ path( 'app_campagne_index' ) }}" class="
+															slide-item
+															{{
+																routeCourante
+																starts with
+																'app_campagne_'
+																	? 'active'
+																	: ''
+															}}
+														">
+
+															<i class="
+																fa
+																fa-bullhorn
+																mr-2
+															"></i>
+
+															Campagnes
+
+														</a>
+
+													{% endif %}
+
+
+{# =====================================
 																																																																																																																																																																									   CONTRÔLE
 																																																																																																																																																																									   ===================================== #}
 
@@ -1947,19 +2084,20 @@
 
 
 									{# =========================================
-																																																																																																																					   NOTIFICATIONS
-																																																																																																																					   ========================================= #}
+															   NOTIFICATIONS
+															   ========================================= #}
 
 									<div class="
-																																																																																																																																													dropdown
-																																																																																																																																												d-sm-flex
-																																																																																																																																												d-none
-																																																																																																																																												notifications
-																																																																																																																																												">
+																dropdown
+																d-sm-flex
+																d-none
+																notifications
+															">
 
-										{% set reclamationsANotifier = mes_reclamations_a_notifier() %}
-										{% set notificationsGenerales = mes_notifications() %}
-										{% set totalNotifications = reclamationsANotifier|length + notificationsGenerales|length %}
+									{% set reclamationsANotifier = mes_reclamations_a_notifier() %}
+									{% set notificationsGenerales = mes_notifications() %}
+									{# Le badge doit refléter le nombre RÉEL de notifications non lues, pas la longueur de la liste affichée (limitée aux 10 plus récentes) : sinon il reste bloqué au plafond même après lecture. #}
+									{% set totalNotifications = reclamationsANotifier|length + nombre_notifications_generales() %}
 
 										<a class="nav-link icon" data-toggle="dropdown">
 
@@ -1975,38 +2113,64 @@
 
 
 										<div class="
-																																																																																																																																																												dropdown-menu
-																																																																																																																																																												dropdown-menu-right
-																																																																																																																																																												dropdown-menu-arrow
-																																																																																																																																																											">
+																		dropdown-menu
+																		dropdown-menu-right
+																		dropdown-menu-arrow
+																">
+
+											<div class="dropdown-item p-4 bg-image-2 text-center">
+												<h4 class="user-semi-title mb-0 font-weight-bold">
+													{{ totalNotifications }} nouvelle{{ totalNotifications > 1 ? 's' : '' }}
+													<span class="font-weight-normal">notification{{ totalNotifications > 1 ? 's' : '' }}</span>
+												</h4>
+											</div>
+
+											<a href="#" class="dropdown-item text-center text-primary js-activer-alertes-navigateur" style="display:none;">
+												<i class="fa fa-bell-o mr-1"></i>
+												Activer les alertes du navigateur
+											</a>
 
 											{% if totalNotifications > 0 %}
 
-												{% for reclamationANotifier in reclamationsANotifier %}
+											{% set reclamationsAAfficher = reclamationsANotifier|slice(0, 10) %}
+											{% set notificationsAAfficher = notificationsGenerales|slice(0, max(0, 10 - reclamationsAAfficher|length)) %}
 
-													<a href="{{ path('app_reclamation_show', {id: reclamationANotifier.id}) }}" class="dropdown-item">
-														<strong>Réclamation
-															{{ reclamationANotifier.reference }}
-															validée</strong>
-														<div class="small text-muted">Passez à la caisse pour le paiement.</div>
+											{% for reclamationANotifier in reclamationsAAfficher %}
+
+													<a href="{{ path('app_reclamation_show', {id: reclamationANotifier.id}) }}" class="dropdown-item d-flex pb-3">
+														<div class="notifyimg bg-warning">
+															<i class="fa fa-money"></i>
+														</div>
+														<div>
+															<strong>Réclamation {{ reclamationANotifier.reference }} validée</strong>
+															<div class="small text-muted">Passez à la caisse pour le paiement.</div>
+														</div>
 													</a>
 
 												{% endfor %}
 
-												{% for notificationGenerale in notificationsGenerales %}
+											{% for notificationGenerale in notificationsAAfficher %}
 
-													<a href="{{ path('app_notification_ouvrir', {id: notificationGenerale.id}) }}" class="dropdown-item">
-														<div class="small">{{ notificationGenerale.message }}</div>
+													<a href="{{ path('app_notification_ouvrir', {id: notificationGenerale.id}) }}" class="dropdown-item d-flex pb-3">
+														<div class="notifyimg bg-info">
+															<i class="fa fa-bell"></i>
+														</div>
+														<div>
+															<strong>{{ notificationGenerale.message }}</strong>
+															<div class="small text-muted">{{ notificationGenerale.dateCreation|temps_ecoule }}</div>
+														</div>
 													</a>
 
 												{% endfor %}
+
+												<div class="dropdown-divider"></div>
 
 											{% else %}
 
 												<div class="
-																																																																																																																																																																															dropdown-item
-																																																																																																																																																																															text-center
-																																																																																																																																																																														">
+																				dropdown-item
+																				text-center
+																			">
 
 													Aucune nouvelle notification
 
@@ -2014,18 +2178,22 @@
 
 											{% endif %}
 
+											<a href="{{ path('app_notification_index') }}" class="dropdown-item text-center">
+												Afficher toutes les notifications
+											</a>
+
 										</div>
 
 									</div>
 
 
 									{# =========================================
-																																																																								   MESSAGERIE INTERNE
-																																																																								   ========================================= #}
+															   MESSAGERIE INTERNE
+															   ========================================= #}
 
-									<div class="d-sm-flex d-none">
+									<div class="dropdown d-sm-flex d-none messagerie">
 
-										<a href="{{ path('app_chat_index') }}" class="nav-link icon" title="Messagerie">
+										<a href="#" class="nav-link icon" data-toggle="dropdown" title="Messagerie">
 
 											<i class="ti-comments"></i>
 
@@ -2038,6 +2206,58 @@
 											{% endif %}
 
 										</a>
+
+										<div class="
+																		dropdown-menu
+																		dropdown-menu-right
+																		dropdown-menu-arrow
+																">
+
+											<div class="dropdown-item p-4 bg-image-2 text-center">
+												<h4 class="user-semi-title mb-0 font-weight-bold">
+													{{ conversationsNonLues }} nouveau{{ conversationsNonLues > 1 ? 'x' : '' }}
+													<span class="font-weight-normal">message{{ conversationsNonLues > 1 ? 's' : '' }}</span>
+												</h4>
+											</div>
+
+											{% if conversationsNonLues > 0 %}
+
+												{% for conversation in mes_conversations_non_lues_apercu() %}
+
+													{% set dernierMessage = conversation.dernierMessage %}
+
+													<a href="{{ path('app_chat_show', {jeton: conversation.jeton}) }}" class="dropdown-item d-flex pb-3">
+														<div class="notifyimg bg-primary">
+															<i class="fa fa-comment"></i>
+														</div>
+														<div>
+															<strong>{{ conversation.libellePour(app.user) }}</strong>
+															{% if dernierMessage %}
+																<div class="small text-muted">
+																	{{ dernierMessage.contenu|length > 40 ? dernierMessage.contenu|slice(0, 40) ~ '…' : dernierMessage.contenu }}
+																</div>
+																<div class="small text-muted">{{ dernierMessage.dateEnvoi|temps_ecoule }}</div>
+															{% endif %}
+														</div>
+													</a>
+
+												{% endfor %}
+
+												<div class="dropdown-divider"></div>
+
+											{% else %}
+
+												<div class="dropdown-item text-center">
+													Aucun nouveau message
+												</div>
+
+											{% endif %}
+
+											<a href="{{ path('app_chat_index') }}" class="dropdown-item text-center">
+												Afficher tous les messages
+											</a>
+
+										</div>
 
 									</div>
 
@@ -2589,6 +2809,85 @@ afficherNotifications();
 
 
 			{% block javascripts %}{% endblock %}
+
+
+			{# =========================================
+			   ALERTE NAVIGATEUR (NOTIFICATIONS BUREAU)
+			   ========================================= #}
+
+			{% if app.user %}
+
+				<script>
+					(function () {
+
+						if (typeof window.Notification === 'undefined') {
+							return;
+						}
+
+						/*
+						 * Safari (macOS) exige un clic explicite de
+						 * l'utilisateur pour demander la permission :
+						 * un appel automatique au chargement de la page
+						 * est ignoré silencieusement (contrairement à
+						 * Chrome, qui l'accepte, d'où la différence de
+						 * comportement Mac/Windows constatée). On affiche
+						 * donc un lien cliquable tant que la permission
+						 * n'a pas été demandée.
+						 */
+						const lienActivation = document.querySelector('.js-activer-alertes-navigateur');
+
+						if (Notification.permission === 'default' && lienActivation) {
+							lienActivation.style.display = '';
+
+							lienActivation.addEventListener('click', function (evenement) {
+								evenement.preventDefault();
+
+								Notification.requestPermission().then(function () {
+									lienActivation.style.display = 'none';
+								});
+							});
+						}
+
+						let dernierTotalConnu = {{ totalNotifications|default(0) }};
+
+						function verifierNouvellesNotifications() {
+
+							fetch("{{ path('app_notification_etat') }}", {
+								headers: {Accept: 'application/json'}
+							})
+								.then(function (reponse) {
+									return reponse.json();
+								})
+								.then(function (donnees) {
+
+									const total = donnees.total || 0;
+
+									if (total > dernierTotalConnu && Notification.permission === 'granted') {
+
+										const notification = new Notification('Successimprime', {
+											body: total + ' notification(s) non lue(s).',
+											icon: "{{ asset('favicon.ico') }}"
+										});
+
+										notification.onclick = function () {
+											window.focus();
+											notification.close();
+										};
+									}
+
+									dernierTotalConnu = total;
+								})
+								.catch(function (erreur) {
+									console.error('Erreur verification notifications :', erreur);
+								});
+						}
+
+						setInterval(verifierNouvellesNotifications, 30000);
+
+					})();
+				</script>
+
+			{% endif %}
 
 		</body>
 

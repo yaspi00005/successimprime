@@ -1211,6 +1211,21 @@ public function livrer(
                 $detail->marquerProductionNonRequise();
             }
 
+            /*
+             * Production déjà terminée (fabrication réellement
+             * effectuée) : manquait à cette liste, ce qui bloquait
+             * la livraison directe des lignes fabriquées avec
+             * "Cette ligne n'est pas dans un état permettant une
+             * livraison directe." alors que la production était
+             * bien achevée.
+             */
+            if (
+                $detail->getStatutProduction()
+                === CommandesDetails::PRODUCTION_TERMINEE
+            ) {
+                $detail->marquerPreteLivraison();
+            }
+
             if (
                 $detail->getStatutProduction()
                 === CommandesDetails::PRODUCTION_NON_REQUISE

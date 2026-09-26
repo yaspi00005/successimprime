@@ -15,6 +15,43 @@ class ClientsRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Clients::class);
     }
+
+    /**
+     * Clients ayant un solde créditeur (monnaie non rendue laissée
+     * chez nous), du plus important au plus faible -- pour savoir
+     * chez qui l'argent est resté.
+     *
+     * @return Clients[]
+     */
+    public function trouverAvecSoldeCredit(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.soldeCredit > 0')
+            ->orderBy('c.soldeCredit', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Clients actifs, pour la sélection des destinataires d'une
+     * campagne. Pas de pagination volontairement : la liste est
+     * affichée en une seule fois avec une recherche cote navigateur,
+     * pour que "Tout cocher" selectionne reellement tout le monde
+     * sans etre limite a une page.
+     *
+     * @return array<int, Clients>
+     */
+    public function findActifsPourCampagne(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.statut = :statut')
+            ->setParameter('statut', true)
+            ->orderBy('c.nom', 'ASC')
+            ->addOrderBy('c.prenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
 /**
  * Recherche paginée pour DataTables.
  *

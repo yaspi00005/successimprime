@@ -136,6 +136,28 @@
 			</div>
 		</div>
 
+		<div class="col-md-4">
+			<div class="form-group">
+				<label class="d-block">SMS</label>
+
+				<label class="custom-switch">
+					{{ form_widget(form.recevoirSms, {
+                        attr: {
+                            class: 'custom-switch-input'
+                        }
+                    }) }}
+
+					<span class="custom-switch-indicator"></span>
+
+					<span class="custom-switch-description">
+						Peut recevoir des SMS
+					</span>
+				</label>
+
+				{{ form_errors(form.recevoirSms) }}
+			</div>
+		</div>
+
 		<div class="col-md-12">
 			<div class="form-group">
 				{{ form_label(form.observation) }}

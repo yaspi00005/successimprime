@@ -2,6 +2,7 @@
 
 namespace App\Twig;
 
+use App\Entity\Conversation;
 use App\Entity\User;
 use App\Service\ChatService;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,6 +25,7 @@ class ChatExtension extends AbstractExtension
     {
         return [
             new TwigFunction('mes_conversations_non_lues', [$this, 'mesConversationsNonLues']),
+            new TwigFunction('mes_conversations_non_lues_apercu', [$this, 'mesConversationsNonLuesApercu']),
         ];
     }
 
@@ -36,5 +38,19 @@ class ChatExtension extends AbstractExtension
         }
 
         return $this->chatService->compterConversationsNonLues($utilisateur);
+    }
+
+    /**
+     * @return Conversation[]
+     */
+    public function mesConversationsNonLuesApercu(): array
+    {
+        $utilisateur = $this->security->getUser();
+
+        if (!$utilisateur instanceof User) {
+            return [];
+        }
+
+        return $this->chatService->conversationsNonLuesApercu($utilisateur);
     }
 }

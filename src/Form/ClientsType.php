@@ -98,6 +98,16 @@ class ClientsType extends AbstractType
         'class' => 'custom-control-label',
     ],
 ])
+->add('recevoirSms', CheckboxType::class, [
+    'label' => 'Peut recevoir des SMS',
+    'required' => false,
+    'attr' => [
+        'class' => 'custom-control-input',
+    ],
+    'label_attr' => [
+        'class' => 'custom-control-label',
+    ],
+])
             ->add('telephone2', TelType::class, [
                 'label' => 'Deuxième téléphone',
                 'required' => false,

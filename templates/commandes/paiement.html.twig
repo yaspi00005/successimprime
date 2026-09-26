@@ -144,6 +144,31 @@
 				</div>
 
 				<div class="card-body">
+
+					{% if commande.clients is defined and commande.clients and commande.clients.soldeCredit > 0 and montantRestant > 0 %}
+
+						<div class="alert alert-info">
+
+							<i class="fa fa-info-circle mr-1"></i>
+
+							Ce client dispose d'un solde de
+							<strong>{{ commande.clients.soldeCredit|number_format(0, ',', ' ') }} FCFA</strong>
+							(monnaie non rendue lors d'un précédent paiement).
+
+							<form method="post" action="{{ path('app_commandes_utiliser_solde_client', { id: commande.id }) }}" class="mt-2 mb-0">
+
+								<input type="hidden" name="_token" value="{{ csrf_token('utiliser_solde_client_' ~ commande.id) }}">
+
+								<button type="submit" class="btn btn-info btn-sm">
+									Utiliser {{ min(commande.clients.soldeCredit, montantRestant)|number_format(0, ',', ' ') }} FCFA de ce solde
+								</button>
+
+							</form>
+
+						</div>
+
+					{% endif %}
+
 					{% if montantRestant > 0 %}
 						{{ form_start(form, {
                             attr: {

@@ -68,11 +68,16 @@ class CommandesType extends AbstractType
                     (string) $client->getNom()
                 );
 
+                 $raisonsSociales = trim(
+                    (string) $client->getRaisonSociale()
+                );
+
                 return trim(sprintf(
                     '%s — %s %s',
                     $telephone,
                     $prenom,
-                    $nom
+                    $nom,
+                    $raisonsSociales
                 ));
             },
             'placeholder' => 'Sélectionnez un client',

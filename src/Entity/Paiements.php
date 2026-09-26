@@ -27,6 +27,16 @@ class Paiements
     public const MODE_CHEQUE = 'cheque';
     public const MODE_CARTE = 'carte_bancaire';
 
+    /*
+     * Déduction automatique du solde du client (monnaie non
+     * rendue) : ne crédite aucun compte de trésorerie, l'argent
+     * étant déjà entré en caisse lors d'un précédent paiement.
+     * N'apparaît jamais dans le menu "Mode de paiement" du
+     * formulaire (voir getModesPourFormulaire()) : ce mode est
+     * uniquement déclenché par le bouton "Utiliser ce solde".
+     */
+    public const MODE_SOLDE_CLIENT = 'solde_client';
+
     public const MODES = [
         self::MODE_ESPECES,
         self::MODE_ORANGE_MONEY,
@@ -34,6 +44,7 @@ class Paiements
         self::MODE_VIREMENT,
         self::MODE_CHEQUE,
         self::MODE_CARTE,
+        self::MODE_SOLDE_CLIENT,
     ];
 
     public const MODES_LABELS = [
@@ -43,6 +54,7 @@ class Paiements
         self::MODE_VIREMENT => 'Virement bancaire',
         self::MODE_CHEQUE => 'Chèque',
         self::MODE_CARTE => 'Carte bancaire',
+        self::MODE_SOLDE_CLIENT => 'Solde client (monnaie)',
     ];
 
     public const STATUT_EN_ATTENTE = 'en_attente';
@@ -81,14 +93,18 @@ class Paiements
     /*
      * Compte recevant réellement le paiement :
      * caisse, Orange Money, Wave ou compte bancaire.
+     *
+     * Nullable uniquement pour MODE_SOLDE_CLIENT (voir
+     * verifierCompatibiliteCompte()) : aucun compte n'est crédité
+     * puisque l'argent est déjà en caisse depuis un paiement
+     * antérieur.
      */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(
         name: 'compte_tresorerie_id',
-        nullable: false,
+        nullable: true,
         onDelete: 'RESTRICT'
     )]
-    #[Assert\NotNull]
     private ?CompteTresorerie $compteTresorerie = null;
 
     #[ORM\Column(options: ['default' => 0])]
@@ -550,6 +566,21 @@ class Paiements
      */
     public function verifierCompatibiliteCompte(): void
     {
+        /*
+         * Solde client : aucun compte de trésorerie n'est
+         * concerné, l'argent étant déjà en caisse depuis un
+         * paiement antérieur.
+         */
+        if ($this->mode === self::MODE_SOLDE_CLIENT) {
+            if ($this->compteTresorerie !== null) {
+                throw new \LogicException(
+                    'Un paiement par solde client ne doit pas être associé à un compte de trésorerie.'
+                );
+            }
+
+            return;
+        }
+
         if ($this->compteTresorerie === null) {
             throw new \LogicException(
                 'Le compte de trésorerie est obligatoire.'
@@ -673,7 +704,15 @@ class Paiements
 
     public static function getModesPourFormulaire(): array
     {
-        return array_flip(self::MODES_LABELS);
+        /*
+         * MODE_SOLDE_CLIENT n'est jamais un choix manuel : il est
+         * uniquement déclenché par le bouton "Utiliser ce solde".
+         */
+        $labels = self::MODES_LABELS;
+
+        unset($labels[self::MODE_SOLDE_CLIENT]);
+
+        return array_flip($labels);
     }
 
     public static function getStatutsPourFormulaire(): array

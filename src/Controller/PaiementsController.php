@@ -17,11 +17,22 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/paiements')]
 final class PaiementsController extends AbstractController
 {
+    private const LIMITE_PAR_DEFAUT = 100;
+    private const LIMITE_RECHERCHE = 500;
+
     #[Route(name: 'app_paiements_index', methods: ['GET'])]
-    public function index(PaiementsRepository $paiementsRepository): Response
+    public function index(Request $request, PaiementsRepository $paiementsRepository): Response
     {
+        $q = trim((string) $request->query->get('q', ''));
+
+        $limite = $q !== ''
+            ? self::LIMITE_RECHERCHE
+            : self::LIMITE_PAR_DEFAUT;
+
         return $this->render('paiements/index.html.twig', [
-            'paiements' => $paiementsRepository->findAll(),
+            'paiements' => $paiementsRepository->rechercher($q, $limite),
+            'q' => $q,
+            'limite' => $limite,
         ]);
     }
 

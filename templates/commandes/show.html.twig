@@ -201,7 +201,7 @@
 																								   PAIEMENT
 																								   ==================================================== #}
 
-				{% if peutEncaisser %}
+				{% if peutEncaisser and commande.statutTravaux != 'annulee' %}
 
 					{% if resteAPayer > 0 %}
 
@@ -1466,7 +1466,7 @@
 																																				   ACTION PAIEMENT DANS LE RÉCAPITULATIF
 																																				   ================================================ #}
 
-						{% if peutEncaisser %}
+						{% if peutEncaisser and commande.statutTravaux != 'annulee' %}
 
 							<hr>
 

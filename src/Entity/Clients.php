@@ -130,6 +130,14 @@ class Clients
     )]
     private ?int $plafondCredit = 100000;
 
+    /*
+     * Argent du client resté chez nous (ex. monnaie non rendue
+     * faute d'appoint). Alimenté manuellement par la caissière ;
+     * peut être déduit automatiquement au moment d'un paiement.
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    private int $soldeCredit = 0;
+
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $observation = null;
 
@@ -141,6 +149,14 @@ class Clients
 
     #[ORM\Column]
     private ?bool $statut = null;
+
+    /*
+     * Certains clients ne veulent pas recevoir de SMS (campagnes,
+     * rappels) : ce champ est vérifié avant tout envoi de SMS,
+     * contrairement à "statut" qui bloque tout (commandes, devis...).
+     */
+    #[ORM\Column(options: ['default' => true])]
+    private bool $recevoirSms = true;
 
     /**
      * @var Collection<int, Devis>
@@ -397,6 +413,18 @@ class Clients
         return $this;
     }
 
+    public function getSoldeCredit(): int
+    {
+        return $this->soldeCredit;
+    }
+
+    public function setSoldeCredit(int $soldeCredit): static
+    {
+        $this->soldeCredit = max(0, $soldeCredit);
+
+        return $this;
+    }
+
     public function getObservation(): ?string
     {
         return $this->observation;
@@ -511,6 +539,19 @@ class Clients
 
         return $this;
     }
+
+    public function isRecevoirSms(): bool
+    {
+        return $this->recevoirSms;
+    }
+
+    public function setRecevoirSms(bool $recevoirSms): static
+    {
+        $this->recevoirSms = $recevoirSms;
+
+        return $this;
+    }
+
     public function genererCodeDepuisId(): void
     {
         if ($this->id === null) {

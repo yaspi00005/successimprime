@@ -128,6 +128,15 @@ final class CommandesController extends AbstractController
         $totalCommandes = 0;
 
         foreach ($commandes as $commande) {
+            /*
+         * Une commande entièrement annulée ne doit pas fausser les
+         * totaux affichés en haut de la liste (même règle que sur
+         * la fiche client).
+         */
+            if ($commande->getStatutTravaux() === 'annulee') {
+                continue;
+            }
+
             $total = (int) ($commande->getTotalTtc() ?? 0);
 
             $paye = 0;
@@ -435,6 +444,35 @@ final class CommandesController extends AbstractController
                     ['id' => $commande->getId()],
                     $this->getUser()
                 );
+
+                /*
+             * ====================================================
+             * ALERTE PRÉPRESSE
+             * ====================================================
+             *
+             * Prévient les infographistes (et admins) dès qu'une
+             * commande validée contient au moins une ligne nécessitant
+             * un contrôle prépresse (voir CommandesDetails::isPrePresseNecessaire(),
+             * vrai par défaut pour toute ligne Produit).
+             */
+                if ($this->commandeEstValidee($commande)) {
+                    foreach ($commande->getCommandesDetails() as $detailCommande) {
+                        if ($detailCommande->isPrePresseNecessaire()) {
+                            $notificationService->notifierRoles(
+                                ['ROLE_ADMIN', 'ROLE_GRAPHISTE'],
+                                sprintf(
+                                    'Nouvelle tâche prépresse : commande %s.',
+                                    $commande->getNumero()
+                                ),
+                                'app_controle_pre_presse_index',
+                                [],
+                                $this->getUser()
+                            );
+
+                            break;
+                        }
+                    }
+                }
 
                 $entityManager->flush();
 
@@ -1720,6 +1758,26 @@ final class CommandesController extends AbstractController
             );
         }
 
+        /*
+     * ============================================================
+     * COMMANDE ANNULÉE
+     * ============================================================
+     *
+     * Une commande entièrement annulée ne doit plus pouvoir
+     * recevoir de nouveau paiement.
+     * ============================================================
+     */
+        if ($commande->getStatutTravaux() === 'annulee') {
+            $this->addFlash(
+                'error',
+                'Cette commande est annulée : aucun paiement ne peut plus y être enregistré.'
+            );
+
+            return $this->redirectToRoute('app_commandes_show', [
+                'id' => $commande->getId(),
+            ]);
+        }
+
         $parametresPaiement = $parametresPaiementRepository->recuperer();
 
 
@@ -2832,6 +2890,177 @@ final class CommandesController extends AbstractController
                 $parametresPaiement,
             ]
         );
+    }
+
+
+    /*
+     * ================================================================
+     * SOLDE CLIENT
+     * ================================================================
+     *
+     * Déduit tout ou partie du solde du client (monnaie non rendue,
+     * alimentée manuellement par la caissière) du reste à payer de
+     * cette commande. Aucun compte de trésorerie n'est crédité :
+     * l'argent est déjà entré en caisse lors d'un paiement antérieur.
+     * ================================================================
+     */
+    #[Route(
+        '/{id}/solde-client/utiliser',
+        name: 'app_commandes_utiliser_solde_client',
+        methods: ['POST']
+    )]
+    #[IsGranted('ROLE_PAIEMENT_ENCAISSER')]
+    public function utiliserSoldeClient(
+        Commandes $commande,
+        Request $request,
+        EntityManagerInterface $entityManager,
+        FacturesRepository $facturesRepository,
+        NotificationService $notificationService
+    ): Response {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException(
+                'Vous devez être connecté pour enregistrer un paiement.'
+            );
+        }
+
+        if (!$this->isCsrfTokenValid(
+            'utiliser_solde_client_' . $commande->getId(),
+            $request->request->get('_token')
+        )) {
+            $this->addFlash('error', 'Jeton de sécurité invalide.');
+
+            return $this->redirectToRoute('app_commandes_paiement', [
+                'id' => $commande->getId(),
+            ]);
+        }
+
+        if ($commande->getStatutTravaux() === 'annulee') {
+            $this->addFlash(
+                'error',
+                'Cette commande est annulée : aucun paiement ne peut plus y être enregistré.'
+            );
+
+            return $this->redirectToRoute('app_commandes_show', [
+                'id' => $commande->getId(),
+            ]);
+        }
+
+        $client = $commande->getClients();
+        $soldeClient = (int) ($client?->getSoldeCredit() ?? 0);
+
+        if ($client === null || $soldeClient <= 0) {
+            $this->addFlash(
+                'warning',
+                'Ce client ne dispose d’aucun solde à utiliser.'
+            );
+
+            return $this->redirectToRoute('app_commandes_paiement', [
+                'id' => $commande->getId(),
+            ]);
+        }
+
+        $totalCommande = (int) ($commande->getTotalTtc() ?? 0);
+
+        $totalPaye = 0;
+
+        foreach ($commande->getPaiements() as $paiementExistant) {
+            if (!$paiementExistant->estValide()) {
+                continue;
+            }
+
+            $totalPaye += (int) ($paiementExistant->getMontant() ?? 0);
+        }
+
+        $resteAPayer = max(0, $totalCommande - $totalPaye);
+
+        if ($resteAPayer <= 0) {
+            $this->addFlash(
+                'warning',
+                'Cette commande est déjà entièrement payée.'
+            );
+
+            return $this->redirectToRoute('app_commandes_show', [
+                'id' => $commande->getId(),
+            ]);
+        }
+
+        $montantAUtiliser = min($soldeClient, $resteAPayer);
+
+        $paiement = new Paiements();
+        $paiement->setCommande($commande);
+        $paiement->setEncaissePar($user);
+        $paiement->setDate(new \DateTimeImmutable());
+        $paiement->setMode(Paiements::MODE_SOLDE_CLIENT);
+        $paiement->setMontant($montantAUtiliser);
+        $paiement->setObservation(
+            'Déduit automatiquement du solde du client (monnaie non rendue lors d’un précédent paiement).'
+        );
+        $paiement->validerPar($user);
+
+        $commande->addPaiement($paiement);
+
+        $client->setSoldeCredit($soldeClient - $montantAUtiliser);
+
+        $nouveauTotalPaye = $totalPaye + $montantAUtiliser;
+        $nouveauReste = max(0, $totalCommande - $nouveauTotalPaye);
+
+        $commande->setTotalPaye($nouveauTotalPaye);
+        $commande->setResteAPayer($nouveauReste);
+
+        if ($nouveauReste <= 0 && $totalCommande > 0) {
+            $commande->setStatutPaiement(Commandes::PAIEMENT_PAYE);
+        } elseif ($nouveauTotalPaye > 0) {
+            $commande->setStatutPaiement(Commandes::PAIEMENT_PARTIEL);
+        } else {
+            $commande->setStatutPaiement(Commandes::PAIEMENT_IMPAYE);
+        }
+
+        $facture = $facturesRepository->findOneBy([
+            'commande' => $commande,
+            'comptabilisee' => true,
+        ]);
+
+        if ($facture !== null) {
+            $facture->synchroniserPaiementsDepuisCommande();
+
+            if ($paiement->getFacture() === null) {
+                $paiement->setFacture($facture);
+            }
+
+            $entityManager->persist($facture);
+        }
+
+        $entityManager->persist($paiement);
+        $entityManager->persist($commande);
+        $entityManager->persist($client);
+
+        $notificationService->notifierRoles(
+            ['ROLE_ADMIN', 'ROLE_TRESORERIE_VOIR'],
+            sprintf(
+                'Solde client de %s FCFA déduit sur la commande %s.',
+                number_format($montantAUtiliser, 0, ',', ' '),
+                $commande->getNumero()
+            ),
+            'app_commandes_show',
+            ['id' => $commande->getId()],
+            $user
+        );
+
+        $entityManager->flush();
+
+        $this->addFlash(
+            'success',
+            sprintf(
+                'Solde client de %s FCFA appliqué au paiement de cette commande.',
+                number_format($montantAUtiliser, 0, ',', ' ')
+            )
+        );
+
+        return $this->redirectToRoute('app_commandes_show', [
+            'id' => $commande->getId(),
+        ]);
     }
 
 

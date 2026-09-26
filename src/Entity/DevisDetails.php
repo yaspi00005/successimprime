@@ -41,7 +41,7 @@ public const TYPE_LIBRE = 'libre';
         choices: ['automatique', 'manuel', 'libre'],
         message: 'Le mode de saisie est invalide.'
     )]
-    private string $modeConfiguration = 'automatique';
+    private string $modeConfiguration = 'manuel';
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(
@@ -302,7 +302,7 @@ private string $modeSaisie = 'automatique';
             $modeConfiguration,
             ['automatique', 'manuel', 'libre'],
             true
-        ) ? $modeConfiguration : 'automatique';
+        ) ? $modeConfiguration : 'manuel';
 
         if ($this->modeConfiguration === 'libre') {
             $this->produit = null;

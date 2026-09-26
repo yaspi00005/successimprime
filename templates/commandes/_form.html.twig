@@ -861,11 +861,21 @@
 
 						{% if fichierExistant.typeMime starts with 'image/' %}
 
-							<img src="{{ path('app_fichier_visualiser', {id: fichierExistant.id}) }}" alt="" class="mr-2 rounded" style="width:40px; height:40px; object-fit:cover;">
+						{#
+						 * Pas d'aperçu <img> ici : le navigateur
+						 * téléchargerait le fichier ORIGINAL en entier
+						 * (souvent très volumineux -- TIFF/PSD haute
+						 * résolution) juste pour l'afficher en 40x40,
+						 * ce qui rendait la page de commande très
+						 * lente, voire impossible à charger. Utiliser
+						 * le bouton "Voir le fichier" pour l'ouvrir à
+						 * la demande.
+						 #}
+						<i class="fa fa-picture-o mr-2" style="font-size:24px;"></i>
 
 						{% else %}
 
-							<i class="fa fa-file-o mr-2" style="font-size:24px;"></i>
+						<i class="fa fa-file-o mr-2" style="font-size:24px;"></i>
 
 						{% endif %}
 

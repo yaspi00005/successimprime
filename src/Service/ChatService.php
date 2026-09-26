@@ -107,4 +107,20 @@ final class ChatService
 
         return $total;
     }
+
+    /**
+     * Aperçu des conversations avec un message non lu, les plus
+     * récemment actives en premier, pour la cloche de messagerie.
+     *
+     * @return Conversation[]
+     */
+    public function conversationsNonLuesApercu(User $utilisateur, int $limite = 5): array
+    {
+        $conversations = array_values(array_filter(
+            $this->conversationRepository->findPourUtilisateur($utilisateur),
+            static fn (Conversation $conversation): bool => $conversation->getParticipantPour($utilisateur)?->aDesMessagesNonLus() ?? false
+        ));
+
+        return array_slice($conversations, 0, $limite);
+    }
 }

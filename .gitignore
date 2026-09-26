@@ -37,3 +37,10 @@
 # ne doivent jamais partir sur GitHub, voir scripts/windows/backup_db.bat)
 /backups/
 *.sql
+
+# Ajoute automatiquement par preparer_env_avant_git.py
+/node_modules/
+.env.local
+.env.local.php
+.env.*.local
+/.phpunit.result.cache

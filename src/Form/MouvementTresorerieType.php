@@ -501,22 +501,19 @@ class MouvementTresorerieType extends AbstractType
          *
          * peut voir comme destination :
          *
-         * - sa caisse personnelle ;
+         * - n'importe quelle caisse personnelle (la sienne ou celle
+         *   d'un collègue) ;
          * - les comptes partagés ;
-         * - les comptes Admin.
+         * - les comptes bancaires Admin.
          *
          * Cela permet :
          *
          * Caisse Mariam
          *      ↓
-         * Caisse Administration
+         * Caisse Ahmed
          *
-         * ou banque.
-         *
-         * MAIS :
-         *
-         * aucune caisse personnelle appartenant
-         * à un autre agent.
+         * (remise en main propre entre deux agents), ou vers la
+         * banque.
          * ============================================================
          */
 
@@ -579,12 +576,14 @@ class MouvementTresorerieType extends AbstractType
                          *
                          * Autorisés dans la liste :
                          *
-                         * - son compte personnel ;
+                         * - n'importe quelle caisse personnelle (la
+                         *   sienne ou celle d'un collègue -- permet
+                         *   une remise en main propre entre deux
+                         *   agents, enregistrée comme un transfert) ;
                          * - les comptes partagés (communs) ;
                          * - les comptes bancaires.
                          *
                          * Jamais :
-                         * - la caisse personnelle d'un autre agent ;
                          * - un compte administratif non bancaire
                          *   (ex : Caisse Administration).
                          * ============================================
@@ -593,11 +592,7 @@ class MouvementTresorerieType extends AbstractType
                         return $qb
                             ->andWhere(
                                 '
-                                (
-                                    compte.portee = :personnelle
-                                    AND
-                                    compte.proprietaire = :utilisateur
-                                )
+                                compte.portee = :personnelle
 
                                 OR
 
@@ -631,10 +626,6 @@ class MouvementTresorerieType extends AbstractType
                                 'typeBanque',
                                 CompteTresorerie
                                     ::TYPE_BANQUE
-                            )
-                            ->setParameter(
-                                'utilisateur',
-                                $utilisateur
                             );
                     },
 
@@ -649,7 +640,8 @@ class MouvementTresorerieType extends AbstractType
                     static function (
                         CompteTresorerie $compte
                     ) use (
-                        $estAdmin
+                        $estAdmin,
+                        $utilisateur
                     ): string {
                         /*
                          * ============================================
@@ -714,7 +706,32 @@ class MouvementTresorerieType extends AbstractType
 
                         /*
                          * ============================================
-                         * COMPTE PERSONNEL / PARTAGÉ
+                         * CAISSE PERSONNELLE D'UN AUTRE AGENT
+                         * ============================================
+                         *
+                         * Permet la remise en main propre entre deux
+                         * agents sans exposer le solde de la caisse
+                         * d'un collègue.
+                         * ============================================
+                         */
+
+                        if (
+                            $compte->getPortee()
+                            === CompteTresorerie::PORTEE_PERSONNELLE
+                            &&
+                            $compte->getProprietaire()
+                            !== $utilisateur
+                        ) {
+                            return sprintf(
+                                '%s — Caisse personnelle',
+                                $compte->getNom()
+                            );
+                        }
+
+
+                        /*
+                         * ============================================
+                         * SON PROPRE COMPTE PERSONNEL / PARTAGÉ
                          * ============================================
                          */
 

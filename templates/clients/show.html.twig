@@ -128,6 +128,11 @@
 					PDF des impayés
 				</a>
 
+				<a href="{{ path('app_clients_pdf_commandes', { publicId: client.publicId }) }}" class="btn btn-primary" target="_blank">
+					<i class="fa fa-file-pdf-o mr-1"></i>
+					PDF de toutes les commandes
+				</a>
+
 				<a href="{{ path('app_clients_index') }}" class="btn btn-light">
 					<i class="fa fa-arrow-left mr-1"></i>
 					Retour
@@ -641,6 +646,100 @@
 					</div>
 
 				{% endif %}
+
+			</div>
+
+		</div>
+
+
+		<div class="card client-card mt-4">
+
+			<div class="card-header d-flex justify-content-between align-items-center">
+
+				<h3 class="card-title">
+
+					<i class="fa fa-coins mr-2"></i>
+
+					Solde du client (monnaie non rendue)
+
+				</h3>
+
+				{% if is_granted('ROLE_PAIEMENT_ENCAISSER') %}
+
+					<a href="{{ path('app_clients_soldes') }}" class="btn btn-sm btn-secondary-light">
+						<i class="fa fa-list mr-1"></i>
+						Voir tous les soldes clients
+					</a>
+
+				{% endif %}
+
+			</div>
+
+
+			<div class="card-body">
+
+				<div class="row align-items-center">
+
+					<div class="col-md-4">
+
+						<div class="client-stat-label">
+							Solde disponible
+						</div>
+
+						<div class="client-stat-value{% if client.soldeCredit > 0 %} text-money-positive{% endif %}">
+
+							{{ client.soldeCredit|number_format(0, ',', ' ') }}
+
+							FCFA
+
+						</div>
+
+					</div>
+
+
+					{% if is_granted('ROLE_PAIEMENT_ENCAISSER') %}
+
+						<div class="col-md-8">
+
+							<form method="post" action="{{ path('app_clients_solde_ajouter', { id: client.id }) }}" class="form-inline justify-content-md-end">
+
+								<input type="hidden" name="_token" value="{{ csrf_token('ajouter_solde_client_' ~ client.id) }}">
+
+								<label class="mr-2 mb-0" for="solde-client-montant">
+									Ajouter au solde
+								</label>
+
+								<input type="text" inputmode="numeric" autocomplete="off" id="solde-client-montant" name="montant" class="form-control mr-2" style="max-width: 130px;" placeholder="Ex. 500" required>
+
+								<label class="mr-2 mb-0" for="solde-client-compte">
+									sur
+								</label>
+
+								<select id="solde-client-compte" name="compteTresorerie" class="form-control custom-select mr-2" style="max-width: 220px;" required>
+
+									<option value="">Compte...</option>
+
+									{% for compte in comptesTresorerie %}
+										<option value="{{ compte.id }}">{{ compte.nom }}</option>
+									{% endfor %}
+
+								</select>
+
+								<button type="submit" class="btn btn-primary">
+									Ajouter
+								</button>
+
+							</form>
+
+							<small class="form-text text-muted text-md-right d-block">
+								Sélectionnez le compte où se trouve physiquement cet argent (ex. votre caisse). Ce solde sera aussi proposé automatiquement au prochain paiement de ce client.
+							</small>
+
+						</div>
+
+					{% endif %}
+
+				</div>
 
 			</div>
 

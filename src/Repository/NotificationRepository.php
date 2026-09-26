@@ -31,4 +31,33 @@ class NotificationRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function countNonLuesPourUtilisateur(User $utilisateur): int
+    {
+        return (int) $this->createQueryBuilder('n')
+            ->select('COUNT(n.id)')
+            ->andWhere('n.destinataire = :destinataire')
+            ->andWhere('n.lue = false')
+            ->setParameter('destinataire', $utilisateur)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Toutes les notifications (lues et non lues) d'un utilisateur,
+     * les plus récentes en premier, pour la page "Toutes les
+     * notifications".
+     *
+     * @return Notification[]
+     */
+    public function findToutesPourUtilisateur(User $utilisateur, int $limite = 100): array
+    {
+        return $this->createQueryBuilder('n')
+            ->andWhere('n.destinataire = :destinataire')
+            ->setParameter('destinataire', $utilisateur)
+            ->orderBy('n.dateCreation', 'DESC')
+            ->setMaxResults($limite)
+            ->getQuery()
+            ->getResult();
+    }
 }

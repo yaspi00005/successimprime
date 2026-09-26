@@ -26,6 +26,7 @@ class NotificationsExtension extends AbstractExtension
     {
         return [
             new TwigFunction('mes_notifications', [$this, 'mesNotifications']),
+            new TwigFunction('nombre_notifications_generales', [$this, 'nombreNotificationsGenerales']),
         ];
     }
 
@@ -41,5 +42,21 @@ class NotificationsExtension extends AbstractExtension
         }
 
         return $this->notificationRepository->findNonLuesPourUtilisateur($utilisateur);
+    }
+
+    /**
+     * Nombre réel de notifications non lues (utilisé pour le badge,
+     * indépendamment de la liste affichée dans le menu déroulant qui
+     * elle reste limitée aux plus récentes).
+     */
+    public function nombreNotificationsGenerales(): int
+    {
+        $utilisateur = $this->security->getUser();
+
+        if (!$utilisateur instanceof User) {
+            return 0;
+        }
+
+        return $this->notificationRepository->countNonLuesPourUtilisateur($utilisateur);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\CompteTresorerie;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -162,6 +163,58 @@ class CompteTresorerieRepository extends ServiceEntityRepository
         return (int) $qb
             ->getQuery()
             ->getSingleScalarResult() > 0;
+    }
+
+    /**
+     * Comptes qu'un utilisateur peut choisir pour un encaissement
+     * manuel (ex. ajout au solde client, pour créditer le compte où
+     * l'argent est physiquement resté) -- même règle que le
+     * formulaire de paiement (PaiementsType) : un admin voit les
+     * comptes Admin et partagés ; un agent voit sa caisse
+     * personnelle, les comptes partagés et les banques.
+     *
+     * @return CompteTresorerie[]
+     */
+    public function trouverDisponiblesPour(
+        User $utilisateur,
+        bool $estAdmin
+    ): array {
+        $qb = $this->createQueryBuilder('compte')
+            ->andWhere('compte.actif = :actif')
+            ->setParameter('actif', true)
+            ->orderBy('compte.nom', 'ASC');
+
+        if ($estAdmin) {
+            return $qb
+                ->andWhere('compte.portee IN (:portees)')
+                ->setParameter('portees', [
+                    CompteTresorerie::PORTEE_ADMIN,
+                    CompteTresorerie::PORTEE_PARTAGEE,
+                ])
+                ->getQuery()
+                ->getResult();
+        }
+
+        return $qb
+            ->andWhere(
+                '
+                compte.portee = :partagee
+                OR
+                (
+                    compte.portee = :personnelle
+                    AND
+                    compte.proprietaire = :utilisateur
+                )
+                OR
+                compte.type = :typeBanque
+                '
+            )
+            ->setParameter('partagee', CompteTresorerie::PORTEE_PARTAGEE)
+            ->setParameter('personnelle', CompteTresorerie::PORTEE_PERSONNELLE)
+            ->setParameter('utilisateur', $utilisateur)
+            ->setParameter('typeBanque', CompteTresorerie::TYPE_BANQUE)
+            ->getQuery()
+            ->getResult();
     }
 
     public function calculerSoldeTotalActif(): int

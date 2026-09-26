@@ -57,7 +57,7 @@ class ProduitConfigurationType extends AbstractType
                 'class' => TypesImpression::class,
                 'choice_label' => 'nom',
                 'label' => 'Type d’impression',
-                'placeholder' =>
+               // 'placeholder' =>
                     'Sélectionnez un type d’impression',
                 'attr' => [
                     'class' => 'form-control js-select-search',

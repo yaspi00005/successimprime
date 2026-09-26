@@ -159,7 +159,7 @@ class CommandesDetailsType extends AbstractType
                 'class' => TypesImpression::class,
                 'choice_label' => 'nom',
                 'label' => 'Type d’impression',
-                'placeholder' => 'Sélectionnez un type d’impression',
+              //  'placeholder' => 'Sélectionnez un type d’impression',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-select js-select-search '

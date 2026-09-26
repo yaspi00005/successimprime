@@ -241,11 +241,26 @@
 						</tr>
 
 						{% for detail in ligne.commande.commandesDetails %}
+
+							{% set dimensionsDetail = null %}
+
+							{% if detail.largeur is defined and detail.longueur is defined and detail.largeur and detail.longueur %}
+								{% set dimensionsDetail = detail.largeur ~ ' × ' ~ detail.longueur ~ ' cm' %}
+							{% elseif detail.produitConfiguration is defined and detail.produitConfiguration and detail.produitConfiguration.format %}
+								{% set dimensionsDetail = detail.produitConfiguration.format.nom %}
+							{% endif %}
+
+							{% set montantPayeDetail = ligne.totalTtc > 0 ? (ligne.totalPaye * detail.totalTtc / ligne.totalTtc)|round : 0 %}
+
 							<tr class="ligne-detail">
-								<td colspan="3">
+								<td colspan="2">
 									{{ detail.produit ? detail.produit.nom : detail.designation|default('Article') }}
+									{% if dimensionsDetail %}
+										({{ dimensionsDetail }})
+									{% endif %}
 								</td>
 								<td class="text-right">Qté : {{ detail.quantite }}</td>
+								<td class="text-right">{{ montantPayeDetail|number_format(0, ',', ' ') }} FCFA</td>
 								<td class="text-right">{{ detail.totalTtc|number_format(0, ',', ' ') }} FCFA</td>
 							</tr>
 						{% endfor %}

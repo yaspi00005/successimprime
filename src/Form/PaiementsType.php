@@ -199,9 +199,15 @@ $builder->add(
                  * - sa caisse personnelle
                  * - Orange Money partagé
                  * - Wave partagé
+                 * - les comptes bancaires (pour un chèque ou un
+                 *   virement) : un compte bancaire est TOUJOURS un
+                 *   compte "Admin" (contrainte métier, voir
+                 *   CompteTresorerie), sinon il serait exclu par la
+                 *   règle "jamais les comptes Admin" ci-dessous alors
+                 *   que la caissière doit pouvoir choisir la banque.
                  *
                  * Jamais la caisse d'un autre agent.
-                 * Jamais les comptes Admin.
+                 * Jamais les autres comptes Admin.
                  * ================================================
                  */
 
@@ -215,6 +221,8 @@ $builder->add(
                             AND
                             compte.proprietaire = :utilisateur
                         )
+                        OR
+                        compte.type = :typeBanque
                         '
                     )
                     ->setParameter(
@@ -228,6 +236,10 @@ $builder->add(
                     ->setParameter(
                         'utilisateur',
                         $utilisateur
+                    )
+                    ->setParameter(
+                        'typeBanque',
+                        CompteTresorerie::TYPE_BANQUE
                     );
             },
 
@@ -236,8 +248,25 @@ $builder->add(
                 CompteTresorerie $compte
             ): string {
                 /*
-                 * On affiche le solde ici car le paiement
-                 * va réellement créditer ce compte.
+                 * Banque : la caissière doit pouvoir choisir la
+                 * banque (chèque/virement) sans voir son solde
+                 * (même logique que MouvementTresorerieType).
+                 */
+                if (
+                    $compte->getType()
+                    === CompteTresorerie::TYPE_BANQUE
+                ) {
+                    return sprintf(
+                        '%s — %s',
+                        $compte->getNom(),
+                        $compte->getTypeLabel()
+                    );
+                }
+
+                /*
+                 * Caisse / Orange Money / Wave : on affiche le
+                 * solde ici car le paiement va réellement
+                 * créditer ce compte.
                  */
                 return sprintf(
                     '%s — %s — %s FCFA',

@@ -121,8 +121,8 @@ class DevisDetailsType extends AbstractType
                     'Saisie libre' => 'libre',
                 ],
                 'expanded' => true,
-                'required' => true,
-                'empty_data' => 'automatique',
+                'required' => false,
+                'empty_data' => 'manuel',
                 'attr' => [
                     'class' => 'js-mode-configuration',
                     'data-detail-field' => 'modeConfiguration',
@@ -193,7 +193,7 @@ class DevisDetailsType extends AbstractType
                 'class' => TypesImpression::class,
                 'choice_label' => 'nom',
                 'label' => 'Type d’impression',
-                'placeholder' => 'Sélectionnez un type d’impression',
+               // 'placeholder' => 'Sélectionnez un type d’impression',
                 'required' => false,
                 'attr' => [
                     'class' => 'form-select js-select-search '

@@ -31,5 +31,23 @@ services:
             $phoneNumberId: '%env(WHATSAPP_PHONE_NUMBER_ID)%'
             $apiVersion: '%env(WHATSAPP_API_VERSION)%'
 
+    App\Service\OrangeSmsService:
+        arguments:
+            $clientId: '%env(ORANGE_SMS_CLIENT_ID)%'
+            $clientSecret: '%env(ORANGE_SMS_CLIENT_SECRET)%'
+            $senderAddress: '%env(ORANGE_SMS_SENDER_ADDRESS)%'
+            $senderName: '%env(ORANGE_SMS_SENDER_NAME)%'
+
+    App\Service\RappelPaiementService:
+        arguments:
+            $emailExpediteur: '%env(MAILER_FROM_ADDRESS)%'
+            $whatsappTemplateRappel: '%env(WHATSAPP_TEMPLATE_RAPPEL_PAIEMENT)%'
+
+    App\Service\CampagneService:
+        arguments:
+            $emailExpediteur: '%env(MAILER_FROM_ADDRESS)%'
+            $whatsappTemplateCampagne: '%env(WHATSAPP_TEMPLATE_CAMPAGNE)%'
+
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

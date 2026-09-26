@@ -195,6 +195,23 @@ security:
 
 
         # ============================================================
+        # ARTICLE EN STOCK -- AJAX UTILISE PAR LA COMMANDE ET LE DEVIS
+        #
+        # Doit rester accessible a ROLE_COMMANDE (donc a un compte
+        # caisse) : c'est l'endpoint que le formulaire de commande/devis
+        # appelle pour charger stock/prix/reference d'un article
+        # vendable. Placee AVANT la regle generale ADMIN UNIQUEMENT
+        # ci-dessous, car Symfony applique la premiere regle qui
+        # correspond.
+        # ============================================================
+
+        - {
+            path: ^/articles/\d+/commande/ajax,
+            roles: ROLE_COMMANDE
+        }
+
+
+        # ============================================================
         # STOCK
         #
         # ADMIN UNIQUEMENT

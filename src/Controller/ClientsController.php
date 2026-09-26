@@ -14,12 +14,18 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Entity\Paiements;
+use App\Entity\User;
+use App\Entity\JournalActivite;
 use App\Repository\CommandesRepository;
 use App\Repository\DevisRepository;
+use App\Repository\CompteTresorerieRepository;
+use App\Entity\MouvementTresorerie;
+use App\Service\MouvementTresorerieService;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/clients')]
 final class ClientsController extends AbstractController
@@ -44,6 +50,37 @@ final class ClientsController extends AbstractController
 
         return $this->render('clients/index.html.twig', [
             'formAjout' => $formAjout->createView(),
+        ]);
+    }
+
+    /*
+     * ============================================================
+     * SOLDES CLIENTS
+     * ============================================================
+     *
+     * Liste des clients chez qui de l'argent est resté (monnaie non
+     * rendue) : répond à "chez qui la monnaie est-elle restée ?".
+     * ============================================================
+     */
+    #[Route(
+        '/soldes',
+        name: 'app_clients_soldes',
+        methods: ['GET']
+    )]
+    #[IsGranted('ROLE_PAIEMENT_ENCAISSER')]
+    public function soldes(ClientsRepository $clientsRepository): Response
+    {
+        $clients = $clientsRepository->trouverAvecSoldeCredit();
+
+        $total = 0;
+
+        foreach ($clients as $client) {
+            $total += $client->getSoldeCredit();
+        }
+
+        return $this->render('clients/soldes.html.twig', [
+            'clients' => $clients,
+            'total' => $total,
         ]);
     }
 
@@ -684,6 +721,197 @@ final class ClientsController extends AbstractController
     }
 
     #[Route(
+        '/{id}/solde/ajouter',
+        name: 'app_clients_solde_ajouter',
+        requirements: ['id' => '\d+'],
+        methods: ['POST']
+    )]
+    #[IsGranted('ROLE_PAIEMENT_ENCAISSER')]
+    public function ajouterSolde(
+        Clients $client,
+        Request $request,
+        EntityManagerInterface $entityManager,
+        CompteTresorerieRepository $compteTresorerieRepository,
+        MouvementTresorerieService $mouvementTresorerieService
+    ): Response {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException(
+                'Vous devez être connecté pour modifier le solde d’un client.'
+            );
+        }
+
+        if (!$this->isCsrfTokenValid(
+            'ajouter_solde_client_' . $client->getId(),
+            $request->request->get('_token')
+        )) {
+            $this->addFlash('error', 'Jeton de sécurité invalide.');
+
+            return $this->redirectToRoute('app_clients_show', [
+                'publicId' => $client->getPublicId()->toRfc4122(),
+            ]);
+        }
+
+        $montant = (int) preg_replace(
+            '/[^\d]/',
+            '',
+            (string) $request->request->get('montant')
+        );
+
+        if ($montant <= 0) {
+            $this->addFlash(
+                'warning',
+                'Le montant doit être supérieur à zéro.'
+            );
+
+            return $this->redirectToRoute('app_clients_show', [
+                'publicId' => $client->getPublicId()->toRfc4122(),
+            ]);
+        }
+
+        /*
+         * ============================================================
+         * COMPTE DE TRÉSORERIE
+         * ============================================================
+         *
+         * L'argent gardé (monnaie non rendue) est physiquement dans
+         * un compte précis (caisse, Orange Money, Wave...) : ce
+         * compte doit être crédité, sinon son solde enregistré ne
+         * correspondra plus jamais à l'argent réellement présent.
+         * ============================================================
+         */
+        $compteId = (int) $request->request->get('compteTresorerie');
+
+        $compte = $compteId > 0
+            ? $compteTresorerieRepository->find($compteId)
+            : null;
+
+        if ($compte === null) {
+            $this->addFlash(
+                'warning',
+                'Veuillez sélectionner le compte de trésorerie où se trouve cet argent.'
+            );
+
+            return $this->redirectToRoute('app_clients_show', [
+                'publicId' => $client->getPublicId()->toRfc4122(),
+            ]);
+        }
+
+        $comptesAutorises = $compteTresorerieRepository->trouverDisponiblesPour(
+            $user,
+            $this->isGranted('ROLE_ADMIN')
+        );
+
+        if (!in_array($compte, $comptesAutorises, true)) {
+            $this->addFlash(
+                'error',
+                'Vous n’êtes pas autorisé à utiliser ce compte de trésorerie.'
+            );
+
+            return $this->redirectToRoute('app_clients_show', [
+                'publicId' => $client->getPublicId()->toRfc4122(),
+            ]);
+        }
+
+        $soldeAvant = $client->getSoldeCredit();
+
+        $client->setSoldeCredit($soldeAvant + $montant);
+
+        $entityManager->persist($client);
+
+        /*
+         * ============================================================
+         * TRACE
+         * ============================================================
+         *
+         * En plus du mouvement de trésorerie ci-dessous (qui prouve
+         * l'entrée d'argent sur le compte), le journal d'activité
+         * garde une trace lisible depuis la fiche du client.
+         * ============================================================
+         */
+        $journal = new JournalActivite();
+        $journal
+            ->setEntite('Clients')
+            ->setEntiteId($client->getId())
+            ->setAction(JournalActivite::ACTION_MODIFICATION)
+            ->setDonneesAvant([
+                'soldeCredit' => $soldeAvant,
+            ])
+            ->setDonneesApres([
+                'soldeCredit' => $client->getSoldeCredit(),
+                'montantAjoute' => $montant,
+                'compteTresorerieId' => $compte->getId(),
+            ])
+            ->setUtilisateur($user);
+
+        $entityManager->persist($journal);
+
+        /*
+         * ============================================================
+         * MOUVEMENT DE TRÉSORERIE
+         * ============================================================
+         *
+         * Catégorie "ajustement" (neutre) : cet argent est déjà
+         * arrivé avec un paiement antérieur, ce n'est pas une
+         * nouvelle vente -- seul le compte doit refléter l'argent
+         * physiquement présent, sans gonfler le chiffre d'affaires.
+         * ============================================================
+         */
+        $mouvement = new MouvementTresorerie();
+        $mouvement->setType(MouvementTresorerie::TYPE_ENCAISSEMENT);
+        $mouvement->setCategorie(MouvementTresorerie::CATEGORIE_AJUSTEMENT);
+        $mouvement->setCompteDestination($compte);
+        $mouvement->setMontant($montant);
+        $mouvement->setModePaiement(Paiements::MODE_ESPECES);
+        $mouvement->setLibelle(
+            sprintf('Monnaie non rendue — %s', $client->getNomComplet())
+        );
+        $mouvement->setDescription(
+            sprintf(
+                'Ajout de %s FCFA au solde du client %s (monnaie non rendue lors d’un paiement).',
+                number_format($montant, 0, ',', ' '),
+                $client->getNomComplet()
+            )
+        );
+        $mouvement->setAgent($user);
+
+        try {
+            $mouvementTresorerieService->enregistrer($mouvement);
+        } catch (\InvalidArgumentException | \LogicException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_clients_show', [
+                'publicId' => $client->getPublicId()->toRfc4122(),
+            ]);
+        }
+
+        if ($mouvement->isEnAttente()) {
+            $this->addFlash(
+                'warning',
+                sprintf(
+                    'Solde du client mis à jour : +%s FCFA. Le compte "%s" étant une banque, le crédit reste en attente de validation.',
+                    number_format($montant, 0, ',', ' '),
+                    $compte->getNom()
+                )
+            );
+        } else {
+            $this->addFlash(
+                'success',
+                sprintf(
+                    'Solde du client mis à jour : +%s FCFA (crédité sur %s).',
+                    number_format($montant, 0, ',', ' '),
+                    $compte->getNom()
+                )
+            );
+        }
+
+        return $this->redirectToRoute('app_clients_show', [
+            'publicId' => $client->getPublicId()->toRfc4122(),
+        ]);
+    }
+
+    #[Route(
         '/fiche/{publicId}',
         name: 'app_clients_show',
         methods: ['GET']
@@ -694,7 +922,8 @@ final class ClientsController extends AbstractController
         ])]
         Clients $client,
         CommandesRepository $commandesRepository,
-        DevisRepository $devisRepository
+        DevisRepository $devisRepository,
+        CompteTresorerieRepository $compteTresorerieRepository
     ): Response {
         /*
      * Puis tu gardes ici tout le reste
@@ -754,7 +983,7 @@ final class ClientsController extends AbstractController
 
         $resteAPayer = 0;
 
-        $nombreCommandes = count($commandes);
+        $nombreCommandes = 0;
 
         $nombreDevis = count($devis);
 
@@ -774,6 +1003,17 @@ final class ClientsController extends AbstractController
 
 
         foreach ($commandes as $commande) {
+
+            /*
+         * Une commande entièrement annulée ne doit pas fausser les
+         * statistiques du client (même calcul que ClientsController::
+         * pdfImpayes(), qui exclut déjà les commandes annulées).
+         */
+            if ($commande->getStatutTravaux() === 'annulee') {
+                continue;
+            }
+
+            ++$nombreCommandes;
 
             $montantCommande =
                 (int) $commande->getTotalTtc();
@@ -1007,6 +1247,33 @@ final class ClientsController extends AbstractController
 
         /*
      * ============================================================
+     * COMPTES DE TRÉSORERIE (pour "Ajouter au solde")
+     * ============================================================
+     *
+     * L'argent gardé (monnaie non rendue) doit être crédité sur un
+     * compte réel : on ne propose que les comptes que l'utilisateur
+     * connecté a le droit d'utiliser (même règle que le formulaire
+     * de paiement).
+     * ============================================================
+     */
+
+        $comptesTresorerie = [];
+
+        $utilisateurConnecte = $this->getUser();
+
+        if (
+            $utilisateurConnecte instanceof User
+            && $this->isGranted('ROLE_PAIEMENT_ENCAISSER')
+        ) {
+            $comptesTresorerie = $compteTresorerieRepository->trouverDisponiblesPour(
+                $utilisateurConnecte,
+                $this->isGranted('ROLE_ADMIN')
+            );
+        }
+
+
+        /*
+     * ============================================================
      * ENVOI AU TWIG
      * ============================================================
      */
@@ -1016,6 +1283,9 @@ final class ClientsController extends AbstractController
             [
                 'client' =>
                 $client,
+
+                'comptesTresorerie' =>
+                $comptesTresorerie,
 
                 'commandes' =>
                 $commandesAvecPaiements,
@@ -1107,6 +1377,10 @@ final class ClientsController extends AbstractController
         $totalReste = 0;
 
         foreach ($commandes as $commande) {
+            if ($commande->getStatutTravaux() === 'annulee') {
+                continue;
+            }
+
             $montantCommande = (int) $commande->getTotalTtc();
             $totalPayeCommande = 0;
 
@@ -1172,6 +1446,120 @@ final class ClientsController extends AbstractController
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => sprintf(
                     'inline; filename="impayes-%s.pdf"',
+                    preg_replace('/[^A-Za-z0-9_-]/', '-', $client->getNomComplet())
+                ),
+                'Content-Length' => (string) strlen($contenuPdf),
+            ]
+        );
+    }
+
+    /**
+     * Export PDF de l'historique complet des commandes du client
+     * (payées, partielles et impayées), contrairement à pdfImpayes()
+     * qui n'y met que celles avec un reste à payer.
+     */
+    #[Route(
+        '/fiche/{publicId}/commandes.pdf',
+        name: 'app_clients_pdf_commandes',
+        methods: ['GET']
+    )]
+    public function pdfToutesCommandes(
+        #[MapEntity(mapping: [
+            'publicId' => 'publicId',
+        ])]
+        Clients $client,
+        CommandesRepository $commandesRepository
+    ): Response {
+        $commandes = $commandesRepository->findBy(
+            [
+                'clients' => $client,
+                'deleted' => false,
+            ],
+            [
+                'dateCommande' => 'DESC',
+            ]
+        );
+
+        $commandesAvecPaiements = [];
+        $totalCommandes = 0;
+        $totalPaye = 0;
+        $totalReste = 0;
+
+        foreach ($commandes as $commande) {
+            if ($commande->getStatutTravaux() === 'annulee') {
+                continue;
+            }
+
+            $montantCommande = (int) $commande->getTotalTtc();
+            $totalPayeCommande = 0;
+
+            foreach ($commande->getPaiements() as $paiement) {
+                if ($paiement->getStatut() !== Paiements::STATUT_VALIDE) {
+                    continue;
+                }
+
+                $totalPayeCommande += (int) $paiement->getMontant();
+            }
+
+            $resteCommande = max(0, $montantCommande - $totalPayeCommande);
+
+            if ($totalPayeCommande <= 0) {
+                $statutPaiement = 'impayee';
+            } elseif ($totalPayeCommande < $montantCommande) {
+                $statutPaiement = 'partielle';
+            } else {
+                $statutPaiement = 'payee';
+            }
+
+            $commandesAvecPaiements[] = [
+                'commande' => $commande,
+                'totalTtc' => $montantCommande,
+                'totalPaye' => $totalPayeCommande,
+                'resteAPayer' => $resteCommande,
+                'statutPaiement' => $statutPaiement,
+            ];
+
+            $totalCommandes += $montantCommande;
+            $totalPaye += $totalPayeCommande;
+            $totalReste += $resteCommande;
+        }
+
+        $projectDir = $this->getParameter('kernel.project_dir');
+
+        $html = $this->renderView(
+            'clients/pdf_commandes.html.twig',
+            [
+                'client' => $client,
+                'commandes' => $commandesAvecPaiements,
+                'totalCommandes' => $totalCommandes,
+                'totalPaye' => $totalPaye,
+                'totalReste' => $totalReste,
+                'genereLe' => new \DateTimeImmutable(),
+                'logo' => $this->imageVersDataUri(
+                    $projectDir . '/public/assets/images/brand/logo2.png'
+                ),
+            ]
+        );
+
+        $options = new Options();
+        $options->set('defaultFont', 'DejaVu Sans');
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $contenuPdf = $dompdf->output();
+
+        return new Response(
+            $contenuPdf,
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => sprintf(
+                    'inline; filename="commandes-%s.pdf"',
                     preg_replace('/[^A-Za-z0-9_-]/', '-', $client->getNomComplet())
                 ),
                 'Content-Length' => (string) strlen($contenuPdf),

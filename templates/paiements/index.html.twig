@@ -47,10 +47,50 @@
 
 		<div class="card">
 
-			<div class="card-header">
+			<div class="card-body">
+
+				<form method="get" class="row g-2 align-items-end">
+
+					<div class="col-lg-6 col-md-8">
+						<label class="form-label">Rechercher</label>
+						<input type="text" name="q" class="form-control" value="{{ q }}" placeholder="Client, code client, n° commande, référence, n° chèque…">
+					</div>
+
+					<div class="col-lg-3 col-md-4 d-flex" style="gap:.5rem;">
+						<button type="submit" class="btn btn-primary-light flex-fill">
+							<i class="fa fa-search mr-1"></i>
+							Rechercher
+						</button>
+						{% if q %}
+							<a href="{{ path('app_paiements_index') }}" class="btn btn-secondary">
+								<i class="fa fa-times"></i>
+							</a>
+						{% endif %}
+					</div>
+
+				</form>
+
+			</div>
+
+		</div>
+
+
+		<div class="card">
+
+			<div class="card-header d-flex justify-content-between align-items-center">
+
 				<h3 class="card-title mb-0">
 					Liste des paiements
 				</h3>
+
+				<div class="text-muted small">
+					{% if q %}
+						{{ paiements|length }} résultat{{ paiements|length > 1 ? 's' : '' }} pour « {{ q }} »
+					{% else %}
+						{{ paiements|length }} derniers paiements
+					{% endif %}
+				</div>
+
 			</div>
 
 			<div class="table-responsive">
@@ -61,6 +101,7 @@
 
 						<tr>
 							<th>#</th>
+							<th>Client</th>
 							<th class="text-right">Montant</th>
 							<th>Mode</th>
 							<th>Compte</th>
@@ -80,6 +121,16 @@
 
 								<td class="align-middle">
 									{{ paiement.id }}
+								</td>
+
+								<td class="align-middle">
+									{% if paiement.commande and paiement.commande.clients %}
+										<a href="{{ path('app_clients_show', { publicId: paiement.commande.clients.publicId }) }}">
+											{{ paiement.commande.clients.nomComplet }}
+										</a>
+									{% else %}
+										—
+									{% endif %}
 								</td>
 
 								<td class="align-middle text-right">
@@ -155,8 +206,12 @@
 						{% else %}
 
 							<tr>
-								<td colspan="8" class="text-center text-muted py-5">
-									Aucun paiement enregistré.
+								<td colspan="9" class="text-center text-muted py-5">
+									{% if q %}
+										Aucun paiement ne correspond à « {{ q }} ».
+									{% else %}
+										Aucun paiement enregistré.
+									{% endif %}
 								</td>
 							</tr>
 
