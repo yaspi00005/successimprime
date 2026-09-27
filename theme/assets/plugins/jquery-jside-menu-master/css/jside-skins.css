@@ -1,0 +1,247 @@
+.purple {
+	background: #8441f6;
+   --skin-hover: #000; 
+   --skin-color:  #fff;
+}
+
+/* Clover Green*/
+
+.light-gray {
+	background: #636161;
+	 --skin-hover: rgba(0, 0, 0, 0.1); 
+    --skin-color:  rgba(255, 255, 255, 0.9);
+}
+
+/* Dodger Blue*/
+
+.blue {
+	background: #526273;
+   --skin-hover: #000; 
+   --skin-color:  #fff;
+}
+
+/* Bright Neon Pink*/
+
+.bnp {
+	background: #5554f7;
+ --skin-hover: rgba(0, 0, 0, 0.1); 
+ --skin-color:  rgba(255, 255, 255, 0.9);
+}
+
+/* Pumpkin Orange */
+
+.pink {
+	background: #0280ab;
+}
+
+/* Black*/
+
+.black {
+	background: #3546b1;
+}
+
+/* Neon Pink*/
+
+.gray {
+	background: #5b5572;
+}
+
+/* Golden Brown */
+
+.gol-b {
+	background: #09827d;
+}
+
+/* Greenish Blue */
+
+.greenish {
+	background: #1f674d;
+
+}
+
+/* Wood */
+
+.gol-a {
+	background: #723696;
+
+}
+/* gradients themes colors */
+/* Endless River */
+
+.endless-river {
+	--theme-color: #43cea2;
+	background: #43cea2;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #3170ff, #ce17da);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #3170ff, #ce17da);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #3170ff, #ce17da);
+}
+
+/* Crazy Orange */
+
+.crazy-orange {
+	--theme-color: #4c1f86;
+	background: #4c1f86;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #4b4992, #815eae);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #4c1f86, #815eae);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #4c1f86, #815eae);
+}
+
+
+/* Between the Clouds */
+
+.between-clouds {
+	--theme-color: #73C8A9;
+	background: #73C8A9;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right,#2b2f82, #5d61bf);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right,#2b2f82, #5d61bf);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right,#2b2f82, #5d61bf);
+}
+
+
+/* Amethyst */
+
+.amethyst {
+	--theme-color: #9D50BB;
+	background: #9D50BB;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right,#007adf 40%, #0cc5a0 100%);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right,#007adf 40%, #0cc5a0 100%);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right,#007adf 40%, #0cc5a0 100%);
+}
+
+
+/* Man of the Steel */
+
+.steel-man {
+	--theme-color: #780206;
+	background: #780206;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #0b4039, #038878);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #0b4039, #038878);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #0b4039, #038878);
+}
+
+
+/* Dance to Forget */
+
+.d2f {
+	--theme-color: #038878;
+	background: #038878;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #302856, #6c6882);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #302856, #6c6882);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #302856, #6c6882);
+}
+
+
+
+/* Park Life */
+
+.park-life {
+	--theme-color: #4d0ad6 ;
+	background: #4d0ad6 ;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #4d0ad6  0%, #8E2DE2 100%);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #4d0ad6  0%, #8E2DE2 100%);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #4d0ad6  0%, #8E2DE2 100%);
+
+}
+
+/* Moonlit Asteroid */
+
+.moonlit {
+	--theme-color: #226c8c;
+	background: #226c8c;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #203A43, #226c8c );
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #203A43, #226c8c);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #203A43, #226c8c);
+}
+
+/* Facebook Messenger */
+
+.fb-messenger {
+	--theme-color: #00c6ff;
+	background: #00c6ff;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #8a2cf0 0%, #4985ea 100%);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #8a2cf0 0%, #4985ea 100%);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #8a2cf0 0%, #4985ea 100%);
+}
+/* Flickr */
+
+.flickr {
+	--theme-color: #ff0084;
+	background: #ff0084;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #3446b3, #8925b5);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #3446b3, #8925b5);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #3446b3, #8925b5);
+}
+
+/* Man of the Steel */
+
+.dark-blue {
+	--theme-color: #780206;
+	background: #780206;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right,#3d4192, #5d61bf);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right,#3d4192, #5d61bf);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right,#3d4192, #5d61bf);
+}
+
+.multi-color {
+	--theme-color: #780206;
+	background: #780206;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #349e9f 0%, #8780f1 56%, #e78f9a 100%);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #349e9f 0%, #8780f1 56%, #e78f9a 100%);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #349e9f 0%, #8780f1 56%, #e78f9a 100%);
+}
+.multi-color1 {
+	--theme-color: #780206;
+	background: #780206;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #5b7e72 0%, #5068e9 25%, #16a5c8 42%, #8a5fd8 79%, #2fa9c8 100%);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #5b7e72 0%, #5068e9 25%, #16a5c8 42%, #8a5fd8 79%, #2fa9c8 100%);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #5b7e72 0%, #5068e9 25%, #16a5c8 42%, #8a5fd8 79%, #2fa9c8 100%);
+}
+.multi-color2 {
+	--theme-color: #780206;
+	background: #780206;
+	/* fallback for old browsers */
+	background: -webkit-linear-gradient(to right, #074867 0%,#7664c8 25%,#2d9f97 50%, #0091ff 76%, #ea8495 100%);
+	/* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(to right, #074867 0%,#7664c8 25%,#2d9f97 50%, #0091ff 76%, #ea8495 100%);
+	/* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+	--theme-color: linear-gradient(to right, #074867 0%,#7664c8 25%,#2d9f97 50%, #0091ff 76%, #ea8495 100%);
+}
