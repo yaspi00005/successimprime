@@ -32,6 +32,12 @@ security:
             logout:
                 path: app_logout
 
+            # Limite les tentatives de connexion successives (par
+            # nom d'utilisateur et par IP) pour ralentir une attaque
+            # par force brute sur les mots de passe.
+            login_throttling:
+                max_attempts: 5
+
 
     # ================================================================
     # HIÉRARCHIE DES RÔLES
@@ -445,6 +451,20 @@ security:
         - {
             path: ^/production,
             roles: ROLE_PRODUCTION_VOIR
+        }
+
+
+        # ============================================================
+        # CONSOMMABLES
+        #
+        # Retire directement du stock disponible : reserve aux
+        # profils production (avant, tout utilisateur connecte y
+        # avait acces par defaut).
+        # ============================================================
+
+        - {
+            path: ^/consommables,
+            roles: ROLE_PRODUCTION_GERER
         }
 
 
