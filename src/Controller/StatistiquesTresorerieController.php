@@ -2,11 +2,9 @@
 
 namespace App\Controller;
 
-use App\Entity\MouvementTresorerie;
-use App\Entity\Paiements;
 use App\Service\EvolutionFinanciereService;
 use App\Service\EvolutionTemporelleService;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Statistiques\StatistiquesTresorerieService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,9 +21,9 @@ final class StatistiquesTresorerieController extends AbstractController
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(
         Request $request,
-        EntityManagerInterface $entityManager,
         EvolutionTemporelleService $evolutionTemporelleService,
-        EvolutionFinanciereService $evolutionFinanciereService
+        EvolutionFinanciereService $evolutionFinanciereService,
+        StatistiquesTresorerieService $statistiquesTresorerieService
     ): Response {
         $granularite = $evolutionTemporelleService->normaliserGranularite(
             $request->query->get('granularite')
@@ -37,9 +35,9 @@ final class StatistiquesTresorerieController extends AbstractController
             'evolution' => $evolutionFinanciereService->calculer($granularite),
             'granulariteEvolution' => $granularite,
             'filtres' => $filtres,
-            'totalEncaisse' => $this->totalEncaisseSurIntervalle($entityManager, $debut, $fin),
-            'totalDecaisse' => $this->totalDecaisseSurIntervalle($entityManager, $debut, $fin),
-            'chargesParCategorie' => $this->chargesParCategorie($entityManager, $debut, $fin),
+            'totalEncaisse' => $statistiquesTresorerieService->totalEncaisse($debut, $fin),
+            'totalDecaisse' => $statistiquesTresorerieService->totalDecaisse($debut, $fin),
+            'chargesParCategorie' => $statistiquesTresorerieService->chargesParCategorie($debut, $fin),
         ]);
     }
 
@@ -79,111 +77,5 @@ final class StatistiquesTresorerieController extends AbstractController
                 'date_fin' => $fin->format('Y-m-d'),
             ],
         ];
-    }
-
-    private function totalEncaisseSurIntervalle(
-        EntityManagerInterface $entityManager,
-        \DateTimeImmutable $debut,
-        \DateTimeImmutable $fin
-    ): int {
-        $paiements = $entityManager
-            ->getRepository(Paiements::class)
-            ->createQueryBuilder('p')
-            ->andWhere('p.date BETWEEN :debut AND :fin')
-            ->setParameter('debut', $debut)
-            ->setParameter('fin', $fin)
-            ->getQuery()
-            ->getResult();
-
-        $total = 0;
-
-        foreach ($paiements as $paiement) {
-            if (!$paiement instanceof Paiements || $paiement->estAnnule()) {
-                continue;
-            }
-
-            $total += (int) $paiement->getMontant();
-        }
-
-        return $total;
-    }
-
-    private function totalDecaisseSurIntervalle(
-        EntityManagerInterface $entityManager,
-        \DateTimeImmutable $debut,
-        \DateTimeImmutable $fin
-    ): int {
-        $mouvements = $this->decaissementsValides($entityManager, $debut, $fin);
-
-        $total = 0;
-
-        foreach ($mouvements as $mouvement) {
-            $total += (int) $mouvement->getMontant();
-        }
-
-        return $total;
-    }
-
-    /**
-     * Répartition des décaissements par catégorie (essence, achats,
-     * transport, entretien, électricité, loyer, autre charge...) sur
-     * l'intervalle choisi.
-     *
-     * @return list<array{categorie: string, nombre: int, montant: int}>
-     */
-    private function chargesParCategorie(
-        EntityManagerInterface $entityManager,
-        \DateTimeImmutable $debut,
-        \DateTimeImmutable $fin
-    ): array {
-        $mouvements = $this->decaissementsValides($entityManager, $debut, $fin);
-
-        $parCategorie = [];
-
-        foreach ($mouvements as $mouvement) {
-            $cle = $mouvement->getCategorie();
-
-            $parCategorie[$cle] ??= [
-                'categorie' => $mouvement->getCategorieLabel(),
-                'nombre' => 0,
-                'montant' => 0,
-            ];
-
-            ++$parCategorie[$cle]['nombre'];
-            $parCategorie[$cle]['montant'] += (int) $mouvement->getMontant();
-        }
-
-        usort(
-            $parCategorie,
-            static fn (array $a, array $b): int => $b['montant'] <=> $a['montant']
-        );
-
-        return array_values($parCategorie);
-    }
-
-    /**
-     * @return list<MouvementTresorerie>
-     */
-    private function decaissementsValides(
-        EntityManagerInterface $entityManager,
-        \DateTimeImmutable $debut,
-        \DateTimeImmutable $fin
-    ): array {
-        $resultats = $entityManager
-            ->getRepository(MouvementTresorerie::class)
-            ->createQueryBuilder('m')
-            ->andWhere('m.dateOperation BETWEEN :debut AND :fin')
-            ->andWhere('m.type = :type')
-            ->setParameter('debut', $debut)
-            ->setParameter('fin', $fin)
-            ->setParameter('type', MouvementTresorerie::TYPE_DECAISSEMENT)
-            ->getQuery()
-            ->getResult();
-
-        return array_values(array_filter(
-            $resultats,
-            static fn ($mouvement): bool =>
-                $mouvement instanceof MouvementTresorerie && $mouvement->isValide()
-        ));
     }
 }

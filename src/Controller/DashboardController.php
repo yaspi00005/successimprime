@@ -6,11 +6,23 @@ use App\Repository\ClientsRepository;
 use App\Repository\CommandesRepository;
 use App\Service\EvolutionFinanciereService;
 use App\Service\EvolutionTemporelleService;
+use App\Service\Statistiques\StatistiquesClientsService;
+use App\Service\Statistiques\StatistiquesCommandesService;
+use App\Service\Statistiques\StatistiquesGlobalesService;
+use App\Service\Statistiques\StatistiquesTresorerieService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * Tableau de bord "Accueil" : toutes les statistiques de l'entreprise
+ * réunies sur une seule page (ventes, encaissements/décaissements,
+ * impayés, clients, production, machines) pour que l'administrateur
+ * ait une vue globale sans naviguer dans le menu Gestion. Chaque
+ * section renvoie vers sa page dédiée (/statistiques/...) pour le
+ * détail complet.
+ */
 final class DashboardController extends AbstractController
 {
     private const PERIODES_VALIDES = ['jour', 'semaine', 'mois', 'annee', 'tout'];
@@ -21,7 +33,11 @@ final class DashboardController extends AbstractController
         CommandesRepository $commandesRepository,
         ClientsRepository $clientsRepository,
         EvolutionTemporelleService $evolutionTemporelleService,
-        EvolutionFinanciereService $evolutionFinanciereService
+        EvolutionFinanciereService $evolutionFinanciereService,
+        StatistiquesGlobalesService $statistiquesGlobalesService,
+        StatistiquesCommandesService $statistiquesCommandesService,
+        StatistiquesTresorerieService $statistiquesTresorerieService,
+        StatistiquesClientsService $statistiquesClientsService
     ): Response {
         /*
          * Un livreur n'a accès qu'aux livraisons : il n'a rien
@@ -42,6 +58,9 @@ final class DashboardController extends AbstractController
         );
 
         [$debut, $fin] = $this->calculerPeriode($periode);
+        $debutEffectif = $debut ?? new \DateTimeImmutable('2000-01-01 00:00:00');
+
+        $peutVoirStatsGlobales = $this->isGranted('ROLE_STATS_GLOBAL');
 
         $statsParAgent = $commandesRepository->statistiquesParAgent($debut, $fin);
 
@@ -49,7 +68,7 @@ final class DashboardController extends AbstractController
         $totalCa = array_sum(array_column($statsParAgent, 'caGenere'));
         $meilleurCa = $statsParAgent === [] ? 0 : max(array_column($statsParAgent, 'caGenere'));
 
-        return $this->render('dashboard/index.html.twig', [
+        $donnees = [
             'statsParAgent' => $statsParAgent,
             'totalCommandes' => $totalCommandes,
             'totalCa' => $totalCa,
@@ -58,7 +77,28 @@ final class DashboardController extends AbstractController
             'periode' => $periode,
             'granulariteEvolution' => $granulariteEvolution,
             'evolution' => $evolutionFinanciereService->calculer($granulariteEvolution),
-        ]);
+            'peutVoirStatsGlobales' => $peutVoirStatsGlobales,
+        ];
+
+        if ($peutVoirStatsGlobales) {
+            [$commandesNonSoldees, $parTranche] = $statistiquesCommandesService->commandesNonSoldees(10);
+
+            $donnees += [
+                'parCaissiere' => $statistiquesGlobalesService->encaissementsParCaissiere($debutEffectif, $fin),
+                'parMachine' => array_slice($statistiquesGlobalesService->rendementParMachine($debutEffectif, $fin), 0, 8),
+                'topProduits' => array_slice($statistiquesGlobalesService->topProduits($debutEffectif, $fin), 0, 8),
+                'commandesNonSoldees' => $commandesNonSoldees,
+                'parTranche' => $parTranche,
+                'totalReste' => array_sum(array_column($commandesNonSoldees, 'reste')),
+                'totalEncaisse' => $statistiquesTresorerieService->totalEncaisse($debutEffectif, $fin),
+                'totalDecaisse' => $statistiquesTresorerieService->totalDecaisse($debutEffectif, $fin),
+                'chargesParCategorie' => array_slice($statistiquesTresorerieService->chargesParCategorie($debutEffectif, $fin), 0, 8),
+                'caParClient' => array_slice($statistiquesClientsService->caParClient($debutEffectif, $fin), 0, 10),
+                'nouveauxClients' => $statistiquesClientsService->nouveauxClientsParPeriode($granulariteEvolution),
+            ];
+        }
+
+        return $this->render('dashboard/index.html.twig', $donnees);
     }
 
     /**

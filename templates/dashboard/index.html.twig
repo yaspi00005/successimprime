@@ -44,6 +44,9 @@
 		.kpi-icone-ca { background: linear-gradient(135deg, #5eba00, #3e8e00); }
 		.kpi-icone-agent { background: linear-gradient(135deg, #f1c40f, #d4a90a); }
 		.kpi-icone-clients { background: linear-gradient(135deg, #6f42c1, #59349b); }
+		.kpi-icone-encaisse { background: linear-gradient(135deg, #5eba00, #2f7a00); }
+		.kpi-icone-decaisse { background: linear-gradient(135deg, #cd201f, #921512); }
+		.kpi-icone-reste { background: linear-gradient(135deg, #fd7e14, #c85f08); }
 
 		.carte-evolution {
 			background: linear-gradient(160deg, #1c2b45, #101a2c);
@@ -110,6 +113,19 @@
 			background: linear-gradient(90deg, #6366f1, #22c55e);
 			width: 0;
 			transition: width 1s ease;
+		}
+
+		.section-accueil-titre {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin: 1.75rem 0 0.75rem;
+		}
+
+		.section-accueil-titre h2 {
+			font-size: 1.15rem;
+			font-weight: 700;
+			margin: 0;
 		}
 	</style>
 {% endblock %}
@@ -208,6 +224,56 @@
 
 		</div>
 
+		{% if peutVoirStatsGlobales %}
+
+			<div class="row">
+
+				<div class="col-lg-4 col-md-6 mb-3">
+					<div class="card dashboard-kpi mb-0 h-100">
+						<div class="card-body">
+							<div class="kpi-icone kpi-icone-encaisse">
+								<i class="fa fa-arrow-down"></i>
+							</div>
+							<div>
+								<div class="kpi-valeur js-compteur" data-valeur="{{ totalEncaisse }}" data-suffixe=" FCFA">0</div>
+								<div class="kpi-libelle">Encaissé (période)</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-4 col-md-6 mb-3">
+					<div class="card dashboard-kpi mb-0 h-100">
+						<div class="card-body">
+							<div class="kpi-icone kpi-icone-decaisse">
+								<i class="fa fa-arrow-up"></i>
+							</div>
+							<div>
+								<div class="kpi-valeur js-compteur" data-valeur="{{ totalDecaisse }}" data-suffixe=" FCFA">0</div>
+								<div class="kpi-libelle">Décaissé / charges (période)</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-4 col-md-6 mb-3">
+					<div class="card dashboard-kpi mb-0 h-100">
+						<div class="card-body">
+							<div class="kpi-icone kpi-icone-reste">
+								<i class="fa fa-hourglass-half"></i>
+							</div>
+							<div>
+								<div class="kpi-valeur js-compteur" data-valeur="{{ totalReste }}" data-suffixe=" FCFA">0</div>
+								<div class="kpi-libelle">Reste à encaisser (impayés)</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+			</div>
+
+		{% endif %}
+
 
 		{# ==========================================================
 		   ÉVOLUTION
@@ -265,14 +331,14 @@
 
 
 		{# ==========================================================
-		   TOP AGENTS
+		   TOP AGENTS / CAISSIÈRES
 		   ========================================================== #}
 
 		<div class="row">
 
-			<div class="col-lg-12 mb-3">
+			<div class="col-lg-{{ peutVoirStatsGlobales ? 6 : 12 }} mb-3">
 
-				<div class="card mb-0">
+				<div class="card mb-0 h-100">
 
 					<div class="card-header">
 						<h3 class="card-title mb-0">
@@ -325,7 +391,298 @@
 
 			</div>
 
+			{% if peutVoirStatsGlobales %}
+
+				<div class="col-lg-6 mb-3">
+
+					<div class="card mb-0 h-100">
+
+						<div class="card-header">
+							<h3 class="card-title mb-0">
+								Encaissements par caissière (période sélectionnée)
+							</h3>
+						</div>
+
+						<div class="card-body">
+
+							{% set meilleurCaissiere = parCaissiere is empty ? 0 : parCaissiere|map(l => l.montant)|sort|last %}
+
+							{% for ligne in parCaissiere %}
+
+								{% set pourcentageCaissiere = meilleurCaissiere > 0 ? (ligne.montant / meilleurCaissiere * 100) : 0 %}
+
+								<div class="agent-ligne">
+
+									<div class="agent-avatar" style="background: #5eba00;">
+										{{ ligne.nom|slice(0, 1)|upper }}
+									</div>
+
+									<div class="flex-fill">
+
+										<div class="d-flex justify-content-between">
+											<strong>{{ ligne.nom }}</strong>
+											<span class="text-muted">
+												{{ ligne.nombre }} paiement(s) · {{ ligne.montant|number_format(0, ',', ' ') }} FCFA
+											</span>
+										</div>
+
+										<div class="agent-barre-piste">
+											<div class="agent-barre-remplie js-barre" data-largeur="{{ pourcentageCaissiere }}" style="background: linear-gradient(90deg, #5eba00, #2f7a00);"></div>
+										</div>
+
+									</div>
+
+								</div>
+
+							{% else %}
+
+								<p class="text-muted text-center mb-0 py-4">
+									Aucun encaissement sur cette période.
+								</p>
+
+							{% endfor %}
+
+						</div>
+
+					</div>
+
+				</div>
+
+			{% endif %}
+
 		</div>
+
+
+		{% if peutVoirStatsGlobales %}
+
+			{# ==========================================================
+			   COMMANDES NON SOLDÉES
+			   ========================================================== #}
+
+			<div class="section-accueil-titre">
+				<h2><i class="fa fa-exclamation-circle mr-1"></i> Commandes non soldées</h2>
+				<a href="{{ path('app_statistiques_commandes_index') }}" class="btn btn-sm btn-primary-light">Voir tout</a>
+			</div>
+
+			<div class="row">
+
+				{% for tranche in parTranche %}
+					<div class="col-lg-3 col-md-6 mb-3">
+						<div class="card mb-0 h-100">
+							<div class="card-body text-center">
+								<small class="text-muted d-block">{{ tranche.libelle }}</small>
+								<div class="h2 mb-0 {{ loop.index >= 3 ? 'text-danger' : (loop.index == 2 ? 'text-warning' : '') }}">
+									{{ tranche.nombre }}
+								</div>
+								<small class="text-muted">{{ tranche.montant|number_format(0, ',', ' ') }} FCFA</small>
+							</div>
+						</div>
+					</div>
+				{% endfor %}
+
+			</div>
+
+			<div class="card">
+
+				<div class="card-header">
+					<h3 class="card-title">Les plus anciennes non soldées</h3>
+					<div class="card-options">
+						<strong>Total restant dû : {{ totalReste|number_format(0, ',', ' ') }} FCFA</strong>
+					</div>
+				</div>
+
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover mb-0">
+						<thead>
+							<tr>
+								<th>N° commande</th>
+								<th>Client</th>
+								<th>Date commande</th>
+								<th class="text-right">Ancienneté</th>
+								<th class="text-right">Reste à payer</th>
+								<th width="80"></th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for ligne in commandesNonSoldees %}
+								<tr>
+									<td>{{ ligne.commande.numero|default('#' ~ ligne.commande.id) }}</td>
+									<td>{{ ligne.commande.clients ? ligne.commande.clients.nomComplet : 'Client supprimé' }}</td>
+									<td>{{ ligne.commande.dateCommande|date('d/m/Y') }}</td>
+									<td class="text-right">
+										<span class="badge {{ ligne.jours > 90 ? 'badge-danger' : (ligne.jours > 30 ? 'badge-warning' : 'badge-light') }}">
+											{{ ligne.jours }} jour(s)
+										</span>
+									</td>
+									<td class="text-right">{{ ligne.reste|number_format(0, ',', ' ') }}</td>
+									<td class="text-center">
+										<a href="{{ path('app_commandes_show', {id: ligne.commande.id}) }}" class="btn btn-sm btn-primary-light" title="Voir la commande">
+											<i class="fa fa-eye"></i>
+										</a>
+									</td>
+								</tr>
+							{% else %}
+								<tr>
+									<td colspan="6" class="text-center text-muted py-4">Toutes les commandes sont soldées.</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+
+			</div>
+
+
+			{# ==========================================================
+			   TRÉSORERIE : CHARGES PAR CATÉGORIE
+			   ========================================================== #}
+
+			<div class="section-accueil-titre">
+				<h2><i class="fa fa-wallet mr-1"></i> Trésorerie</h2>
+				<a href="{{ path('app_statistiques_tresorerie_index') }}" class="btn btn-sm btn-primary-light">Voir tout</a>
+			</div>
+
+			<div class="row">
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Charges par catégorie (période sélectionnée)</h3>
+						</div>
+						<div class="card-body">
+							<canvas id="graphiqueChargesCategorie" height="240"></canvas>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Détail des charges</h3>
+						</div>
+						<div class="table-responsive">
+							<table class="table table-bordered table-hover mb-0">
+								<thead>
+									<tr>
+										<th>Catégorie</th>
+										<th class="text-right">Mouvements</th>
+										<th class="text-right">Montant (FCFA)</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for ligne in chargesParCategorie %}
+										<tr>
+											<td>{{ ligne.categorie }}</td>
+											<td class="text-right">{{ ligne.nombre }}</td>
+											<td class="text-right">{{ ligne.montant|number_format(0, ',', ' ') }}</td>
+										</tr>
+									{% else %}
+										<tr>
+											<td colspan="3" class="text-center text-muted py-4">Aucune charge sur cette période.</td>
+										</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+			</div>
+
+
+			{# ==========================================================
+			   RENDEMENT MACHINE / TOP PRODUITS
+			   ========================================================== #}
+
+			<div class="section-accueil-titre">
+				<h2><i class="fa fa-cogs mr-1"></i> Production</h2>
+				<a href="{{ path('app_statistiques_globales_index') }}" class="btn btn-sm btn-primary-light">Voir tout</a>
+			</div>
+
+			<div class="row">
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Rendement par machine</h3>
+						</div>
+						<div class="card-body">
+							<canvas id="graphiqueRendementMachine" height="220"></canvas>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Top des produits commandés</h3>
+						</div>
+						<div class="card-body">
+							<canvas id="graphiqueTopProduits" height="220"></canvas>
+						</div>
+					</div>
+				</div>
+
+			</div>
+
+
+			{# ==========================================================
+			   CLIENTS
+			   ========================================================== #}
+
+			<div class="section-accueil-titre">
+				<h2><i class="fa fa-users mr-1"></i> Clients</h2>
+				<a href="{{ path('app_statistiques_clients_index') }}" class="btn btn-sm btn-primary-light">Voir tout</a>
+			</div>
+
+			<div class="row">
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Nouveaux clients enregistrés</h3>
+						</div>
+						<div class="card-body">
+							<canvas id="graphiqueNouveauxClients" height="220"></canvas>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Chiffre d'affaires par client (top 10)</h3>
+						</div>
+						<div class="table-responsive">
+							<table class="table table-bordered table-hover mb-0">
+								<thead>
+									<tr>
+										<th>Client</th>
+										<th class="text-right">Commandes</th>
+										<th class="text-right">CA (FCFA)</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for ligne in caParClient %}
+										<tr>
+											<td>{{ ligne.nom }}</td>
+											<td class="text-right">{{ ligne.nombre }}</td>
+											<td class="text-right">{{ ligne.montant|number_format(0, ',', ' ') }}</td>
+										</tr>
+									{% else %}
+										<tr>
+											<td colspan="3" class="text-center text-muted py-4">Aucune commande sur cette période.</td>
+										</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+			</div>
+
+		{% endif %}
 
 	</div>
 
@@ -457,6 +814,84 @@
 					}
 				});
 			}
+
+			{% if peutVoirStatsGlobales %}
+
+				var chargesParCategorie = {{ chargesParCategorie|json_encode|raw }};
+				var parMachine = {{ parMachine|json_encode|raw }};
+				var topProduits = {{ topProduits|json_encode|raw }};
+				var nouveauxClients = {{ nouveauxClients|json_encode|raw }};
+
+				var canevasCharges = document.getElementById('graphiqueChargesCategorie');
+
+				if (canevasCharges) {
+					var palette = ['#467fcf', '#5eba00', '#f1c40f', '#cd201f', '#6f42c1', '#17a2b8', '#fd7e14', '#20c997', '#e83e8c', '#6c757d'];
+
+					new Chart(canevasCharges, {
+						type: 'doughnut',
+						data: {
+							labels: chargesParCategorie.map(function (l) { return l.categorie; }),
+							datasets: [{
+								data: chargesParCategorie.map(function (l) { return l.montant; }),
+								backgroundColor: chargesParCategorie.map(function (_, i) { return palette[i % palette.length]; })
+							}]
+						},
+						options: { responsive: true, maintainAspectRatio: false }
+					});
+				}
+
+				function creerGraphiqueBarres(idCanevas, donnees, cleValeur, libelle, couleur) {
+					var canevas = document.getElementById(idCanevas);
+
+					if (!canevas) {
+						return;
+					}
+
+					new Chart(canevas, {
+						type: 'bar',
+						data: {
+							labels: donnees.map(function (l) { return l.nom; }),
+							datasets: [{
+								label: libelle,
+								data: donnees.map(function (l) { return l[cleValeur]; }),
+								backgroundColor: couleur
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: { legend: { display: false } },
+							scales: { y: { beginAtZero: true } }
+						}
+					});
+				}
+
+				creerGraphiqueBarres('graphiqueRendementMachine', parMachine, 'quantite', 'Surface (m²)', '#6f42c1');
+				creerGraphiqueBarres('graphiqueTopProduits', topProduits, 'nombre', 'Commandes', '#cd201f');
+
+				var canevasNouveauxClients = document.getElementById('graphiqueNouveauxClients');
+
+				if (canevasNouveauxClients) {
+					new Chart(canevasNouveauxClients, {
+						type: 'bar',
+						data: {
+							labels: nouveauxClients.labels,
+							datasets: [{
+								label: 'Nouveaux clients',
+								data: nouveauxClients.valeurs,
+								backgroundColor: '#6f42c1'
+							}]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							plugins: { legend: { display: false } },
+							scales: { y: { beginAtZero: true } }
+						}
+					});
+				}
+
+			{% endif %}
 
 		});
 	</script>
