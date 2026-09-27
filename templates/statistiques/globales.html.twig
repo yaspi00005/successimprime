@@ -239,6 +239,107 @@
 
 	</div>
 
+	{# ==========================================================
+	   RENDEMENT MACHINE / TOP PRODUITS
+	   ========================================================== #}
+
+	<div class="row">
+
+		<div class="col-lg-6">
+
+			<div class="card">
+
+				<div class="card-header">
+					<h3 class="card-title">
+						<i class="fa fa-cogs mr-1"></i>
+						Rendement par machine
+					</h3>
+				</div>
+
+				<div class="card-body">
+					<canvas id="graphiqueRendementMachine" height="220"></canvas>
+				</div>
+
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover mb-0">
+						<thead>
+							<tr>
+								<th>Machine</th>
+								<th class="text-right">Travaux</th>
+								<th class="text-right">Surface (m²)</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for ligne in parMachine %}
+								<tr>
+									<td>{{ ligne.nom }}</td>
+									<td class="text-right">{{ ligne.nombre }}</td>
+									<td class="text-right">{{ ligne.quantite|number_format(2, ',', ' ') }}</td>
+								</tr>
+							{% else %}
+								<tr>
+									<td colspan="3" class="text-center text-muted py-4">
+										Aucun travail sur cette période.
+									</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+
+			</div>
+
+		</div>
+
+		<div class="col-lg-6">
+
+			<div class="card">
+
+				<div class="card-header">
+					<h3 class="card-title">
+						<i class="fa fa-star mr-1"></i>
+						Top des produits commandés
+					</h3>
+				</div>
+
+				<div class="card-body">
+					<canvas id="graphiqueTopProduits" height="220"></canvas>
+				</div>
+
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover mb-0">
+						<thead>
+							<tr>
+								<th>Produit</th>
+								<th class="text-right">Commandes</th>
+								<th class="text-right">Quantité</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for ligne in topProduits %}
+								<tr>
+									<td>{{ ligne.nom }}</td>
+									<td class="text-right">{{ ligne.nombre }}</td>
+									<td class="text-right">{{ ligne.quantite }}</td>
+								</tr>
+							{% else %}
+								<tr>
+									<td colspan="3" class="text-center text-muted py-4">
+										Aucune commande sur cette période.
+									</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+
+			</div>
+
+		</div>
+
+	</div>
+
+
 </div>
 
 
@@ -249,6 +350,8 @@
 		var donneesVentesAgent = {{ parAgent|json_encode|raw }};
 		var donneesCaissiere = {{ parCaissiere|json_encode|raw }};
 		var donneesProduction = {{ parProduction|json_encode|raw }};
+		var donneesMachine = {{ parMachine|json_encode|raw }};
+		var donneesTopProduits = {{ topProduits|json_encode|raw }};
 
 		function creerGraphiqueBarres(idCanevas, donnees, cleValeur, libelle, couleur) {
 			var canevas = document.getElementById(idCanevas);
@@ -283,6 +386,8 @@
 		creerGraphiqueBarres('graphiqueVentesAgent', donneesVentesAgent, 'montant', 'Montant (FCFA)', '#467fcf');
 		creerGraphiqueBarres('graphiqueEncaissementsCaissiere', donneesCaissiere, 'montant', 'Montant (FCFA)', '#5eba00');
 		creerGraphiqueBarres('graphiqueProductionAgent', donneesProduction, 'nombre', 'Travaux terminés', '#f1c40f');
+		creerGraphiqueBarres('graphiqueRendementMachine', donneesMachine, 'quantite', 'Surface (m²)', '#6f42c1');
+		creerGraphiqueBarres('graphiqueTopProduits', donneesTopProduits, 'nombre', 'Commandes', '#cd201f');
 	})();
 </script>
 

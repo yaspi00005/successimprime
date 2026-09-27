@@ -31,6 +31,8 @@ final class StatistiquesController extends AbstractController
             'parAgent' => $this->ventesParAgent($entityManager, $debut, $fin),
             'parCaissiere' => $this->encaissementsParCaissiere($entityManager, $debut, $fin),
             'parProduction' => $this->productionParAgent($entityManager, $debut, $fin),
+            'parMachine' => $this->rendementParMachine($entityManager, $debut, $fin),
+            'topProduits' => $this->topProduits($entityManager, $debut, $fin),
             'filtres' => $filtres,
         ]);
     }
@@ -232,5 +234,131 @@ final class StatistiquesController extends AbstractController
         );
 
         return array_values($parAgent);
+    }
+
+    /**
+     * Quantité produite (m² ou pièces selon le mode de facturation
+     * de la machine) et nombre de travaux, par machine, sur la
+     * période (lignes annulées exclues).
+     *
+     * @return list<array{nom: string, nombre: int, quantite: float}>
+     */
+    private function rendementParMachine(
+        EntityManagerInterface $entityManager,
+        \DateTimeImmutable $debut,
+        \DateTimeImmutable $fin
+    ): array {
+        $details = $entityManager
+            ->getRepository(CommandesDetails::class)
+            ->createQueryBuilder('d')
+            ->leftJoin('d.machine', 'machine')
+            ->addSelect('machine')
+            ->andWhere('d.productionTermineeLe BETWEEN :debut AND :fin')
+            ->andWhere('d.statutProduction != :annulee')
+            ->andWhere('d.machine IS NOT NULL')
+            ->setParameter('debut', $debut)
+            ->setParameter('fin', $fin)
+            ->setParameter('annulee', CommandesDetails::PRODUCTION_ANNULEE)
+            ->getQuery()
+            ->getResult();
+
+        $parMachine = [];
+
+        foreach ($details as $detail) {
+            if (!$detail instanceof CommandesDetails) {
+                continue;
+            }
+
+            $machine = $detail->getMachine();
+
+            if ($machine === null) {
+                continue;
+            }
+
+            $cle = $machine->getId();
+
+            $parMachine[$cle] ??= [
+                'nom' => $machine->getNom() ?? ('Machine #' . $cle),
+                'nombre' => 0,
+                'quantite' => 0.0,
+            ];
+
+            ++$parMachine[$cle]['nombre'];
+            $parMachine[$cle]['quantite'] += $detail->getSurfaceTotale();
+        }
+
+        usort(
+            $parMachine,
+            static fn (array $a, array $b): int => $b['nombre'] <=> $a['nombre']
+        );
+
+        return array_values($parMachine);
+    }
+
+    /**
+     * Produits les plus commandés (par nombre de lignes et
+     * quantité), sur la période. Les commandes entièrement
+     * annulées ne comptent pas.
+     *
+     * @return list<array{nom: string, nombre: int, quantite: int}>
+     */
+    private function topProduits(
+        EntityManagerInterface $entityManager,
+        \DateTimeImmutable $debut,
+        \DateTimeImmutable $fin
+    ): array {
+        $details = $entityManager
+            ->getRepository(CommandesDetails::class)
+            ->createQueryBuilder('d')
+            ->leftJoin('d.produit', 'produit')
+            ->addSelect('produit')
+            ->leftJoin('d.commande', 'commande')
+            ->addSelect('commande')
+            ->andWhere('commande.dateCommande BETWEEN :debut AND :fin')
+            ->andWhere('d.produit IS NOT NULL')
+            ->andWhere('d.statutProduction != :annulee')
+            ->setParameter('debut', $debut)
+            ->setParameter('fin', $fin)
+            ->setParameter('annulee', CommandesDetails::PRODUCTION_ANNULEE)
+            ->getQuery()
+            ->getResult();
+
+        $parProduit = [];
+
+        foreach ($details as $detail) {
+            if (!$detail instanceof CommandesDetails) {
+                continue;
+            }
+
+            $commande = $detail->getCommande();
+
+            if ($commande !== null && $commande->getStatutTravaux() === 'annulee') {
+                continue;
+            }
+
+            $produit = $detail->getProduit();
+
+            if ($produit === null) {
+                continue;
+            }
+
+            $cle = $produit->getId();
+
+            $parProduit[$cle] ??= [
+                'nom' => $produit->getNom() ?? ('Produit #' . $cle),
+                'nombre' => 0,
+                'quantite' => 0,
+            ];
+
+            ++$parProduit[$cle]['nombre'];
+            $parProduit[$cle]['quantite'] += $detail->getQuantite();
+        }
+
+        usort(
+            $parProduit,
+            static fn (array $a, array $b): int => $b['nombre'] <=> $a['nombre']
+        );
+
+        return array_slice(array_values($parProduit), 0, 15);
     }
 }

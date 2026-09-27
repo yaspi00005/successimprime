@@ -7,6 +7,7 @@ use App\Entity\MouvementTresorerie;
 use App\Entity\Paiements;
 use App\Repository\ClientsRepository;
 use App\Repository\CommandesRepository;
+use App\Service\EvolutionTemporelleService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,25 +18,13 @@ final class DashboardController extends AbstractController
 {
     private const PERIODES_VALIDES = ['jour', 'semaine', 'mois', 'annee', 'tout'];
 
-    private const GRANULARITES_VALIDES = ['jour', 'semaine', 'mois', 'annee'];
-
-    /**
-     * Nombre de points affichés sur le graphique d'évolution, selon
-     * la granularité choisie.
-     */
-    private const NOMBRE_POINTS = [
-        'jour' => 30,
-        'semaine' => 12,
-        'mois' => 12,
-        'annee' => 5,
-    ];
-
     #[Route('/', name: 'app_home')]
     public function index(
         Request $request,
         CommandesRepository $commandesRepository,
         ClientsRepository $clientsRepository,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
+        EvolutionTemporelleService $evolutionService
     ): Response {
         /*
          * Un livreur n'a accès qu'aux livraisons : il n'a rien
@@ -51,11 +40,9 @@ final class DashboardController extends AbstractController
             $periode = 'mois';
         }
 
-        $granulariteEvolution = $request->query->get('granularite', 'mois');
-
-        if (!\in_array($granulariteEvolution, self::GRANULARITES_VALIDES, true)) {
-            $granulariteEvolution = 'mois';
-        }
+        $granulariteEvolution = $evolutionService->normaliserGranularite(
+            $request->query->get('granularite')
+        );
 
         [$debut, $fin] = $this->calculerPeriode($periode);
 
@@ -73,7 +60,7 @@ final class DashboardController extends AbstractController
             'totalClients' => $clientsRepository->compterClients(),
             'periode' => $periode,
             'granulariteEvolution' => $granulariteEvolution,
-            'evolution' => $this->construireEvolution($entityManager, $granulariteEvolution),
+            'evolution' => $this->construireEvolution($entityManager, $evolutionService, $granulariteEvolution),
         ]);
     }
 
@@ -100,21 +87,14 @@ final class DashboardController extends AbstractController
      * d'affaires, nombre de commandes, encaissements, décaissements)
      * sur les N dernières périodes de la granularité choisie.
      *
-     * Le calcul se fait en PHP (une requête par indicateur sur toute
-     * la fenêtre, puis répartition dans les paniers) plutôt qu'en
-     * SQL group-by-date, pour rester indépendant du moteur de base
-     * de données -- même approche que les autres écrans de
-     * statistiques de l'application.
-     *
      * @return array{labels: list<string>, ca: list<int>, commandes: list<int>, encaissements: list<int>, decaissements: list<int>}
      */
     private function construireEvolution(
         EntityManagerInterface $entityManager,
+        EvolutionTemporelleService $evolutionService,
         string $granularite
     ): array {
-        $nombrePoints = self::NOMBRE_POINTS[$granularite];
-
-        [$cles, $labels, $debutFenetre] = $this->genererPaniers($granularite, $nombrePoints);
+        [$cles, $labels, $debutFenetre] = $evolutionService->genererPaniers($granularite);
 
         $ca = array_fill_keys($cles, 0);
         $commandes = array_fill_keys($cles, 0);
@@ -145,7 +125,7 @@ final class DashboardController extends AbstractController
                 continue;
             }
 
-            $cle = $this->clePourDate($commande->getDateCommande(), $granularite);
+            $cle = $evolutionService->clePourDate($commande->getDateCommande(), $granularite);
 
             if (!isset($ca[$cle])) {
                 continue;
@@ -178,7 +158,7 @@ final class DashboardController extends AbstractController
                 continue;
             }
 
-            $cle = $this->clePourDate($paiement->getDate(), $granularite);
+            $cle = $evolutionService->clePourDate($paiement->getDate(), $granularite);
 
             if (!isset($encaissements[$cle])) {
                 continue;
@@ -212,7 +192,7 @@ final class DashboardController extends AbstractController
                 continue;
             }
 
-            $cle = $this->clePourDate($mouvement->getDateOperation(), $granularite);
+            $cle = $evolutionService->clePourDate($mouvement->getDateOperation(), $granularite);
 
             if (!isset($decaissements[$cle])) {
                 continue;
@@ -228,62 +208,5 @@ final class DashboardController extends AbstractController
             'encaissements' => array_values($encaissements),
             'decaissements' => array_values($decaissements),
         ];
-    }
-
-    /**
-     * @return array{0: list<string>, 1: list<string>, 2: \DateTimeImmutable}
-     */
-    private function genererPaniers(string $granularite, int $nombrePoints): array
-    {
-        $maintenant = new \DateTimeImmutable('now');
-        $cles = [];
-        $labels = [];
-
-        for ($i = $nombrePoints - 1; $i >= 0; --$i) {
-            $date = match ($granularite) {
-                'jour' => $maintenant->modify('-' . $i . ' days'),
-                'semaine' => $maintenant->modify('-' . $i . ' weeks'),
-                'annee' => $maintenant->modify('-' . $i . ' years'),
-                default => $maintenant->modify('-' . $i . ' months'),
-            };
-
-            $cles[] = $this->clePourDate($date, $granularite);
-            $labels[] = $this->libellePourDate($date, $granularite);
-        }
-
-        $debutFenetre = match ($granularite) {
-            'jour' => $maintenant->modify('-' . ($nombrePoints - 1) . ' days')->setTime(0, 0),
-            'semaine' => $maintenant->modify('-' . ($nombrePoints - 1) . ' weeks')->modify('monday this week')->setTime(0, 0),
-            'annee' => $maintenant->modify('-' . ($nombrePoints - 1) . ' years')->modify('first day of january this year')->setTime(0, 0),
-            default => $maintenant->modify('-' . ($nombrePoints - 1) . ' months')->modify('first day of this month')->setTime(0, 0),
-        };
-
-        return [$cles, $labels, $debutFenetre];
-    }
-
-    private function clePourDate(\DateTimeInterface $date, string $granularite): string
-    {
-        return match ($granularite) {
-            'jour' => $date->format('Y-m-d'),
-            'semaine' => $date->format('o-\WW'),
-            'annee' => $date->format('Y'),
-            default => $date->format('Y-m'),
-        };
-    }
-
-    private function libellePourDate(\DateTimeInterface $date, string $granularite): string
-    {
-        static $moisCourts = [
-            1 => 'Jan', 2 => 'Fév', 3 => 'Mar', 4 => 'Avr',
-            5 => 'Mai', 6 => 'Juin', 7 => 'Juil', 8 => 'Août',
-            9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Déc',
-        ];
-
-        return match ($granularite) {
-            'jour' => $date->format('d/m'),
-            'semaine' => 'S' . $date->format('W'),
-            'annee' => $date->format('Y'),
-            default => $moisCourts[(int) $date->format('n')] . ' ' . $date->format('y'),
-        };
     }
 }
