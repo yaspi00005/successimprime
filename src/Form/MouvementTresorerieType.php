@@ -332,13 +332,27 @@ class MouvementTresorerieType extends AbstractType
          *
          * - comptes administratifs
          * - comptes partagés
+         * - SA PROPRE caisse personnelle (l'Admin est aussi un
+         *   agent et peut avoir sa propre caisse)
          *
-         * On évite les caisses personnelles des agents.
+         * On évite les caisses personnelles des AUTRES agents :
+         * même Admin ne peut pas retirer directement l'argent
+         * d'une caisse qui ne lui appartient pas.
          */
         if ($estAdmin) {
             return $qb
                 ->andWhere(
-                    'compte.portee IN (:portees)'
+                    '
+                    compte.portee IN (:portees)
+
+                    OR
+
+                    (
+                        compte.portee = :personnelle
+                        AND
+                        compte.proprietaire = :utilisateur
+                    )
+                    '
                 )
                 ->setParameter(
                     'portees',
@@ -346,6 +360,14 @@ class MouvementTresorerieType extends AbstractType
                         CompteTresorerie::PORTEE_ADMIN,
                         CompteTresorerie::PORTEE_PARTAGEE,
                     ]
+                )
+                ->setParameter(
+                    'personnelle',
+                    CompteTresorerie::PORTEE_PERSONNELLE
+                )
+                ->setParameter(
+                    'utilisateur',
+                    $utilisateur
                 );
         }
 

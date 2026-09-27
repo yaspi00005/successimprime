@@ -1680,33 +1680,25 @@ foreach ($comptes as $compte) {
          * PERSONNEL
          * ========================================================
          *
-         * Un transfert entrant vers une caisse personnelle
-         * est possible :
+         * Un transfert entrant vers une caisse personnelle est
+         * toujours possible, y compris vers la caisse d'un
+         * collègue (remise en main propre entre deux agents) : le
+         * formulaire (MouvementTresorerieType) propose déjà
+         * n'importe quelle caisse personnelle comme destination, et
+         * le droit général d'effectuer un transfert a été vérifié
+         * plus haut (ROLE_TRESORERIE_TRANSFERER ou ROLE_ADMIN).
          *
-         * - par son propriétaire ;
-         * - par l'Admin.
+         * Exemples :
          *
-         * Exemple :
-         *
-         * Caisse Administration
-         * → Caisse Mariam
-         *
-         * approvisionnement de caisse.
+         * Caisse Administration → Caisse Mariam (approvisionnement)
+         * Caisse Mariam → Caisse Ahmed (remise en main propre)
          * ========================================================
          */
 
         if (
             $compte->estPersonnel()
         ) {
-            return
-                $compte
-                    ->appartientA(
-                        $user
-                    )
-                ||
-                $this->isGranted(
-                    'ROLE_ADMIN'
-                );
+            return true;
         }
 
 
