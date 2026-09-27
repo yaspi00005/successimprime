@@ -26,6 +26,17 @@ final class EvolutionFinanciereService
      */
     public function calculer(string $granularite, ?int $nombrePoints = null): array
     {
+        /*
+         * En vue "année", on affiche tout l'historique disponible
+         * plutôt qu'une fenêtre fixe de 5 ans : sinon les données les
+         * plus anciennes (import, reprise d'historique...) restent
+         * invisibles même si elles existent bien en base.
+         */
+        if ($nombrePoints === null && $granularite === 'annee') {
+            $anneeActuelle = (int) (new \DateTimeImmutable('now'))->format('Y');
+            $nombrePoints = max(1, min(30, $anneeActuelle - $this->premiereAnneeAvecDonnees() + 1));
+        }
+
         [$cles, $labels, $debutFenetre] = $this->evolutionTemporelleService->genererPaniers(
             $granularite,
             $nombrePoints
@@ -122,5 +133,47 @@ final class EvolutionFinanciereService
             'encaissements' => array_values($encaissements),
             'decaissements' => array_values($decaissements),
         ];
+    }
+
+    /**
+     * Année de la donnée la plus ancienne (commande ou mouvement de
+     * trésorerie), pour dimensionner la fenêtre "année" sur
+     * l'historique réel plutôt que sur un nombre fixe d'années.
+     */
+    private function premiereAnneeAvecDonnees(): int
+    {
+        $anneeActuelle = (int) (new \DateTimeImmutable('now'))->format('Y');
+
+        $premiereDateCommande = $this->entityManager
+            ->getRepository(Commandes::class)
+            ->createQueryBuilder('c')
+            ->select('MIN(c.dateCommande)')
+            ->andWhere('c.deleted = false')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $premiereDateMouvement = $this->entityManager
+            ->getRepository(MouvementTresorerie::class)
+            ->createQueryBuilder('m')
+            ->select('MIN(m.dateOperation)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $dates = array_filter([$premiereDateCommande, $premiereDateMouvement]);
+
+        if ($dates === []) {
+            return $anneeActuelle;
+        }
+
+        try {
+            $anneeMin = min(array_map(
+                static fn (string $date): int => (int) (new \DateTimeImmutable($date))->format('Y'),
+                $dates
+            ));
+        } catch (\Exception) {
+            return $anneeActuelle;
+        }
+
+        return min($anneeMin, $anneeActuelle);
     }
 }
