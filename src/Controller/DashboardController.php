@@ -6,6 +6,7 @@ use App\Repository\ClientsRepository;
 use App\Repository\CommandesRepository;
 use App\Service\EvolutionFinanciereService;
 use App\Service\EvolutionTemporelleService;
+use App\Service\Statistiques\StatistiquesArticlesService;
 use App\Service\Statistiques\StatistiquesClientsService;
 use App\Service\Statistiques\StatistiquesCommandesService;
 use App\Service\Statistiques\StatistiquesGlobalesService;
@@ -37,7 +38,8 @@ final class DashboardController extends AbstractController
         StatistiquesGlobalesService $statistiquesGlobalesService,
         StatistiquesCommandesService $statistiquesCommandesService,
         StatistiquesTresorerieService $statistiquesTresorerieService,
-        StatistiquesClientsService $statistiquesClientsService
+        StatistiquesClientsService $statistiquesClientsService,
+        StatistiquesArticlesService $statistiquesArticlesService
     ): Response {
         /*
          * Un livreur n'a accès qu'aux livraisons : il n'a rien
@@ -95,6 +97,8 @@ final class DashboardController extends AbstractController
                 'chargesParCategorie' => array_slice($statistiquesTresorerieService->chargesParCategorie($debutEffectif, $fin), 0, 8),
                 'caParClient' => array_slice($statistiquesClientsService->caParClient($debutEffectif, $fin), 0, 10),
                 'nouveauxClients' => $statistiquesClientsService->nouveauxClientsParPeriode($granulariteEvolution),
+                'ventesArticles' => array_slice($statistiquesArticlesService->ventesArticles($debutEffectif, $fin), 0, 8),
+                'evolutionStock' => $statistiquesArticlesService->evolutionStock($granulariteEvolution),
             ];
         }
 

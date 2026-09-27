@@ -4,7 +4,7 @@ namespace App\Service\Statistiques;
 
 use App\Entity\Commandes;
 use App\Entity\CommandesDetails;
-use App\Entity\Paiements;
+use App\Entity\MouvementTresorerie;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -63,29 +63,35 @@ final class StatistiquesGlobalesService
     }
 
     /**
+     * Basé sur MouvementTresorerie (et non Paiements) : un
+     * encaissement peut être saisi directement dans le journal de
+     * caisse sans passer par une commande.
+     *
      * @return list<array{nom: string, nombre: int, montant: int}>
      */
     public function encaissementsParCaissiere(\DateTimeImmutable $debut, \DateTimeImmutable $fin): array
     {
-        $paiements = $this->entityManager
-            ->getRepository(Paiements::class)
-            ->createQueryBuilder('p')
-            ->leftJoin('p.encaissePar', 'utilisateur')
+        $mouvements = $this->entityManager
+            ->getRepository(MouvementTresorerie::class)
+            ->createQueryBuilder('m')
+            ->leftJoin('m.agent', 'utilisateur')
             ->addSelect('utilisateur')
-            ->andWhere('p.date BETWEEN :debut AND :fin')
+            ->andWhere('m.dateOperation BETWEEN :debut AND :fin')
+            ->andWhere('m.type = :type')
             ->setParameter('debut', $debut)
             ->setParameter('fin', $fin)
+            ->setParameter('type', MouvementTresorerie::TYPE_ENCAISSEMENT)
             ->getQuery()
             ->getResult();
 
         $parCaissiere = [];
 
-        foreach ($paiements as $paiement) {
-            if (!$paiement instanceof Paiements || $paiement->estAnnule()) {
+        foreach ($mouvements as $mouvement) {
+            if (!$mouvement instanceof MouvementTresorerie || !$mouvement->isValide()) {
                 continue;
             }
 
-            $utilisateur = $paiement->getEncaissePar();
+            $utilisateur = $mouvement->getAgent();
             $cle = $utilisateur?->getId() ?? 0;
 
             $parCaissiere[$cle] ??= [
@@ -95,7 +101,7 @@ final class StatistiquesGlobalesService
             ];
 
             ++$parCaissiere[$cle]['nombre'];
-            $parCaissiere[$cle]['montant'] += (int) $paiement->getMontant();
+            $parCaissiere[$cle]['montant'] += (int) $mouvement->getMontant();
         }
 
         usort($parCaissiere, static fn (array $a, array $b): int => $b['montant'] <=> $a['montant']);

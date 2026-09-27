@@ -4,7 +4,6 @@ namespace App\Service;
 
 use App\Entity\Commandes;
 use App\Entity\MouvementTresorerie;
-use App\Entity\Paiements;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -73,39 +72,16 @@ final class EvolutionFinanciereService
 
         /*
          * ============================================================
-         * ENCAISSEMENTS
+         * ENCAISSEMENTS / DÉCAISSEMENTS
          * ============================================================
-         */
-
-        $listePaiements = $this->entityManager
-            ->getRepository(Paiements::class)
-            ->createQueryBuilder('p')
-            ->andWhere('p.date >= :debut')
-            ->setParameter('debut', $debutFenetre)
-            ->getQuery()
-            ->getResult();
-
-        foreach ($listePaiements as $paiement) {
-            if (!$paiement instanceof Paiements) {
-                continue;
-            }
-
-            if ($paiement->estAnnule()) {
-                continue;
-            }
-
-            $cle = $this->evolutionTemporelleService->clePourDate($paiement->getDate(), $granularite);
-
-            if (!isset($encaissements[$cle])) {
-                continue;
-            }
-
-            $encaissements[$cle] += (int) $paiement->getMontant();
-        }
-
-        /*
-         * ============================================================
-         * DÉCAISSEMENTS (DÉPENSES)
+         *
+         * On se base sur MouvementTresorerie (et non sur Paiements) :
+         * chaque paiement validé y crée automatiquement un mouvement
+         * (voir PaiementService::valider()), mais un encaissement peut
+         * aussi être saisi directement dans le journal de caisse sans
+         * passer par une commande (récupération d'un ancien impayé,
+         * autre produit, reprise d'historique...). Se limiter à
+         * Paiements ignorait tous ces mouvements directs.
          * ============================================================
          */
 
@@ -113,28 +89,30 @@ final class EvolutionFinanciereService
             ->getRepository(MouvementTresorerie::class)
             ->createQueryBuilder('m')
             ->andWhere('m.dateOperation >= :debut')
-            ->andWhere('m.type = :type')
+            ->andWhere('m.type IN (:types)')
             ->setParameter('debut', $debutFenetre)
-            ->setParameter('type', MouvementTresorerie::TYPE_DECAISSEMENT)
+            ->setParameter('types', [
+                MouvementTresorerie::TYPE_ENCAISSEMENT,
+                MouvementTresorerie::TYPE_DECAISSEMENT,
+            ])
             ->getQuery()
             ->getResult();
 
         foreach ($listeMouvements as $mouvement) {
-            if (!$mouvement instanceof MouvementTresorerie) {
-                continue;
-            }
-
-            if (!$mouvement->isValide()) {
+            if (!$mouvement instanceof MouvementTresorerie || !$mouvement->isValide()) {
                 continue;
             }
 
             $cle = $this->evolutionTemporelleService->clePourDate($mouvement->getDateOperation(), $granularite);
+            $montant = (int) $mouvement->getMontant();
 
-            if (!isset($decaissements[$cle])) {
-                continue;
+            if ($mouvement->getType() === MouvementTresorerie::TYPE_ENCAISSEMENT) {
+                if (isset($encaissements[$cle])) {
+                    $encaissements[$cle] += $montant;
+                }
+            } elseif (isset($decaissements[$cle])) {
+                $decaissements[$cle] += $montant;
             }
-
-            $decaissements[$cle] += (int) $mouvement->getMontant();
         }
 
         return [

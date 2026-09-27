@@ -682,6 +682,65 @@
 
 			</div>
 
+
+			{# ==========================================================
+			   ARTICLES : VARIATION DE STOCK / VENTES DIRECTES
+			   ========================================================== #}
+
+			<div class="section-accueil-titre">
+				<h2><i class="fa fa-boxes mr-1"></i> Articles</h2>
+				<a href="{{ path('app_statistiques_globales_index') }}" class="btn btn-sm btn-primary-light">Voir tout</a>
+			</div>
+
+			<div class="row">
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Variation du stock (entrées / sorties)</h3>
+						</div>
+						<div class="card-body">
+							<canvas id="graphiqueVariationStock" height="220"></canvas>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-6 mb-3">
+					<div class="card mb-0 h-100">
+						<div class="card-header">
+							<h3 class="card-title">Ventes d'articles (livrés directement)</h3>
+						</div>
+						<div class="table-responsive">
+							<table class="table table-bordered table-hover mb-0">
+								<thead>
+									<tr>
+										<th>Article</th>
+										<th class="text-right">Sorties</th>
+										<th class="text-right">Quantité</th>
+										<th class="text-right">Montant (FCFA)</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% for ligne in ventesArticles %}
+										<tr>
+											<td>{{ ligne.nom }}</td>
+											<td class="text-right">{{ ligne.nombre }}</td>
+											<td class="text-right">{{ ligne.quantite }}</td>
+											<td class="text-right">{{ ligne.montant|number_format(0, ',', ' ') }}</td>
+										</tr>
+									{% else %}
+										<tr>
+											<td colspan="4" class="text-center text-muted py-4">Aucun article vendu directement sur cette période.</td>
+										</tr>
+									{% endfor %}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+			</div>
+
 		{% endif %}
 
 	</div>
@@ -886,6 +945,28 @@
 							responsive: true,
 							maintainAspectRatio: false,
 							plugins: { legend: { display: false } },
+							scales: { y: { beginAtZero: true } }
+						}
+					});
+				}
+
+				var evolutionStock = {{ evolutionStock|json_encode|raw }};
+
+				var canevasStock = document.getElementById('graphiqueVariationStock');
+
+				if (canevasStock) {
+					new Chart(canevasStock, {
+						type: 'bar',
+						data: {
+							labels: evolutionStock.labels,
+							datasets: [
+								{ label: 'Entrées', data: evolutionStock.entrees, backgroundColor: '#5eba00' },
+								{ label: 'Sorties', data: evolutionStock.sorties, backgroundColor: '#cd201f' }
+							]
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
 							scales: { y: { beginAtZero: true } }
 						}
 					});

@@ -2,6 +2,8 @@
 
 namespace App\Controller;
 
+use App\Service\EvolutionTemporelleService;
+use App\Service\Statistiques\StatistiquesArticlesService;
 use App\Service\Statistiques\StatistiquesGlobalesService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,9 +22,15 @@ final class StatistiquesController extends AbstractController
     #[Route('', name: 'index', methods: ['GET'])]
     public function globales(
         Request $request,
-        StatistiquesGlobalesService $statistiquesGlobalesService
+        StatistiquesGlobalesService $statistiquesGlobalesService,
+        StatistiquesArticlesService $statistiquesArticlesService,
+        EvolutionTemporelleService $evolutionTemporelleService
     ): Response {
         [$debut, $fin, $filtres] = $this->resoudrePeriode($request);
+
+        $granulariteStock = $evolutionTemporelleService->normaliserGranularite(
+            $request->query->get('granularite_stock')
+        );
 
         return $this->render('statistiques/globales.html.twig', [
             'parAgent' => $statistiquesGlobalesService->ventesParAgent($debut, $fin),
@@ -30,6 +38,9 @@ final class StatistiquesController extends AbstractController
             'parProduction' => $statistiquesGlobalesService->productionParAgent($debut, $fin),
             'parMachine' => $statistiquesGlobalesService->rendementParMachine($debut, $fin),
             'topProduits' => $statistiquesGlobalesService->topProduits($debut, $fin),
+            'ventesArticles' => $statistiquesArticlesService->ventesArticles($debut, $fin),
+            'evolutionStock' => $statistiquesArticlesService->evolutionStock($granulariteStock),
+            'granulariteStock' => $granulariteStock,
             'filtres' => $filtres,
         ]);
     }

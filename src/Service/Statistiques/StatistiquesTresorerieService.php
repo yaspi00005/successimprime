@@ -3,7 +3,6 @@
 namespace App\Service\Statistiques;
 
 use App\Entity\MouvementTresorerie;
-use App\Entity\Paiements;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -18,25 +17,18 @@ final class StatistiquesTresorerieService
     ) {
     }
 
+    /**
+     * Basé sur MouvementTresorerie (et non Paiements) : un
+     * encaissement peut être saisi directement dans le journal de
+     * caisse sans passer par une commande (récupération d'un ancien
+     * impayé, autre produit, reprise d'historique...).
+     */
     public function totalEncaisse(\DateTimeImmutable $debut, \DateTimeImmutable $fin): int
     {
-        $paiements = $this->entityManager
-            ->getRepository(Paiements::class)
-            ->createQueryBuilder('p')
-            ->andWhere('p.date BETWEEN :debut AND :fin')
-            ->setParameter('debut', $debut)
-            ->setParameter('fin', $fin)
-            ->getQuery()
-            ->getResult();
-
         $total = 0;
 
-        foreach ($paiements as $paiement) {
-            if (!$paiement instanceof Paiements || $paiement->estAnnule()) {
-                continue;
-            }
-
-            $total += (int) $paiement->getMontant();
+        foreach ($this->mouvementsValides($debut, $fin, MouvementTresorerie::TYPE_ENCAISSEMENT) as $mouvement) {
+            $total += (int) $mouvement->getMontant();
         }
 
         return $total;
@@ -46,7 +38,7 @@ final class StatistiquesTresorerieService
     {
         $total = 0;
 
-        foreach ($this->decaissementsValides($debut, $fin) as $mouvement) {
+        foreach ($this->mouvementsValides($debut, $fin, MouvementTresorerie::TYPE_DECAISSEMENT) as $mouvement) {
             $total += (int) $mouvement->getMontant();
         }
 
@@ -60,7 +52,7 @@ final class StatistiquesTresorerieService
     {
         $parCategorie = [];
 
-        foreach ($this->decaissementsValides($debut, $fin) as $mouvement) {
+        foreach ($this->mouvementsValides($debut, $fin, MouvementTresorerie::TYPE_DECAISSEMENT) as $mouvement) {
             $cle = $mouvement->getCategorie();
 
             $parCategorie[$cle] ??= [
@@ -81,7 +73,7 @@ final class StatistiquesTresorerieService
     /**
      * @return list<MouvementTresorerie>
      */
-    private function decaissementsValides(\DateTimeImmutable $debut, \DateTimeImmutable $fin): array
+    private function mouvementsValides(\DateTimeImmutable $debut, \DateTimeImmutable $fin, string $type): array
     {
         $resultats = $this->entityManager
             ->getRepository(MouvementTresorerie::class)
@@ -90,7 +82,7 @@ final class StatistiquesTresorerieService
             ->andWhere('m.type = :type')
             ->setParameter('debut', $debut)
             ->setParameter('fin', $fin)
-            ->setParameter('type', MouvementTresorerie::TYPE_DECAISSEMENT)
+            ->setParameter('type', $type)
             ->getQuery()
             ->getResult();
 
