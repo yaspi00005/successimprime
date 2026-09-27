@@ -1,0 +1,289 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}
+	Statistiques globales
+{% endblock %}
+
+{% block body %}
+
+<div class="side-app">
+
+	<div class="page-header">
+
+		<div>
+
+			<ol class="breadcrumb">
+
+				<li class="breadcrumb-item">
+					Statistiques
+				</li>
+
+				<li class="breadcrumb-item active">
+					Vue globale
+				</li>
+
+			</ol>
+
+		</div>
+
+	</div>
+
+
+	{# ==========================================================
+	   PÉRIODE
+	   ========================================================== #}
+
+	<div class="card">
+
+		<div class="card-body">
+
+			<form method="get" class="row align-items-end">
+
+				<div class="col-md-4 mb-2">
+
+					<label class="form-label">
+						Du
+					</label>
+
+					<input
+						type="date"
+						name="date_debut"
+						value="{{ filtres.date_debut }}"
+						class="form-control"
+					>
+
+				</div>
+
+				<div class="col-md-4 mb-2">
+
+					<label class="form-label">
+						Au
+					</label>
+
+					<input
+						type="date"
+						name="date_fin"
+						value="{{ filtres.date_fin }}"
+						class="form-control"
+					>
+
+				</div>
+
+				<div class="col-md-4 mb-2">
+
+					<button type="submit" class="btn btn-primary btn-block">
+						<i class="fa fa-filter mr-1"></i>
+						Filtrer
+					</button>
+
+				</div>
+
+			</form>
+
+		</div>
+
+	</div>
+
+
+	<div class="row">
+
+		{# ==========================================================
+		   VENTES / COMMANDES PAR AGENT
+		   ========================================================== #}
+
+		<div class="col-lg-6">
+
+			<div class="card">
+
+				<div class="card-header">
+					<h3 class="card-title">
+						<i class="fa fa-shopping-cart mr-1"></i>
+						Ventes par agent
+					</h3>
+				</div>
+
+				<div class="card-body">
+					<canvas id="graphiqueVentesAgent" height="220"></canvas>
+				</div>
+
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover mb-0">
+						<thead>
+							<tr>
+								<th>Agent</th>
+								<th class="text-right">Commandes</th>
+								<th class="text-right">Montant (FCFA)</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for ligne in parAgent %}
+								<tr>
+									<td>{{ ligne.nom }}</td>
+									<td class="text-right">{{ ligne.nombre }}</td>
+									<td class="text-right">{{ ligne.montant|number_format(0, ',', ' ') }}</td>
+								</tr>
+							{% else %}
+								<tr>
+									<td colspan="3" class="text-center text-muted py-4">
+										Aucune commande sur cette période.
+									</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+
+			</div>
+
+		</div>
+
+
+		{# ==========================================================
+		   ENCAISSEMENTS PAR CAISSIÈRE
+		   ========================================================== #}
+
+		<div class="col-lg-6">
+
+			<div class="card">
+
+				<div class="card-header">
+					<h3 class="card-title">
+						<i class="fa fa-money-bill mr-1"></i>
+						Encaissements par caissière
+					</h3>
+				</div>
+
+				<div class="card-body">
+					<canvas id="graphiqueEncaissementsCaissiere" height="220"></canvas>
+				</div>
+
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover mb-0">
+						<thead>
+							<tr>
+								<th>Caissière</th>
+								<th class="text-right">Paiements</th>
+								<th class="text-right">Montant (FCFA)</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for ligne in parCaissiere %}
+								<tr>
+									<td>{{ ligne.nom }}</td>
+									<td class="text-right">{{ ligne.nombre }}</td>
+									<td class="text-right">{{ ligne.montant|number_format(0, ',', ' ') }}</td>
+								</tr>
+							{% else %}
+								<tr>
+									<td colspan="3" class="text-center text-muted py-4">
+										Aucun encaissement sur cette période.
+									</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+
+			</div>
+
+		</div>
+
+
+		{# ==========================================================
+		   PRODUCTION PAR AGENT
+		   ========================================================== #}
+
+		<div class="col-lg-6">
+
+			<div class="card">
+
+				<div class="card-header">
+					<h3 class="card-title">
+						<i class="fa fa-industry mr-1"></i>
+						Production terminée par agent
+					</h3>
+				</div>
+
+				<div class="card-body">
+					<canvas id="graphiqueProductionAgent" height="220"></canvas>
+				</div>
+
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover mb-0">
+						<thead>
+							<tr>
+								<th>Agent</th>
+								<th class="text-right">Travaux terminés</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for ligne in parProduction %}
+								<tr>
+									<td>{{ ligne.nom }}</td>
+									<td class="text-right">{{ ligne.nombre }}</td>
+								</tr>
+							{% else %}
+								<tr>
+									<td colspan="2" class="text-center text-muted py-4">
+										Aucun travail terminé sur cette période.
+									</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+
+			</div>
+
+		</div>
+
+	</div>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<script>
+	(function () {
+		var donneesVentesAgent = {{ parAgent|json_encode|raw }};
+		var donneesCaissiere = {{ parCaissiere|json_encode|raw }};
+		var donneesProduction = {{ parProduction|json_encode|raw }};
+
+		function creerGraphiqueBarres(idCanevas, donnees, cleValeur, libelle, couleur) {
+			var canevas = document.getElementById(idCanevas);
+
+			if (!canevas || typeof Chart === 'undefined') {
+				return;
+			}
+
+			new Chart(canevas, {
+				type: 'bar',
+				data: {
+					labels: donnees.map(function (ligne) { return ligne.nom; }),
+					datasets: [{
+						label: libelle,
+						data: donnees.map(function (ligne) { return ligne[cleValeur]; }),
+						backgroundColor: couleur
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: { display: false }
+					},
+					scales: {
+						y: { beginAtZero: true }
+					}
+				}
+			});
+		}
+
+		creerGraphiqueBarres('graphiqueVentesAgent', donneesVentesAgent, 'montant', 'Montant (FCFA)', '#467fcf');
+		creerGraphiqueBarres('graphiqueEncaissementsCaissiere', donneesCaissiere, 'montant', 'Montant (FCFA)', '#5eba00');
+		creerGraphiqueBarres('graphiqueProductionAgent', donneesProduction, 'nombre', 'Travaux terminés', '#f1c40f');
+	})();
+</script>
+
+{% endblock %}
