@@ -243,10 +243,14 @@ security:
 
         # ============================================================
         # STATISTIQUES GLOBALES
+        #
+        # Couvre toutes les sous-pages (globales, commandes,
+        # tresorerie, clients...), toutes reservees a l'administrateur
+        # via ROLE_STATS_GLOBAL.
         # ============================================================
 
         - {
-            path: ^/statistiques/globales,
+            path: ^/statistiques,
             roles: ROLE_STATS_GLOBAL
         }
 

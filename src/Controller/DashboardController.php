@@ -2,13 +2,10 @@
 
 namespace App\Controller;
 
-use App\Entity\Commandes;
-use App\Entity\MouvementTresorerie;
-use App\Entity\Paiements;
 use App\Repository\ClientsRepository;
 use App\Repository\CommandesRepository;
+use App\Service\EvolutionFinanciereService;
 use App\Service\EvolutionTemporelleService;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,8 +20,8 @@ final class DashboardController extends AbstractController
         Request $request,
         CommandesRepository $commandesRepository,
         ClientsRepository $clientsRepository,
-        EntityManagerInterface $entityManager,
-        EvolutionTemporelleService $evolutionService
+        EvolutionTemporelleService $evolutionTemporelleService,
+        EvolutionFinanciereService $evolutionFinanciereService
     ): Response {
         /*
          * Un livreur n'a accès qu'aux livraisons : il n'a rien
@@ -40,7 +37,7 @@ final class DashboardController extends AbstractController
             $periode = 'mois';
         }
 
-        $granulariteEvolution = $evolutionService->normaliserGranularite(
+        $granulariteEvolution = $evolutionTemporelleService->normaliserGranularite(
             $request->query->get('granularite')
         );
 
@@ -60,7 +57,7 @@ final class DashboardController extends AbstractController
             'totalClients' => $clientsRepository->compterClients(),
             'periode' => $periode,
             'granulariteEvolution' => $granulariteEvolution,
-            'evolution' => $this->construireEvolution($entityManager, $evolutionService, $granulariteEvolution),
+            'evolution' => $evolutionFinanciereService->calculer($granulariteEvolution),
         ]);
     }
 
@@ -80,133 +77,5 @@ final class DashboardController extends AbstractController
         };
 
         return [$debut, $fin];
-    }
-
-    /**
-     * Construit les points du graphique d'évolution (chiffre
-     * d'affaires, nombre de commandes, encaissements, décaissements)
-     * sur les N dernières périodes de la granularité choisie.
-     *
-     * @return array{labels: list<string>, ca: list<int>, commandes: list<int>, encaissements: list<int>, decaissements: list<int>}
-     */
-    private function construireEvolution(
-        EntityManagerInterface $entityManager,
-        EvolutionTemporelleService $evolutionService,
-        string $granularite
-    ): array {
-        [$cles, $labels, $debutFenetre] = $evolutionService->genererPaniers($granularite);
-
-        $ca = array_fill_keys($cles, 0);
-        $commandes = array_fill_keys($cles, 0);
-        $encaissements = array_fill_keys($cles, 0);
-        $decaissements = array_fill_keys($cles, 0);
-
-        /*
-         * ============================================================
-         * CHIFFRE D'AFFAIRES / COMMANDES
-         * ============================================================
-         */
-
-        $listeCommandes = $entityManager
-            ->getRepository(Commandes::class)
-            ->createQueryBuilder('c')
-            ->andWhere('c.dateCommande >= :debut')
-            ->andWhere('c.deleted = false')
-            ->setParameter('debut', $debutFenetre)
-            ->getQuery()
-            ->getResult();
-
-        foreach ($listeCommandes as $commande) {
-            if (!$commande instanceof Commandes) {
-                continue;
-            }
-
-            if ($commande->getStatutTravaux() === 'annulee') {
-                continue;
-            }
-
-            $cle = $evolutionService->clePourDate($commande->getDateCommande(), $granularite);
-
-            if (!isset($ca[$cle])) {
-                continue;
-            }
-
-            ++$commandes[$cle];
-            $ca[$cle] += (int) $commande->getTotalTtc();
-        }
-
-        /*
-         * ============================================================
-         * ENCAISSEMENTS
-         * ============================================================
-         */
-
-        $listePaiements = $entityManager
-            ->getRepository(Paiements::class)
-            ->createQueryBuilder('p')
-            ->andWhere('p.date >= :debut')
-            ->setParameter('debut', $debutFenetre)
-            ->getQuery()
-            ->getResult();
-
-        foreach ($listePaiements as $paiement) {
-            if (!$paiement instanceof Paiements) {
-                continue;
-            }
-
-            if ($paiement->estAnnule()) {
-                continue;
-            }
-
-            $cle = $evolutionService->clePourDate($paiement->getDate(), $granularite);
-
-            if (!isset($encaissements[$cle])) {
-                continue;
-            }
-
-            $encaissements[$cle] += (int) $paiement->getMontant();
-        }
-
-        /*
-         * ============================================================
-         * DÉCAISSEMENTS (DÉPENSES)
-         * ============================================================
-         */
-
-        $listeMouvements = $entityManager
-            ->getRepository(MouvementTresorerie::class)
-            ->createQueryBuilder('m')
-            ->andWhere('m.dateOperation >= :debut')
-            ->andWhere('m.type = :type')
-            ->setParameter('debut', $debutFenetre)
-            ->setParameter('type', MouvementTresorerie::TYPE_DECAISSEMENT)
-            ->getQuery()
-            ->getResult();
-
-        foreach ($listeMouvements as $mouvement) {
-            if (!$mouvement instanceof MouvementTresorerie) {
-                continue;
-            }
-
-            if (!$mouvement->isValide()) {
-                continue;
-            }
-
-            $cle = $evolutionService->clePourDate($mouvement->getDateOperation(), $granularite);
-
-            if (!isset($decaissements[$cle])) {
-                continue;
-            }
-
-            $decaissements[$cle] += (int) $mouvement->getMontant();
-        }
-
-        return [
-            'labels' => $labels,
-            'ca' => array_values($ca),
-            'commandes' => array_values($commandes),
-            'encaissements' => array_values($encaissements),
-            'decaissements' => array_values($decaissements),
-        ];
     }
 }
