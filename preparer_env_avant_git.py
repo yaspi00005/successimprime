@@ -45,6 +45,7 @@ import sys
 CLES_SANS_RISQUE = {
     'APP_ENV',
     'APP_DEBUG',
+    'APP_SHARE_DIR',
     'TRUSTED_PROXIES',
     'TRUSTED_HOSTS',
     'DEFAULT_URI',
