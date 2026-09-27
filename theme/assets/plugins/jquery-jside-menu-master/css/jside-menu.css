@@ -1,0 +1,389 @@
+
+
+*{ margin: 0;
+    padding: 0;
+}
+.jside-menu .default-skin {
+    font-weight: 300;
+    font-smoothing: antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    --skin: transparent ;
+    --skin-hover: transparent;
+    --skin-color: rgba(255, 255, 255, 0.8);
+}	
+.left-sidemenu{
+	background:linear-gradient(-360deg, rgb(0, 0, 0, 0.6) 0%, rgb(0, 0, 0,0.6) 100%),url(../../../images/photos/bg.jpg);
+	position: absolute;
+	box-sizing: border-box;
+    margin: 0px;
+    top: 0;
+    bottom: 0;
+    left: -270px;
+    width: 250px;
+     z-index: 1131;
+    -webkit-box-shadow: 0px 8px 17px rgba(0, 0, 0, 0.2);
+    box-shadow: 0px 8px 17px rgba(0, 0, 0, 0.2);
+    -webkit-transition: left 0.3s ease, width 0.3s ease;
+    -o-transition: left 0.3s ease, width 0.3s ease;
+    transition: left 0.3s ease, width 0.3s ease;
+  -webkit-background-size : cover;
+    background-size : cover;
+  background-position : center center;
+  box-shadow:0px 8px 14.72px 1.28px rgb(36, 39, 43,0.7);
+}
+
+.jside-menu .light-skin{
+   --skin: #f0f0f0;
+   --skin-hover: #ddd; 
+   --skin-color:  #232323;
+}
+.jside-menu  .menu-trigger{
+   position: absolute;
+   -webkit-appearance: none;
+   border: 0;
+   outline: 0;
+   background: transparent;
+   top: 17px;
+   padding: 0 18px;
+   color: #fff;
+   cursor: pointer;
+   -webkit-tap-highlight-color: rgba(0, 0, 0, .2);
+}
+.jside-menu  .layer .row {
+    display: table-cell;
+	box-shadow: 0 3px 3px 0 rgba(0,0,0,.2);
+}
+.jside-menu  .menu-trigger:hover{
+  opacity: 0.8;
+-webkit-opacity: 0.8;
+}
+.jside-menu  .menu-trigger:before{
+   font-family: 'feather' !important;
+   content: '\e907';
+   font-size: 24px;
+}
+
+.jside-menu  .menu-trigger.right{
+   right: 10px;
+}
+ .sticky{
+	top: 0;
+    left: 0;
+    position: relative;
+}
+
+.jside-menu  .menu-container{
+   overflow: auto;
+   display: block;
+   top: 94px;
+}
+.jside-menu .menu-container::-webkit-scrollbar {
+  width: 10px;
+}
+.jside-menu .menu-container::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+.jside-menu .menu-container::-webkit-scrollbar-thumb {
+  background: #888; 
+}
+.jside-menu  .menu-container::-webkit-scrollbar-thumb:hover {
+  background: #555; 
+}
+.jside-menu .position-left{
+   left: -270px;
+}
+.jside-menu .position-right{
+   right: -270px;
+}
+.jside-menu .position-left.open{
+    left: 0;
+}
+.jside-menu .position-right.open{
+    right: 0;
+}
+.jside-menu .menu-container,
+.jside-menu .menu-head,
+.jside-menu .menu-left,
+.jside-menu .menu-left.open
+.jside-menu .menu-right,
+.jside-menu .menu-right.open{
+    transition: .4s;
+  -webkit-transition: .4s;
+  -moz-transition: .4s;
+  -ms-transition: .4s;
+}
+.jside-menu .menu-container
+{
+    position: absolute;
+    z-index: 100;
+    width: 250px;
+}
+.jside-menu .menu-head{
+    position: absolute;
+    z-index: 100;
+    width: 250px;
+	height:100%
+}
+
+ .menu-head .layer{
+	display: block;
+	padding: 15px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.jside-menu .menu-head{
+   height: 94px;
+   box-sizing: border-box; 
+   margin: 0px;
+   top: 0;
+}
+.jside-menu .menu-items {
+  list-style: none;
+  font-size: 14px;
+}
+.jside-menu .dropdown-heading,
+.jside-menu .menu-items li a{
+   text-decoration: none;
+   padding: 12px 12px 12px 45px;
+   display: block;
+   border-bottom: 1px dotted rgba(255, 255, 255, 0.10);
+   color:rgba(255,255,255,0.80);
+   margin: 0;
+   cursor: pointer;
+   user-select: none;
+  -webkit-user-select: none;
+}
+.jside-menu .dropdown-heading{
+  -webkit-tap-highlight-color: transparent;
+}
+.jside-menu.dropdown-heading:hover,
+.jside-menu.menu-items li a:hover{
+   background: var(--skin-hover);
+}
+@keyframes fadeIn{
+   from{
+     opacity: 0;
+    -webkit-opacity: 0;
+    }
+    to{
+     opacity: 1;
+    -webkit-opacity: 1;
+   }
+}
+-webkit-@keyframes fadeIn{
+   from{
+     opacity: 0;
+    -webkit-opacity: 0;
+    }
+    to{
+     opacity: 1;
+    -webkit-opacity: 1;
+   }
+}
+.jside-menu .item-icon{
+   margin: 0 25px 0 0;
+   display: inline;
+   width: 32px;
+   height: 32px;
+   line-height: 32px;
+   position: absolute;
+   font-size: 15pt;
+  margin: 5px;
+   text-align: center;
+   color: var(--skin-color);
+}
+/* Dropdowns */
+.jside-menu .has-sub ul{
+   list-style: none;
+   overflow: hidden;
+   height: 0px;
+   transition: .360s;
+   background: rgba(255, 255, 255, 0.1);
+}
+.jside-menu .has-sub ul li a{
+   display: block;
+   padding: 12px 33px;
+   border-bottom: 0;
+   font-size: 13px;
+   color: #fff;
+   transition: .1s;
+   -webkit-transition: .1s;
+   border-bottom: 1px solid rgb(225, 225, 225,0.1);
+}
+.jside-menu .has-sub ul li a:hover{
+    background: rgba(225,225,225,0.20);
+   transition: .1s;
+ -webkit-transition: .1s;
+}
+.jside-menu .has-sub span{
+  display: block;
+  box-sizing: border-box;
+}
+.jside-menu .has-sub i.arrow{
+   float: right;
+   margin-right: 10px; 
+   transition: 0.360s;
+   font-size: 16px;
+}
+.jside-menu .has-sub .arrowdown{
+   transform: rotateZ(180deg);
+  -webkit-transform: rotateZ(180deg);
+  -moz-transform: rotateZ(180deg);
+   transition: 0.360s;
+ -webkit-transition: 0.360s;
+ -moz-transition: 0.360s;
+}
+.jside-menu .for-name {
+   max-width: 140px;
+   padding: 10px;
+   color: var(--skin-color);
+}
+.jside-menu .for-pic {
+    max-width: 70px;
+}
+.jside-menu .profile-pic img{
+   width: 60px;
+   height: 60px;
+   border-radius: 50%;
+   border: 1px solid rgba(255, 255, 255, 0.01);
+   object-fit: cover;
+}
+.jside-menu .menu-head h3 {
+   font-size: 13pt;
+   font-weight: 400;
+}
+.jside-menu .tagline,
+.jside-menu .menu-head h3{
+   display: block;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
+}
+.jside-menu .tagline{
+   font-size: 11px;
+ 
+   display: block;
+}
+/* Dim background effect */
+.jside-menu .dim-overlay{
+   display: none;
+}
+.jside-menu .dim-overlay:before {
+	content: "";
+	background-color: rgba(0, 0, 10, .4);
+	height: 100vh;
+	left: 0;
+	position: fixed;
+	top: 0;
+	width: 100%;
+	overflow: hidden;
+	z-index: 2;
+}
+.left-sidemenu .mCSB_container {
+	margin-right: 0px;
+}
+.left-sidemenu .mCSB_draggerContainer {
+	right: -11px;
+}
+.left-sidemenu .mCS-minimal.mCSB_scrollTools .mCSB_dragger .mCSB_dragger_bar{
+	background:rgba(0,0,0,0.05);
+}
+.left-sidemenu .mCSB_scrollTools .mCSB_dragger .mCSB_dragger_bar, .left-sidemenu .mCSB_scrollTools .mCSB_draggerRail{
+	background:rgba(255,255,255,0.2);
+}
+.demo-settings {
+  position: fixed;
+  top: 170px;
+  right: 5px;
+  z-index: 2002;
+}
+.demo-settings .demo-settings-toggle {
+  transition: all .5s;
+  -webkit-transition: all .5s;
+  -o-transition: all .5s;
+  -moz-transition: all .5s;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  -webkit-border-radius: 50%;
+  -moz-border-radius: 50%;
+  -ms-border-radius: 50%;
+  -o-border-radius: 50%;
+  background-color: #F73F52;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+  text-align: center;
+  line-height: 60px;
+  cursor: pointer;
+}
+.demo-settings .demo-settings-toggle i {
+  font-size: 24px;
+}
+.demo-settings .demo-settings-options {
+  transition: all .5s;
+  -webkit-transition: all .5s;
+  -o-transition: all .5s;
+  -moz-transition: all .5s;
+  transition-delay: .3s;
+  -webkit-transition-delay: .3s;
+  -o-transition-delay: .3s;
+  -moz-transition-delay: .3s;
+  z-index: -1;
+  position: absolute;
+  left: -170px;
+  top: 0;
+  height: 50px;
+  width: 50px;
+  background-color: #fff;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
+  border-radius: 30px;
+  visibility: hidden;
+  opacity: 0;
+}
+.demo-settings .demo-settings-options ul {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  display: inline-block;
+  margin-left: 20px;
+}
+.demo-settings .demo-settings-options ul li {
+  width: 20px;
+  height: 20px;
+  background-color: #000;
+  margin-right: 10px;
+  margin-top: 15px;
+  border-radius: 3px;
+  display: inline-block;
+  cursor: pointer;
+  opacity: 0;
+  transition: all .5s;
+  -webkit-transition: all .5s;
+  -o-transition: all .5s;
+  -moz-transition: all .5s;
+}
+.demo-settings .demo-settings-options ul li:hover {
+  opacity: .8;
+}
+.demo-settings.active .demo-settings-toggle {
+  margin: 5px;
+  box-shadow: none;
+  line-height: 50px;
+  width: 40px;
+  height: 40px;
+  transform: rotate(90deg);
+}
+.demo-settings.active .demo-settings-options {
+  visibility: visible;
+  opacity: 1;
+  width: 220px;
+}
+.demo-settings.active .demo-settings-options ul li {
+  opacity: 1;
+  transition-delay: .3s;
+  -webkit-transition-delay: .3s;
+  -moz-transition-delay: .3s;
+  -o-transition-delay: .3s;
+}
+

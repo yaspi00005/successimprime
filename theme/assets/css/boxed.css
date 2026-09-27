@@ -1,0 +1,61 @@
+.page {
+	max-width:1170px;
+	margin:0 auto;
+	box-shadow:rgba(0, 0, 0, 0.3) 0px 5px 0px 0px, rgba(0, 0, 0, 0.3) 0px 5px 25px 0px;
+	background:linear-gradient(to right, #3446b3, #8925b5);
+}
+body{
+	background:linear-gradient(to right, #202e86, #202e86) !important;
+}
+.container{
+	padding-right: 15px;
+    padding-left: 15px;
+}
+.header-fixed{
+	max-width:1170px;
+	margin:0 auto;
+}
+body.body-dark{
+	background:#1d1d2f !important;
+}
+body.body-dark .page{
+	background: #37374a;
+}
+.app-sidebar{
+	position:absolute !important;
+}
+.first-sidemenu{
+	width:auto !important;
+	margin-top:67px;
+	background:transparent !important;
+}
+.first-sidemenu ul{
+	width:55px !important;
+	background:rgba(0,0,0,0.4) !important;
+}
+.second-sidemenu{
+	position:initial !important;
+}
+.header-brand.left-meu-header-brand{
+	position:fixed;
+}
+.right-side-menu .app-sidebar{
+	right: 255px;
+}
+@media (max-width:768px){
+	.right-side-menu .app-sidebar{
+		right: 200px;
+	}
+}
+@media (min-width:768px){
+	.app-sidebar2 .header-brand.left-meu-header-brand{
+		position:initial;
+	}
+	.sidenav-toggled .app-sidebar2 .header-brand.left-meu-header-brand{
+		display:none;
+		margin-left:0;
+	}
+	.sidenav-toggled .app-content .header-fixed{
+		border-left:0;
+	}
+}
