@@ -12,6 +12,9 @@
 
 		.dashboard-kpi .card-body {
 			padding: 1.5rem;
+			display: flex;
+			align-items: center;
+			gap: 1rem;
 		}
 
 		.dashboard-kpi .kpi-valeur {
@@ -20,14 +23,50 @@
 			line-height: 1.1;
 		}
 
+		.dashboard-kpi .kpi-libelle {
+			color: #8492a6;
+			font-size: 0.85rem;
+		}
+
 		.dashboard-kpi .kpi-icone {
 			width: 52px;
 			height: 52px;
+			min-width: 52px;
 			border-radius: 12px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			font-size: 1.4rem;
+			color: #fff;
+		}
+
+		.kpi-icone-commandes { background: linear-gradient(135deg, #467fcf, #2c5aa0); }
+		.kpi-icone-ca { background: linear-gradient(135deg, #5eba00, #3e8e00); }
+		.kpi-icone-agent { background: linear-gradient(135deg, #f1c40f, #d4a90a); }
+		.kpi-icone-clients { background: linear-gradient(135deg, #6f42c1, #59349b); }
+
+		.carte-evolution {
+			background: linear-gradient(160deg, #1c2b45, #101a2c);
+			border-radius: 12px;
+			color: #e7ecf5;
+		}
+
+		.carte-evolution .card-header {
+			border-bottom-color: rgba(255, 255, 255, 0.08);
+		}
+
+		.carte-evolution .card-title {
+			color: #fff;
+		}
+
+		.carte-evolution .btn-group .btn {
+			border-color: rgba(255, 255, 255, 0.15);
+			color: #b9c4d6;
+		}
+
+		.carte-evolution .btn-group .btn.actif {
+			background: #467fcf;
+			border-color: #467fcf;
 			color: #fff;
 		}
 
@@ -96,7 +135,7 @@
 					annee: 'Cette année',
 					tout: 'Tout'
 				} %}
-					<a href="{{ path('app_home', {periode: cle}) }}" class="btn btn-sm {{ periode == cle ? 'btn-primary' : 'btn-primary-light' }}">
+					<a href="{{ path('app_home', {periode: cle, granularite: granulariteEvolution}) }}" class="btn btn-sm {{ periode == cle ? 'btn-primary' : 'btn-primary-light' }}">
 						{{ libelle }}
 					</a>
 				{% endfor %}
@@ -105,45 +144,321 @@
 		</div>
 
 
-		<div class="row"></div>
+		{# ==========================================================
+		   KPI
+		   ========================================================== #}
+
+		<div class="row">
+
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="card dashboard-kpi mb-0 h-100">
+					<div class="card-body">
+						<div class="kpi-icone kpi-icone-commandes">
+							<i class="fa fa-shopping-cart"></i>
+						</div>
+						<div>
+							<div class="kpi-valeur js-compteur" data-valeur="{{ totalCommandes }}">0</div>
+							<div class="kpi-libelle">Commandes</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="card dashboard-kpi mb-0 h-100">
+					<div class="card-body">
+						<div class="kpi-icone kpi-icone-ca">
+							<i class="fa fa-money-bill"></i>
+						</div>
+						<div>
+							<div class="kpi-valeur js-compteur" data-valeur="{{ totalCa }}" data-suffixe=" FCFA">0</div>
+							<div class="kpi-libelle">Chiffre d'affaires</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="card dashboard-kpi mb-0 h-100">
+					<div class="card-body">
+						<div class="kpi-icone kpi-icone-agent">
+							<i class="fa fa-trophy"></i>
+						</div>
+						<div>
+							<div class="kpi-valeur js-compteur" data-valeur="{{ meilleurCa }}" data-suffixe=" FCFA">0</div>
+							<div class="kpi-libelle">Meilleur agent (CA)</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-lg-3 col-md-6 mb-3">
+				<div class="card dashboard-kpi mb-0 h-100">
+					<div class="card-body">
+						<div class="kpi-icone kpi-icone-clients">
+							<i class="fa fa-users"></i>
+						</div>
+						<div>
+							<div class="kpi-valeur js-compteur" data-valeur="{{ totalClients }}">0</div>
+							<div class="kpi-libelle">Clients enregistrés</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+		</div>
 
 
-		<div class="card"></div>
+		{# ==========================================================
+		   ÉVOLUTION
+		   ========================================================== #}
+
+		<div class="row">
+
+			<div class="col-lg-6 mb-3">
+
+				<div class="card carte-evolution mb-0 h-100">
+
+					<div class="card-header d-flex align-items-center justify-content-between flex-wrap">
+
+						<h3 class="card-title mb-0">
+							Évolution du chiffre d'affaires
+						</h3>
+
+						<div class="btn-group">
+							{% for cle, libelle in { jour: 'Jour', semaine: 'Semaine', mois: 'Mois', annee: 'Année' } %}
+								<a href="{{ path('app_home', {periode: periode, granularite: cle}) }}" class="btn btn-sm {{ granulariteEvolution == cle ? 'actif' : '' }}">
+									{{ libelle }}
+								</a>
+							{% endfor %}
+						</div>
+
+					</div>
+
+					<div class="card-body">
+						<canvas id="graphiqueEvolutionCa" height="220"></canvas>
+					</div>
+
+				</div>
+
+			</div>
+
+			<div class="col-lg-6 mb-3">
+
+				<div class="card carte-evolution mb-0 h-100">
+
+					<div class="card-header">
+						<h3 class="card-title mb-0">
+							Encaissements vs décaissements
+						</h3>
+					</div>
+
+					<div class="card-body">
+						<canvas id="graphiqueEncaissementsDecaissements" height="220"></canvas>
+					</div>
+
+				</div>
+
+			</div>
+
+		</div>
+
+
+		{# ==========================================================
+		   TOP AGENTS
+		   ========================================================== #}
+
+		<div class="row">
+
+			<div class="col-lg-12 mb-3">
+
+				<div class="card mb-0">
+
+					<div class="card-header">
+						<h3 class="card-title mb-0">
+							Classement des agents (période sélectionnée)
+						</h3>
+					</div>
+
+					<div class="card-body">
+
+						{% for ligne in statsParAgent %}
+
+							{% set pourcentage = meilleurCa > 0 ? (ligne.caGenere / meilleurCa * 100) : 0 %}
+
+							<div class="agent-ligne">
+
+								<div class="agent-avatar">
+									{{ (ligne.agentPrenom|default(ligne.agentUsername)|slice(0, 1))|upper }}
+								</div>
+
+								<div class="flex-fill">
+
+									<div class="d-flex justify-content-between">
+										<strong>
+											{{ ligne.agentPrenom is not empty ? (ligne.agentPrenom ~ ' ' ~ ligne.agentNom) : ligne.agentUsername }}
+										</strong>
+										<span class="text-muted">
+											{{ ligne.nbCommandes }} commande(s) · {{ ligne.caGenere|number_format(0, ',', ' ') }} FCFA
+										</span>
+									</div>
+
+									<div class="agent-barre-piste">
+										<div class="agent-barre-remplie js-barre" data-largeur="{{ pourcentage }}"></div>
+									</div>
+
+								</div>
+
+							</div>
+
+						{% else %}
+
+							<p class="text-muted text-center mb-0 py-4">
+								Aucune commande sur cette période.
+							</p>
+
+						{% endfor %}
+
+					</div>
+
+				</div>
+
+			</div>
+
+		</div>
 
 	</div>
 
 {% endblock %}
 
 {% block javascripts %}
+
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
 	<script>
 		document.addEventListener('DOMContentLoaded', function () {
 
-document.querySelectorAll('.js-barre').forEach(function (barre) {
-const largeur = parseFloat(barre.dataset.largeur || '0');
-requestAnimationFrame(function () {
-barre.style.width = Math.max(0, Math.min(100, largeur)) + '%';
-});
-});
+			document.querySelectorAll('.js-barre').forEach(function (barre) {
+				const largeur = parseFloat(barre.dataset.largeur || '0');
+				requestAnimationFrame(function () {
+					barre.style.width = Math.max(0, Math.min(100, largeur)) + '%';
+				});
+			});
 
-document.querySelectorAll('.js-compteur').forEach(function (element) {
-const cible = parseInt(element.dataset.valeur || '0', 10);
-const suffixe = element.dataset.suffixe || '';
-const duree = 900;
-const depart = performance.now();
+			document.querySelectorAll('.js-compteur').forEach(function (element) {
+				const cible = parseInt(element.dataset.valeur || '0', 10);
+				const suffixe = element.dataset.suffixe || '';
+				const duree = 900;
+				const depart = performance.now();
 
-function animer(maintenant) {
-const progres = Math.min(1, (maintenant - depart) / duree);
-const valeur = Math.round(cible * progres);
-element.textContent = valeur.toLocaleString('fr-FR') + suffixe;
+				function animer(maintenant) {
+					const progres = Math.min(1, (maintenant - depart) / duree);
+					const valeur = Math.round(cible * progres);
+					element.textContent = valeur.toLocaleString('fr-FR') + suffixe;
 
-if (progres < 1) {
-requestAnimationFrame(animer);
-}
-}
+					if (progres < 1) {
+						requestAnimationFrame(animer);
+					}
+				}
 
-requestAnimationFrame(animer);
-});
+				requestAnimationFrame(animer);
+			});
 
-});
+			if (typeof Chart === 'undefined') {
+				return;
+			}
+
+			var evolution = {{ evolution|json_encode|raw }};
+
+			var canevasCa = document.getElementById('graphiqueEvolutionCa');
+
+			if (canevasCa) {
+				new Chart(canevasCa, {
+					type: 'line',
+					data: {
+						labels: evolution.labels,
+						datasets: [
+							{
+								label: 'Chiffre d\'affaires (FCFA)',
+								data: evolution.ca,
+								borderColor: '#467fcf',
+								backgroundColor: 'rgba(70, 127, 207, 0.25)',
+								fill: true,
+								tension: 0.35,
+								yAxisID: 'y'
+							},
+							{
+								label: 'Commandes',
+								data: evolution.commandes,
+								borderColor: '#f1c40f',
+								backgroundColor: 'rgba(241, 196, 15, 0.15)',
+								fill: false,
+								tension: 0.35,
+								yAxisID: 'y1'
+							}
+						]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						interaction: { mode: 'index', intersect: false },
+						plugins: {
+							legend: { labels: { color: '#e7ecf5' } }
+						},
+						scales: {
+							x: { ticks: { color: '#b9c4d6' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+							y: {
+								position: 'left',
+								beginAtZero: true,
+								ticks: { color: '#b9c4d6' },
+								grid: { color: 'rgba(255,255,255,0.06)' }
+							},
+							y1: {
+								position: 'right',
+								beginAtZero: true,
+								ticks: { color: '#b9c4d6' },
+								grid: { display: false }
+							}
+						}
+					}
+				});
+			}
+
+			var canevasEncDec = document.getElementById('graphiqueEncaissementsDecaissements');
+
+			if (canevasEncDec) {
+				new Chart(canevasEncDec, {
+					type: 'bar',
+					data: {
+						labels: evolution.labels,
+						datasets: [
+							{
+								label: 'Encaissements',
+								data: evolution.encaissements,
+								backgroundColor: '#5eba00'
+							},
+							{
+								label: 'Décaissements',
+								data: evolution.decaissements,
+								backgroundColor: '#cd201f'
+							}
+						]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						plugins: {
+							legend: { labels: { color: '#e7ecf5' } }
+						},
+						scales: {
+							x: { ticks: { color: '#b9c4d6' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+							y: { beginAtZero: true, ticks: { color: '#b9c4d6' }, grid: { color: 'rgba(255,255,255,0.06)' } }
+						}
+					}
+				});
+			}
+
+		});
 	</script>
+
 {% endblock %}
