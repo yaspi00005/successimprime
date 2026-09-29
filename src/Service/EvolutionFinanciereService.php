@@ -49,7 +49,14 @@ final class EvolutionFinanciereService
 
         /*
          * ============================================================
-         * CHIFFRE D'AFFAIRES / COMMANDES
+         * NOMBRE DE COMMANDES
+         * ============================================================
+         *
+         * Simple comptage : reste basé sur la table Commandes, seule
+         * source pour ce nombre. Le suivi détaillé "commande par
+         * commande" n'existe que depuis sa mise en place -- le nombre
+         * de commandes est donc naturellement nul avant cette date,
+         * contrairement à la trésorerie qui remonte plus loin.
          * ============================================================
          */
 
@@ -63,36 +70,31 @@ final class EvolutionFinanciereService
             ->getResult();
 
         foreach ($listeCommandes as $commande) {
-            if (!$commande instanceof Commandes) {
-                continue;
-            }
-
-            if ($commande->getStatutTravaux() === 'annulee') {
+            if (!$commande instanceof Commandes || $commande->getStatutTravaux() === 'annulee') {
                 continue;
             }
 
             $cle = $this->evolutionTemporelleService->clePourDate($commande->getDateCommande(), $granularite);
 
-            if (!isset($ca[$cle])) {
-                continue;
+            if (isset($commandes[$cle])) {
+                ++$commandes[$cle];
             }
-
-            ++$commandes[$cle];
-            $ca[$cle] += (int) $commande->getTotalTtc();
         }
 
         /*
          * ============================================================
-         * ENCAISSEMENTS / DÉCAISSEMENTS
+         * CHIFFRE D'AFFAIRES / ENCAISSEMENTS / DÉCAISSEMENTS
          * ============================================================
          *
-         * On se base sur MouvementTresorerie (et non sur Paiements) :
-         * chaque paiement validé y crée automatiquement un mouvement
-         * (voir PaiementService::valider()), mais un encaissement peut
-         * aussi être saisi directement dans le journal de caisse sans
-         * passer par une commande (récupération d'un ancien impayé,
-         * autre produit, reprise d'historique...). Se limiter à
-         * Paiements ignorait tous ces mouvements directs.
+         * Tout vient de MouvementTresorerie (et non de Commandes ou
+         * Paiements) : le suivi détaillé des commandes n'existe que
+         * depuis sa mise en place récente, alors que la trésorerie
+         * (journal de caisse) remonte à l'historique complet -- s'appuyer
+         * sur les commandes rendait le CA nul avant cette date alors que
+         * l'argent, lui, avait bien été encaissé. Le chiffre d'affaires
+         * retenu est celui des encaissements "produit" (estProduit()) :
+         * ventes et autres produits réels, hors transferts internes et
+         * ajustements neutres.
          * ============================================================
          */
 
@@ -120,6 +122,10 @@ final class EvolutionFinanciereService
             if ($mouvement->getType() === MouvementTresorerie::TYPE_ENCAISSEMENT) {
                 if (isset($encaissements[$cle])) {
                     $encaissements[$cle] += $montant;
+                }
+
+                if ($mouvement->estProduit() && isset($ca[$cle])) {
+                    $ca[$cle] += $montant;
                 }
             } elseif (isset($decaissements[$cle])) {
                 $decaissements[$cle] += $montant;
